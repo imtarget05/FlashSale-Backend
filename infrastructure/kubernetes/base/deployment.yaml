@@ -15,11 +15,30 @@ spec:
       labels:
         app: order-api
     spec:
+      # Phase 5 (Trivy KSV-0014/KSV-0118): pod must declare non-root + hardened
+      # runtime explicitly, not rely on the image default. The app already runs
+      # as uid 1654 (ADR-007); declaring it here makes kubelet enforce it.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
       containers:
         - name: order-api
           image: acrflashsale-placeholder.azurecr.io/order-api:latest  # kustomize override
+          # container-level hardening: Trivy (KSV-0014/KSV-0118) checks these
+          # HERE — pod-level securityContext alone does not satisfy the checks
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 8080
+          volumeMounts:
+            # file DLQ writes to /app/logs; readOnlyRootFilesystem needs a
+            # writable scratch mount for it
+            - name: dlq-logs
+              mountPath: /app/logs
           env:
             - name: ConnectionStrings__DefaultConnection
               valueFrom:
@@ -44,9 +63,14 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
+          # readiness must gate on PostgreSQL (the real dependency), not the
+          # liveness alias — Phase 4 proved /health/ready is the meaningful probe
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /health/ready
               port: 8080
             initialDelaySeconds: 3
             periodSeconds: 5
+      volumes:
+        - name: dlq-logs
+          emptyDir: {}

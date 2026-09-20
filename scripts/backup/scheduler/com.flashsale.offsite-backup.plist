@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Portfolio Mode scheduler: daily off-site backup at 02:30 local time.
+  Install:  cp scripts/backup/scheduler/com.flashsale.offsite-backup.plist ~/Library/LaunchAgents/
+            launchctl load -w ~/Library/LaunchAgents/com.flashsale.offsite-backup.plist
+  Note: RPO <=24h holds ONLY while this macOS host is powered on and awake.
+  TODO: replace the <string> path with your checkout path before loading.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.flashsale.offsite-backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__INSTALL_DIR__/repo/scripts/backup/scheduler/run-offsite-backup-scheduled.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>2</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardErrorPath</key>
+  <string>/tmp/flashsale-offsite-backup.err</string>
+  <key>StandardOutPath</key>
+  <string>/tmp/flashsale-offsite-backup.out</string>
+</dict>
+</plist>
