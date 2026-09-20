@@ -305,16 +305,20 @@ jobs:
       # from this commit; nothing is ever kubectl-applied by CI.
       - name: Pin the overlay to the released SHA
         run: |
-          FILE=infrastructure/kubernetes/overlays/prod/kustomization.yaml
-          python3 - "$FILE" "${{ vars.ACR_LOGIN_SERVER }}" "${GITHUB_SHA}" <<'PY'
+          python3 - infrastructure/kubernetes/overlays/prod/kustomization.yaml \
+                   "${{ vars.ACR_LOGIN_SERVER }}" "${GITHUB_SHA}" <<'PY'
           import sys, re
           path, acr, sha = sys.argv[1], sys.argv[2], sys.argv[3]
           text = open(path).read()
-          text = re.sub(r'(\n\s*- name: )\S*/order-api', r'\1' + acr + '/order-api', text)
-          text = re.sub(r'(\n\s*newTag: ).*', r'\1' + sha, text)
+          # lambda replacements: a plain r'\1' + value breaks when the value
+          # starts with a digit (\1 + "1de…" is parsed as group 11)
+          text = re.sub(r'(?m)^(\s*- name: )\S*/order-api',
+                        lambda m: m.group(1) + acr + '/order-api', text)
+          text = re.sub(r'(?m)^(\s*newTag: ).*$',
+                        lambda m: m.group(1) + sha, text)
           open(path, 'w').write(text)
           PY
-          git diff --stat
+          git diff -- infrastructure/kubernetes/overlays/prod/kustomization.yaml
       - name: Commit and push the GitOps bump
         run: |
           git config user.name  "github-actions[bot]"
