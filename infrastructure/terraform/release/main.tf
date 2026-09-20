@@ -41,6 +41,27 @@ resource "azurerm_federated_identity_credential" "pull_request" {
   subject             = "repo:${var.github_org}/${var.github_repo}:pull_request"
 }
 
+# ID-qualified subjects — the ones GitHub actually presents today (Phase 6
+# finding: AADSTS700213 "no matching federated identity record" for the plain
+# org/repo form because the assertion carried owner/repo numeric ids).
+resource "azurerm_federated_identity_credential" "main_branch_ids" {
+  name                = "gh-main-immutable-ids"
+  resource_group_name = azurerm_resource_group.release.name
+  parent_id           = azurerm_user_assigned_identity.github_release.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = "https://token.actions.githubusercontent.com"
+  subject             = "repo:${var.github_org}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:ref:refs/heads/main"
+}
+
+resource "azurerm_federated_identity_credential" "pull_request_ids" {
+  name                = "gh-pr-immutable-ids"
+  resource_group_name = azurerm_resource_group.release.name
+  parent_id           = azurerm_user_assigned_identity.github_release.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = "https://token.actions.githubusercontent.com"
+  subject             = "repo:${var.github_org}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:pull_request"
+}
+
 # AcrPush for SHA-tagged image publishes; AcrPull so the identity can also
 # verify what it pushed (digest listing) in the same job.
 resource "azurerm_role_assignment" "acr_push" {
