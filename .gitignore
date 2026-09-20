@@ -20,3 +20,10 @@ node_modules/
 backups/*
 !backups/.gitkeep
 !backups/.gitignore
+
+# Phase 3B off-host recovery drill artifacts (never commit)
+# NOTE: anchored with a leading slash on purpose — a bare `recovery/` would also
+# match docs/recovery/ (the backup *policy* docs, which must stay tracked).
+/recovery/
+/.loss-simulation-quarantine/
+/logs/
