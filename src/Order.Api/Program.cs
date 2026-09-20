@@ -156,18 +156,28 @@ app.MapGet("/healthz", () => Results.Ok(new { status = "healthy" }));
 // of truth so it gates readiness. Redis/RabbitMQ are RUNTIME OPTIONAL — the
 // API falls back to synchronous Postgres processing when Redis is down
 // (Task 2 verified), so their absence must NOT make the API unready.
+//
+// Phase 4 gate finding: CanConnectAsync() returns FALSE for an unreachable
+// server and only THROWS for some failure modes. The previous version ignored
+// the boolean, so a database-less instance still answered {"status":"ready"} —
+// a false-ready pod would receive traffic in Kubernetes. Both outcomes must now
+// map to 503 not-ready.
 app.MapGet("/health/ready", async (AppDbContext db, ILogger<Program> readinessLogger) =>
 {
+    bool canConnect;
     try
     {
-        await db.Database.CanConnectAsync();
-        return Results.Ok(new { status = "ready" });
+        canConnect = await db.Database.CanConnectAsync();
     }
     catch (Exception ex)
     {
         readinessLogger.LogWarning(ex, "Readiness check failed: PostgreSQL unreachable.");
-        return Results.Json(new { status = "not-ready" }, statusCode: 503);
+        canConnect = false;
     }
+
+    return canConnect
+        ? Results.Ok(new { status = "ready" })
+        : Results.Json(new { status = "not-ready" }, statusCode: 503);
 });
 
 app.Run();

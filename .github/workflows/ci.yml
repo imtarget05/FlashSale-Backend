@@ -1,12 +1,82 @@
-name: FlashSale CI
+name: FlashSale CI (DevSecOps)
+
+# Phase 5: one PR pipeline proving build, tests, security scanning and container
+# builds on every change. The concurrency harness is the original Phase 1-3
+# evidence (inventory conservation under concurrent purchase) kept alive.
+#
+# Jobs:
+#   build-and-unit        dotnet build + unit tests + NuGet audit
+#   integration-tests     Testcontainers (real Postgres/Redis/RabbitMQ)
+#   concurrency-harness   50 buyers vs stock 10 — oversell must not happen
+#   security-scan         Trivy fs (vuln + secret + IaC misconfig)
+#   docker-build-scan     build API+worker images, Trivy image scan
+#   sonarqube             Sonar analysis + QUALITY GATE (needs SONAR_TOKEN;
+#                         skipped with an explicit log line until configured)
+#   ci-gate               single aggregate check for branch protection
 
 on:
   push:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-and-concurrency-test:
+  build-and-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build
+        run: dotnet build AzureFlashSale.slnx
+      - name: Unit tests (use cases + architecture guards)
+        run: >
+          dotnet test tests/UnitTests/FlashSale.UnitTests.csproj
+          --no-build -v normal --logger trx --results-directory ./test-results
+      - name: NuGet audit (no vulnerable packages, transitive included)
+        run: |
+          set -o pipefail
+          fail=0
+          for csproj in $(find src tests -name '*.csproj' -not -path '*/obj/*'); do
+            echo "== $csproj =="
+            dotnet list "$csproj" package --vulnerable --include-transitive || fail=1
+          done
+          exit $fail
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: test-results/
+          if-no-files-found: ignore
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      # Testcontainers talks to the runner's Docker daemon (present on
+      # ubuntu-latest); it boots real Postgres/Redis/RabbitMQ per fixture.
+      - name: "Integration tests (Testcontainers: Postgres + Redis + RabbitMQ)"
+        run: >
+          dotnet test tests/IntegrationTests/FlashSale.IntegrationTests.csproj
+          -v normal --logger trx --results-directory ./test-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: test-results/
+          if-no-files-found: ignore
+
+  concurrency-harness:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -25,37 +95,150 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 3s --health-retries 10
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-
       - name: Build
         run: dotnet build AzureFlashSale.slnx
-
-      - name: Unit tests (use cases + architecture guards)
-        run: dotnet test AzureFlashSale.slnx --filter "FullyQualifiedName!~IntegrationTests" --no-build --verbosity normal
-
       - name: Install psql client (audit tooling for the harness)
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
       - name: Start API in background
         run: |
           nohup dotnet run --project src/Order.Api --urls http://localhost:5065 > api.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:5065/healthz && break; sleep 1; done
-
       - name: Concurrency harness — inventory must be conserved (no overselling)
         run: |
           python3 load-tests/concurrency/oversell_demo.py \
             --stock 10 --requests 50 --psql-container '' --settle-seconds 3 | tee result.txt
           grep -q "RESULT: PASS" result.txt
-
-      - name: Upload API log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: api-log
-          path: api.log
+          name: harness-result
+          path: |
+            result.txt
+            api.log
+          if-no-files-found: ignore
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # vuln + secret + IaC misconfig on the whole checkout; HIGH+ fails the PR.
+      # Local TF state is never committed (*.tfstate* ignored) but the skip keeps
+      # the scan deterministic; .env is a git-ignored dev file.
+      - name: Trivy fs — vulnerabilities, secrets and IaC misconfig (HIGH+ blocks)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: false
+          skip-files: '*.tfstate*,.env'
+      - name: Trivy config — Dockerfile / Terraform / Kubernetes IaC
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+  docker-build-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build order-api image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: flashsale/order-api:ci-${{ github.sha }}
+      - name: Build order-worker image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.worker
+          push: false
+          load: true
+          tags: flashsale/order-worker:ci-${{ github.sha }}
+      - name: Trivy image scan — order-api (HIGH+ blocks)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: flashsale/order-api:ci-${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+      - name: Trivy image scan — order-worker (HIGH+ blocks)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: flashsale/order-worker:ci-${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+  sonarqube:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Java 17 is required by the Sonar scanner for .NET
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: SonarQube analysis + quality gate
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -z "${SONAR_TOKEN}" ]; then
+            echo "SKIP: SONAR_TOKEN is not configured on this repository yet."
+            echo "Quality gate is NOT enforced in CI. Enable steps are documented in"
+            echo "docs/evidence/ci/phase5-devsecops-pipeline.md (SonarCloud token +"
+            echo "'gh secret set SONAR_TOKEN'). Until then Trivy + NuGet audit carry"
+            echo "the security evidence and this job reports itself as skipped."
+            exit 0
+          fi
+          dotnet tool install --global dotnet-sonarscanner
+          dotnet sonarscanner begin \
+            /k:"imtarget05_FlashSale-Backend" \
+            /o:"imtarget05" \
+            /d:sonar.token="${SONAR_TOKEN}" \
+            /d:sonar.cs.vstest.reportsPaths="**/*.trx" \
+            /d:sonar.qualitygate.wait=true \
+            /d:sonar.qualitygate.timeout=600
+          dotnet build AzureFlashSale.slnx
+          dotnet test AzureFlashSale.slnx --no-build -v q \
+            --logger trx --results-directory ./test-results
+          dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+
+  ci-gate:
+    needs:
+      - build-and-unit
+      - integration-tests
+      - concurrency-harness
+      - security-scan
+      - docker-build-scan
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Aggregate gate
+        run: |
+          echo "build-and-unit       = ${{ needs.build-and-unit.result }}"
+          echo "integration-tests    = ${{ needs.integration-tests.result }}"
+          echo "concurrency-harness  = ${{ needs.concurrency-harness.result }}"
+          echo "security-scan        = ${{ needs.security-scan.result }}"
+          echo "docker-build-scan    = ${{ needs.docker-build-scan.result }}"
+          fail=0
+          [ "${{ needs.build-and-unit.result }}"      = "success" ] || { echo "GATE FAIL: build-and-unit";      fail=1; }
+          [ "${{ needs.integration-tests.result }}"   = "success" ] || { echo "GATE FAIL: integration-tests";   fail=1; }
+          [ "${{ needs.concurrency-harness.result }}" = "success" ] || { echo "GATE FAIL: concurrency-harness"; fail=1; }
+          [ "${{ needs.security-scan.result }}"       = "success" ] || { echo "GATE FAIL: security-scan";       fail=1; }
+          [ "${{ needs.docker-build-scan.result }}"   = "success" ] || { echo "GATE FAIL: docker-build-scan";   fail=1; }
+          exit $fail

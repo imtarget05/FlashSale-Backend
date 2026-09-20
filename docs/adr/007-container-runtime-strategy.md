@@ -40,3 +40,37 @@ unused, no resource bounds, hard-coded dev credentials, ephemeral DLQ.
 - `docker compose build/up/ps` reproducible; API healthy in ~40s;
   restart keeps Postgres orders/stock; images ~705/710MB (SDK-based,
   debuggability over minimal size).
+
+## Addendum — Phase 4 container gate (2026-09-20)
+
+The gate (fresh clone → `compose up --build` → order flow → probe drills) is
+recorded in `docs/evidence/container/phase4-container-gate.md`. Two corrections
+to the original decision text:
+
+1. **Readiness must consume the boolean.** The first implementation called
+   `await db.Database.CanConnectAsync()` and ignored its return value, catching
+   only exceptions. `CanConnectAsync` returns **false** for an unreachable
+   server (it does not throw), so with PostgreSQL stopped the probe still
+   answered `200 {"status":"ready"}` — a false-ready instance that Kubernetes
+   would keep in the service endpoints. Fixed:
+
+   ```csharp
+   bool canConnect;
+   try { canConnect = await db.Database.CanConnectAsync(); }
+   catch (Exception ex) { /* log */ canConnect = false; }
+   return canConnect ? Ok("ready") : Json("not-ready", 503);   // verified: 503 while PG down
+   ```
+
+   Contract for every future probe: *a probe that cannot fail is not a probe.*
+
+2. **Readiness only applies after a successful start.** `DatabaseInitializer`
+   runs migrations at boot, so with PostgreSQL unavailable the container exits
+   and restart-loops instead of staying up as `not-ready`. `depends_on:
+   service_healthy` covers compose; Kubernetes needs an init/ordering story in
+   Phase 7 (initContainer or migration Job), not just a readiness probe.
+
+Also confirmed by the gate: liveness stays `healthy` while the database is down
+(correct separation — liveness must not depend on dependencies), and the Docker
+healthcheck flips to `unhealthy` after the 10s × 5 retry window and recovers
+automatically. The `libgssapi_krb5.so.2` notice is confirmed non-fatal log noise
+on `aspnet:10.0`/Ubuntu 24.04.
