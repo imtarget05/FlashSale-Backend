@@ -104,5 +104,15 @@ document intentionally does not claim it is.
 
 ## Merge
 
-Merged to `main` after the green run (the PR also drives the same workflow on
-`push` to `main` for a second confirmation).
+Merged to `main` after the green run (merge commit `8486807`). The push to
+`main` re-ran the whole pipeline as a second confirmation:
+
+```text
+main run 35524574658 (sha 8486807) → status completed, conclusion: success
+```
+
+Green runs on record:
+- PR run: https://github.com/imtarget05/FlashSale-Backend/actions/runs/35524030380
+- PR run (after evidence commit): https://github.com/imtarget05/FlashSale-Backend/actions/runs/35524284938
+- main run: https://github.com/imtarget05/FlashSale-Backend/actions/runs/35524574658
+- honest failed run kept for the record: https://github.com/imtarget05/FlashSale-Backend/actions/runs/35523852067
