@@ -130,7 +130,7 @@ jobs:
       # Local TF state is never committed (*.tfstate* ignored) but the skip keeps
       # the scan deterministic; .env is a git-ignored dev file.
       - name: Trivy fs — vulnerabilities, secrets and IaC misconfig (HIGH+ blocks)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scanners: vuln,secret,misconfig
@@ -139,7 +139,7 @@ jobs:
           ignore-unfixed: false
           skip-files: '*.tfstate*,.env'
       - name: Trivy config — Dockerfile / Terraform / Kubernetes IaC
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           severity: HIGH,CRITICAL
@@ -167,14 +167,14 @@ jobs:
           load: true
           tags: flashsale/order-worker:ci-${{ github.sha }}
       - name: Trivy image scan — order-api (HIGH+ blocks)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: flashsale/order-api:ci-${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: true
       - name: Trivy image scan — order-worker (HIGH+ blocks)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: flashsale/order-worker:ci-${{ github.sha }}
           severity: HIGH,CRITICAL
