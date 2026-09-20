@@ -4,18 +4,20 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "5000:8080"
+      - "${API_PORT:-5000}:8080"
     environment:
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=FlashSaleDb;Username=postgres;Password=postgres;Maximum Pool Size=80
-      - ConnectionStrings__Redis=redis:6379
-      - ConnectionStrings__RabbitMQ=amqp://guest:guest@rabbitmq:5672/
-      - ConnectionStrings__Kafka=kafka:9092
+      - ConnectionStrings__DefaultConnection=Host=${POSTGRES_HOST:-postgres};Port=5432;Database=${POSTGRES_DB:-FlashSaleDb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=80
+      - ConnectionStrings__Redis=${REDIS_HOST:-redis}:6379
+      - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@${RABBITMQ_HOST:-rabbitmq}:5672/
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      # aspnet runtime has no wget/curl and sh lacks /dev/tcp: run a tiny
+      # framework-dependent probe with the SDK-free runtime (dotnet is present
+      # because the app itself runs on it). Liveness alias /healthz kept.
+      test: ["CMD-SHELL", "dotnet exec /app/HealthProbe.dll http://127.0.0.1:8080/health/ready || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 5
-      start_period: 10s
+      start_period: 20s
     depends_on:
       postgres:
         condition: service_healthy
@@ -23,61 +25,122 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - dlq-data:/app/logs
 
   order-worker:
     build:
       context: .
       dockerfile: Dockerfile.worker
     environment:
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=FlashSaleDb;Username=postgres;Password=postgres;Maximum Pool Size=40
-      - ConnectionStrings__RabbitMQ=amqp://guest:guest@rabbitmq:5672/
-      - ConnectionStrings__Kafka=kafka:9092
+      - ConnectionStrings__DefaultConnection=Host=${POSTGRES_HOST:-postgres};Port=5432;Database=${POSTGRES_DB:-FlashSaleDb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=40
+      - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@${RABBITMQ_HOST:-rabbitmq}:5672/
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - dlq-data:/app/logs
 
   postgres:
     image: postgres:15-alpine
     command: postgres -c 'max_connections=200'
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: FlashSaleDb
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-FlashSaleDb}
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d FlashSaleDb"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-FlashSaleDb}"]
       interval: 5s
       timeout: 3s
       retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
     ports:
       - "5672:5672"
       - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
       interval: 10s
-      timeout: 3s
-      retries: 5
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # Kafka is UNUSED by the app (KafkaActivityTracker is dead code, ADR-007).
+  # Opt-in only: `docker compose --profile experimental up kafka`.
   kafka:
     image: bitnami/kafka:3.5
+    profiles:
+      - experimental
     ports:
       - "9092:9092"
     environment:
@@ -96,3 +159,5 @@ services:
 
 volumes:
   postgres-data:
+  rabbitmq-data:
+  dlq-data:

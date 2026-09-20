@@ -3,16 +3,11 @@ name: FlashSale CI
 on:
   push:
     branches: [main]
-    paths: ['01-FlashSale-Backend/**']
   pull_request:
-    paths: ['01-FlashSale-Backend/**']
 
 jobs:
   build-and-concurrency-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: 01-FlashSale-Backend
     services:
       postgres:
         image: postgres:15-alpine
@@ -39,10 +34,10 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Build
-        run: dotnet build
+        run: dotnet build AzureFlashSale.slnx
 
       - name: Unit tests (use cases + architecture guards)
-        run: dotnet test --no-build --verbosity normal
+        run: dotnet test AzureFlashSale.slnx --filter "FullyQualifiedName!~IntegrationTests" --no-build --verbosity normal
 
       - name: Install psql client (audit tooling for the harness)
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -63,4 +58,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: api-log
-          path: 01-FlashSale-Backend/api.log
+          path: api.log

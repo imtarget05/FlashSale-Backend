@@ -21,9 +21,10 @@ public interface IOrderQueueProducer
     ValueTask<bool> EnqueueAsync(OrderMessage message, CancellationToken ct = default);
 }
 
-/// <summary>Port: receive and settle messages (implemented by InMemory + Service Bus).</summary>
+/// <summary>Port: receive and settle messages (implemented by InMemory/RabbitMQ/ServiceBus).</summary>
 public interface IOrderQueueConsumer
 {
     /// <returns>null when no message is available within a short window.</returns>
     ValueTask<QueueEntry?> DequeueAsync(CancellationToken ct = default);
 }
+

@@ -17,6 +17,13 @@ public sealed class OrderRepository(AppDbContext db) : IOrderRepository
 
     public async Task<bool> PersistAsync(OrderMessage message, CancellationToken ct = default)
     {
+        // Defense in depth (Task 2, Part K): the API already returns 400 for
+        // Quantity <= 0, but the repository must never mutate stock for it.
+        // Without this, a negative qty would satisfy `stock >= qty` and the
+        // UPDATE would ADD stock (confirmed by regression test before fix).
+        if (message.Quantity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(message.Quantity), "Quantity must be positive.");
+
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
         var affected = await db.Database.ExecuteSqlInterpolatedAsync($"""

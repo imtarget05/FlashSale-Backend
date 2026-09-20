@@ -6,8 +6,10 @@ using Microsoft.Extensions.DependencyInjection;
 namespace FlashSale.Infrastructure.Persistence;
 
 /// <summary>
-/// Startup concerns kept out of the composition root: create schema, seed the
-/// demo product, and mirror stock into the reservation tier (ADR-003).
+/// Startup concerns (ADR-006): schema comes from EF migrations (MigrateAsync),
+/// demo seed is idempotent, and the Redis mirror is rebuilt from Postgres truth.
+/// API and Worker both call this; concurrent MigrateAsync calls are safe because
+/// the migrations history table insert is serialized by Postgres.
 /// </summary>
 public static class DatabaseInitializer
 {
@@ -18,7 +20,7 @@ public static class DatabaseInitializer
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        await db.Database.EnsureCreatedAsync(ct);
+        await db.Database.MigrateAsync(ct);
 
         if (!await db.Products.AnyAsync(ct))
         {
@@ -32,4 +34,9 @@ public static class DatabaseInitializer
             await gateway.SetStockAsync(product.Id, product.AvailableStock);
         }
     }
+
+    /// <summary>Test/ops helper: apply schema only, without demo seeding.</summary>
+    public static async Task MigrateOnlyAsync(AppDbContext db, CancellationToken ct = default) =>
+        await db.Database.MigrateAsync(ct);
 }
+

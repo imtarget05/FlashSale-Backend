@@ -33,23 +33,10 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 builder.Services.AddSingleton<IStockReservationGateway>(sp =>
     new RedisStockGateway(sp.GetRequiredService<IConnectionMultiplexer>()));
 
-// Queue selection: RabbitMQ when configured, in-memory otherwise.
-var rabbitMqConnectionString = builder.Configuration.GetConnectionString("RabbitMQ");
-if (!string.IsNullOrEmpty(rabbitMqConnectionString))
-{
-    builder.Services.AddSingleton<RabbitMQOrderQueue>(sp =>
-        new RabbitMQOrderQueue(rabbitMqConnectionString, "orders",
-            sp.GetRequiredService<ILogger<RabbitMQOrderQueue>>()));
-    builder.Services.AddSingleton<IOrderQueueProducer>(sp => sp.GetRequiredService<RabbitMQOrderQueue>());
-    builder.Services.AddSingleton<IOrderQueueConsumer>(sp => sp.GetRequiredService<RabbitMQOrderQueue>());
-}
-else
-{
-    // One shared instance: producer and consumer MUST be the same channel.
-    builder.Services.AddSingleton<InMemoryOrderQueue>();
-    builder.Services.AddSingleton<IOrderQueueProducer>(sp => sp.GetRequiredService<InMemoryOrderQueue>());
-    builder.Services.AddSingleton<IOrderQueueConsumer>(sp => sp.GetRequiredService<InMemoryOrderQueue>());
-}
+// Queue selection: exactly one provider from configuration (ADR-005).
+// Local: RabbitMQ (docker compose). Azure: Service Bus (Terraform).
+// Tests/edge: InMemory fallback. Unknown provider values fail fast.
+builder.Services.AddOrderQueue(builder.Configuration);
 
 builder.Services.AddScoped<OrderProcessor>();
 builder.Services.AddHostedService<OrderProcessorHost>();
@@ -160,7 +147,28 @@ app.MapPost("/internal/resync-stock/{id}", async (int id, IOrderReadModel readMo
     return Results.Ok(new { id, resyncedTo = product.AvailableStock });
 });
 
+app.MapGet("/health/live", () => Results.Ok(new { status = "healthy" }));
+
+// Back-compat alias for compose probes written before the split.
 app.MapGet("/healthz", () => Results.Ok(new { status = "healthy" }));
+
+// Readiness: can this instance safely receive traffic? Postgres is the source
+// of truth so it gates readiness. Redis/RabbitMQ are RUNTIME OPTIONAL — the
+// API falls back to synchronous Postgres processing when Redis is down
+// (Task 2 verified), so their absence must NOT make the API unready.
+app.MapGet("/health/ready", async (AppDbContext db, ILogger<Program> readinessLogger) =>
+{
+    try
+    {
+        await db.Database.CanConnectAsync();
+        return Results.Ok(new { status = "ready" });
+    }
+    catch (Exception ex)
+    {
+        readinessLogger.LogWarning(ex, "Readiness check failed: PostgreSQL unreachable.");
+        return Results.Json(new { status = "not-ready" }, statusCode: 503);
+    }
+});
 
 app.Run();
 

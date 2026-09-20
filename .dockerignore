@@ -1,0 +1,26 @@
+# Build context is 01-FlashSale-Backend/. Keep solution + sources; drop everything else.
+.git
+.github
+**/bin
+**/obj
+TestResults
+logs
+api.log
+result.txt
+docs
+load-tests
+infrastructure
+terraform.tfstate*
+*.tfstate*
+.terraform
+plans
+tasks
+.env
+.env.*
+*.md
+!README.md
+.DS_Store
+*.user
+.vs
+.idea
+.vscode

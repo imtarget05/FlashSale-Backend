@@ -19,9 +19,9 @@ Docs: `docs/architecture/current-architecture.md`, `docs/adr/001..004`,
 `docs/benchmarks/`, `docs/incidents/001`, `docs/interview-notes/`.
 
 ## 🛠️ Technology Stack
-- **Backend**: .NET 10 minimal APIs (`Order.Api`, `Order.Worker`, shared `FlashSale.Shared`)
+- **Backend**: .NET 10 minimal APIs (`Order.Api`, `Order.Worker`, `FlashSale.Domain/Application/Infrastructure`)
 - **Data**: PostgreSQL (source of truth) · **Cache/reservation**: Redis (Lua CAS)
-- **Messaging**: queue abstraction — in-memory channel (dev) / Azure Service Bus (prod)
+- **Messaging**: queue abstraction (`IOrderQueueProducer/Consumer`) — InMemory (tests) / RabbitMQ (local) / Azure Service Bus (Azure, ADR-005)
 - **Compute**: Docker → Azure Container Apps → AKS
 - **IaC**: Terraform (`infrastructure/terraform/`) · **CI/CD**: GitHub Actions
 - **Testing**: Python concurrency harness + k6 scripts (`load-tests/`)
@@ -47,7 +47,8 @@ curl -i -X POST localhost:5065/api/orders -H "Content-Type: application/json" \
 1. `cd infrastructure/terraform && terraform init && terraform apply` (provisions ACR,
    PostgreSQL, Redis, Service Bus, Container Apps, Log Analytics).
 2. GitHub Actions `deploy.yml` builds + pushes images and updates Container Apps.
-3. For the AKS/GitOps topology see `../03-AKS-SRE-Platform`.
+3. For the AKS/GitOps topology see the sibling repo `AKS-SRE-Platform`
+   (ArgoCD watches `imtarget05/FlashSale-Backend@main` → `infrastructure/kubernetes/overlays/prod`).
 
 ## 📁 Repository Structure (Clean Architecture)
 

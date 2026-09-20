@@ -11,5 +11,10 @@ RUN dotnet publish "Order.Worker.csproj" -c Release -o /app/publish /p:UseAppHos
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
+# Non-root runtime (ADR-007): same pattern as the API — root-owned publish
+# output is chowned to the built-in `app` user (uid 1654) with a writable
+# logs/ dir for the file DLQ, then privileges are dropped.
 COPY --from=build /app/publish .
+RUN mkdir -p /app/logs && chown -R app:app /app
+USER app
 ENTRYPOINT ["dotnet", "Order.Worker.dll"]

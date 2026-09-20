@@ -19,23 +19,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<OrderProcessor>();
 
-// Queue selection mirrors the API: RabbitMQ in Azure, InMemory locally.
-var rabbitMqConnectionString = builder.Configuration.GetConnectionString("RabbitMQ");
-if (!string.IsNullOrEmpty(rabbitMqConnectionString))
-{
-    // One queue instance shared by producer and consumer.
-    builder.Services.AddSingleton<RabbitMQOrderQueue>(sp =>
-        new RabbitMQOrderQueue(rabbitMqConnectionString, "orders",
-            sp.GetRequiredService<ILogger<RabbitMQOrderQueue>>()));
-    builder.Services.AddSingleton<IOrderQueueProducer>(sp => sp.GetRequiredService<RabbitMQOrderQueue>());
-    builder.Services.AddSingleton<IOrderQueueConsumer>(sp => sp.GetRequiredService<RabbitMQOrderQueue>());
-}
-else
-{
-    builder.Services.AddSingleton<InMemoryOrderQueue>();
-    builder.Services.AddSingleton<IOrderQueueProducer>(sp => sp.GetRequiredService<InMemoryOrderQueue>());
-    builder.Services.AddSingleton<IOrderQueueConsumer>(sp => sp.GetRequiredService<InMemoryOrderQueue>());
-}
+// Queue selection mirrors the API: exactly one provider (ADR-005).
+builder.Services.AddOrderQueue(builder.Configuration);
 
 builder.Services.AddHostedService<OrderProcessorHost>();
 
