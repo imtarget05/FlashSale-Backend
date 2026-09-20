@@ -11,9 +11,11 @@ replicas:
     count: 2
 
 images:
-  # Điền login server ACR thật (output `acr_login_server` của Terraform Project 01).
-  - name: acrflashsale-placeholder.azurecr.io/order-api
-    newTag: latest
+  # Real ACR login server (Terraform output `acr_login_server`, Phase 6).
+  # newTag is pinned to the released commit SHA by the CI `gitops-update` job —
+  # never flip this to a hand-written tag, and never to `latest` (ADR-011).
+  - name: acrflashsalep6.azurecr.io/order-api
+    newTag: PLACEHOLDER_SHA_SET_BY_CI
 
 commonLabels:
   env: prod

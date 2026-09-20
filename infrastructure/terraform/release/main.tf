@@ -1,0 +1,56 @@
+resource "azurerm_resource_group" "release" {
+  name     = var.resource_group_name
+  location = var.location
+}
+
+# Admin user DISABLED: the only push path is Entra identity (AcrPush), ADR-011.
+# NOTE: retention_policy / quarantine_policy are Premium-only — on Standard the
+# registry is cleaned with `az acr purge` (scheduled in Phase 7) instead.
+resource "azurerm_container_registry" "acr" {
+  name                          = var.acr_name
+  resource_group_name           = azurerm_resource_group.release.name
+  location                      = azurerm_resource_group.release.location
+  sku                           = "Standard"
+  admin_enabled                 = false
+  public_network_access_enabled = true
+}
+
+# GitHub OIDC federation: the workflow's OIDC token is exchanged for this
+# identity — no client secrets anywhere (ADR-011).
+resource "azurerm_user_assigned_identity" "github_release" {
+  name                = "id-flashsale-github-release"
+  resource_group_name = azurerm_resource_group.release.name
+  location            = azurerm_resource_group.release.location
+}
+
+resource "azurerm_federated_identity_credential" "main_branch" {
+  name                = "gh-main"
+  resource_group_name = azurerm_resource_group.release.name
+  parent_id           = azurerm_user_assigned_identity.github_release.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = "https://token.actions.githubusercontent.com"
+  subject             = "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main"
+}
+
+resource "azurerm_federated_identity_credential" "pull_request" {
+  name                = "gh-pr"
+  resource_group_name = azurerm_resource_group.release.name
+  parent_id           = azurerm_user_assigned_identity.github_release.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = "https://token.actions.githubusercontent.com"
+  subject             = "repo:${var.github_org}/${var.github_repo}:pull_request"
+}
+
+# AcrPush for SHA-tagged image publishes; AcrPull so the identity can also
+# verify what it pushed (digest listing) in the same job.
+resource "azurerm_role_assignment" "acr_push" {
+  scope                = azurerm_container_registry.acr.id
+  role_definition_name = "AcrPush"
+  principal_id         = azurerm_user_assigned_identity.github_release.principal_id
+}
+
+resource "azurerm_role_assignment" "acr_pull" {
+  scope                = azurerm_container_registry.acr.id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.github_release.principal_id
+}

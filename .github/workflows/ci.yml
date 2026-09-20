@@ -182,6 +182,14 @@ jobs:
           ignore-unfixed: true
 
   sonarqube:
+    # Explicitly enabled with a repo variable, because SonarCloud blocks CI
+    # analysis while "Automatic Analysis" is on for the project (an org/UI
+    # setting that the API refuses to change: project-level sonar.automatic.analysis
+    # reads back false but the analysis is still refused). Flip it in the UI
+    # (SonarCloud → project → Administration → Analysis Method → CI-based
+    # analysis), then:  gh variable set SONAR_ENABLED --body true
+    # Until then the quality gate is NOT enforced and is not claimed to be.
+    if: vars.SONAR_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -217,6 +225,107 @@ jobs:
           dotnet test AzureFlashSale.slnx --no-build -v q \
             --logger trx --results-directory ./test-results
           dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+
+  # ---------------------------------------------------------------------------
+  # Phase 6 — Release engineering (only on main, only after the CI gate passes)
+  # ---------------------------------------------------------------------------
+  release-push:
+    needs: ci-gate
+    # the bot commit from gitops-update must not re-trigger a release build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write        # required for the OIDC token exchange
+    outputs:
+      image_api: ${{ steps.tags.outputs.api }}
+      image_worker: ${{ steps.tags.outputs.worker }}
+      digest_api: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      # Workload identity federation: no ACR password / client secret anywhere.
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Log in to ACR with the federated identity
+        run: az acr login --name ${{ vars.ACR_NAME }}
+      - name: Compute immutable tags
+        id: tags
+        run: |
+          echo "api=${{ vars.ACR_LOGIN_SERVER }}/order-api:${GITHUB_SHA}"     >> "$GITHUB_OUTPUT"
+          echo "worker=${{ vars.ACR_LOGIN_SERVER }}/order-worker:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and push order-api:<sha>
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.api }}
+      - name: Build and push order-worker:<sha>
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.worker
+          push: true
+          tags: ${{ steps.tags.outputs.worker }}
+      - name: Verify the pushed tags resolve to digests (immutable artifact exists)
+        id: push
+        run: |
+          az acr manifest list-metadata \
+            --registry ${{ vars.ACR_NAME }} \
+            --name order-api --query "[?tags[0]=='${GITHUB_SHA}'].digest | [0]" -o tsv
+          echo "digest=$(az acr manifest list-metadata --registry ${{ vars.ACR_NAME }} \
+            --name order-api --query "[?tags[0]=='${GITHUB_SHA}'].digest | [0]" -o tsv)" >> "$GITHUB_OUTPUT"
+          az acr repository show-tags --registry ${{ vars.ACR_NAME }} --repository order-worker -o tsv | grep -x "${GITHUB_SHA}"
+      - name: Summary
+        run: |
+          echo "### Released artifacts" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ${{ steps.tags.outputs.api }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ${{ steps.tags.outputs.worker }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- order-api digest: ${{ steps.push.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+
+  gitops-update:
+    needs: release-push
+    # the bot commit from gitops-update must not re-trigger a release build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # the GitOps commit is the deployment contract
+    steps:
+      - uses: actions/checkout@v4
+      # Git state is the desired runtime state (ADR-011). Phase 7 ArgoCD syncs
+      # from this commit; nothing is ever kubectl-applied by CI.
+      - name: Pin the overlay to the released SHA
+        run: |
+          FILE=infrastructure/kubernetes/overlays/prod/kustomization.yaml
+          python3 - "$FILE" "${{ vars.ACR_LOGIN_SERVER }}" "${GITHUB_SHA}" <<'PY'
+          import sys, re
+          path, acr, sha = sys.argv[1], sys.argv[2], sys.argv[3]
+          text = open(path).read()
+          text = re.sub(r'(\n\s*- name: )\S*/order-api', r'\1' + acr + '/order-api', text)
+          text = re.sub(r'(\n\s*newTag: ).*', r'\1' + sha, text)
+          open(path, 'w').write(text)
+          PY
+          git diff --stat
+      - name: Commit and push the GitOps bump
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add infrastructure/kubernetes/overlays/prod/kustomization.yaml
+          if git diff --cached --quiet; then
+            echo "no change (already pinned to ${GITHUB_SHA})"
+          else
+            git commit -m "gitops: pin prod overlay to order-api:${GITHUB_SHA}"
+            git push
+          fi
+      - name: Summary
+        run: |
+          echo "### GitOps" >> "$GITHUB_STEP_SUMMARY"
+          echo "Desired state committed: prod overlay → \`${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
 
   ci-gate:
     needs:
