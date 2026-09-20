@@ -43,6 +43,9 @@ curl -i -X POST localhost:5065/api/orders -H "Content-Type: application/json" \
      -H "Idempotency-Key: $KEY" -d '{"productId":1,"quantity":1}'   # 409 duplicate
 ```
 
+Container gate evidence (fresh clone → compose up → order completed → probe
+drills): `docs/evidence/container/phase4-container-gate.md`.
+
 ## 🚢 Deploy to Azure (Phase 7–9)
 1. `cd infrastructure/terraform && terraform init && terraform apply` (provisions ACR,
    PostgreSQL, Redis, Service Bus, Container Apps, Log Analytics).
