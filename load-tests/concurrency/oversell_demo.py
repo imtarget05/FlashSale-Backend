@@ -119,7 +119,7 @@ def psql_scalar(query: str, container: str | None, retries: int = 5, delay: floa
     """Run a scalar query with retries — during a burst the server may briefly
     refuse new connections (max_connections), so audit reads must be patient."""
     cmd = (["docker", "exec", container, "psql", "-U", "postgres", "-d", "FlashSaleDb", "-At", "-c", query]
-           if container else ["psql", "-At", "-c", query])
+           if container else ["psql", "-h", "localhost", "-U", "postgres", "-d", "FlashSaleDb", "-At", "-c", query])
     last_err: Exception | None = None
     for attempt in range(retries):
         out = subprocess.run(cmd, capture_output=True, text=True)

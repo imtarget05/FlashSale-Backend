@@ -1,0 +1,5 @@
+# Backup artifacts are drill evidence — local only, never committed.
+# .gitkeep/.gitignore themselves ARE committed so the folder exists.
+*
+!.gitignore
+!.gitkeep
