@@ -61,11 +61,14 @@ Why it matters here:
 
 
 1. **Order.Api** — tiered order endpoint, stock/product reads, status polling,
-   `/internal/resync-stock/{id}` runbook, `/healthz`.
-2. **FlashSale.Shared** — entities + `AppDbContext`, queue abstractions
-   (`InMemoryOrderQueue` dev / `ServiceBusOrderQueue` prod), `RedisStockGateway`
-   (Lua CAS), `OrderProcessor` + `OrderProcessorHost` (retry/DLQ).
-3. **Order.Worker** — standalone worker host for Azure (consumes Service Bus;
+   `/internal/resync-stock/{id}` runbook, `/healthz`. Queue provider selected
+   by `Messaging:Provider` (ADR-005): RabbitMQ locally, Service Bus on Azure.
+2. **FlashSale.Infrastructure/Messaging** — queue adapters behind the same ports
+   (`InMemoryOrderQueue` dev/test · `RabbitMQOrderQueue` local ·
+   `ServiceBusOrderQueue` Azure), `RedisStockGateway` (Lua CAS),
+   `OrderProcessor` + `OrderProcessorHost` (retry/DLQ).
+3. **Order.Worker** — standalone worker host sharing the same provider
+   selection (consumes RabbitMQ locally, Service Bus on Azure;
    KEDA scales on queue depth — Project 03).
 4. **PostgreSQL** — source of truth. **Redis** — fast-fail filter, never authoritative.
 
@@ -84,5 +87,6 @@ Why it matters here:
 
 ## Known Limitations (deliberately deferred)
 - Eventual consistency between 202-accepted and DB-persisted (seconds).
-- Single-instance dev queue; Service Bus path requires Azure resources (Phase 7+).
+- Service Bus adapter is wired and unit-selected but has no live Azure
+  round-trip evidence yet (no `terraform apply` in this task).
 - OpenTelemetry wiring deferred to Phase 10; CI/CD and IaC phases 6–9 next.

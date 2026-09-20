@@ -40,6 +40,10 @@ public sealed class RedisStockGateway(IConnectionMultiplexer multiplexer) : ISto
 
     public async Task<ReservationResult> TryReserveAsync(int productId, int quantity, string idempotencyKey)
     {
+        // Guard (Task 2, Part K): a negative qty would pass the Lua
+        // `qty < want` check and HINCRBY stock UP. Fail closed instead.
+        if (quantity <= 0)
+            return ReservationResult.Unavailable;
         try
         {
             var result = (int)await _db.ScriptEvaluateAsync(ReserveScript,
@@ -54,7 +58,7 @@ public sealed class RedisStockGateway(IConnectionMultiplexer multiplexer) : ISto
                 _ => ReservationResult.Unavailable
             };
         }
-        catch (RedisException)
+        catch (Exception ex) when (ex is RedisException or TimeoutException)
         {
             return ReservationResult.Unavailable;
         }

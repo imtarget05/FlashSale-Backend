@@ -1,0 +1,22 @@
+# .NET
+bin/
+obj/
+*.user
+
+# Node
+node_modules/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# OS
+.DS_Store
+
+# Local env / drill artifacts (never commit)
+.env
+backups/*
+!backups/.gitkeep
+!backups/.gitignore
