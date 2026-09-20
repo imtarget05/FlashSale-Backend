@@ -275,12 +275,16 @@ jobs:
       - name: Verify the pushed tags resolve to digests (immutable artifact exists)
         id: push
         run: |
-          az acr manifest list-metadata \
-            --registry ${{ vars.ACR_NAME }} \
-            --name order-api --query "[?tags[0]=='${GITHUB_SHA}'].digest | [0]" -o tsv
-          echo "digest=$(az acr manifest list-metadata --registry ${{ vars.ACR_NAME }} \
-            --name order-api --query "[?tags[0]=='${GITHUB_SHA}'].digest | [0]" -o tsv)" >> "$GITHUB_OUTPUT"
-          az acr repository show-tags --registry ${{ vars.ACR_NAME }} --repository order-worker -o tsv | grep -x "${GITHUB_SHA}"
+          API_DIGEST=$(az acr manifest list-metadata --registry ${{ vars.ACR_NAME }} \
+            --name order-api --query "[?tags[0]=='${GITHUB_SHA}'].digest | [0]" -o tsv)
+          WORKER_DIGEST=$(az acr manifest list-metadata --registry ${{ vars.ACR_NAME }} \
+            --name order-worker --query "[?tags[0]=='${GITHUB_SHA}'].digest | [0]" -o tsv)
+          echo "order-api    ${GITHUB_SHA} → ${API_DIGEST}"
+          echo "order-worker ${GITHUB_SHA} → ${WORKER_DIGEST}"
+          [ -n "$API_DIGEST" ] && [ "$API_DIGEST" != "None" ] || { echo "order-api:$GITHUB_SHA not found in ACR"; exit 1; }
+          [ -n "$WORKER_DIGEST" ] && [ "$WORKER_DIGEST" != "None" ] || { echo "order-worker:$GITHUB_SHA not found in ACR"; exit 1; }
+          echo "digest=${API_DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "worker_digest=${WORKER_DIGEST}" >> "$GITHUB_OUTPUT"
       - name: Summary
         run: |
           echo "### Released artifacts" >> "$GITHUB_STEP_SUMMARY"
