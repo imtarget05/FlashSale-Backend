@@ -1,0 +1,15 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY ["src/FlashSale.Domain/FlashSale.Domain.csproj", "src/FlashSale.Domain/"]
+COPY ["src/FlashSale.Application/FlashSale.Application.csproj", "src/FlashSale.Application/"]
+COPY ["src/FlashSale.Infrastructure/FlashSale.Infrastructure.csproj", "src/FlashSale.Infrastructure/"]
+COPY ["src/Order.Worker/Order.Worker.csproj", "src/Order.Worker/"]
+RUN dotnet restore "src/Order.Worker/Order.Worker.csproj"
+COPY . .
+WORKDIR "/src/src/Order.Worker"
+RUN dotnet publish "Order.Worker.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "Order.Worker.dll"]

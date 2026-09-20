@@ -1,0 +1,66 @@
+name: FlashSale CI
+
+on:
+  push:
+    branches: [main]
+    paths: ['01-FlashSale-Backend/**']
+  pull_request:
+    paths: ['01-FlashSale-Backend/**']
+
+jobs:
+  build-and-concurrency-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 01-FlashSale-Backend
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: FlashSaleDb
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet build
+
+      - name: Unit tests (use cases + architecture guards)
+        run: dotnet test --no-build --verbosity normal
+
+      - name: Install psql client (audit tooling for the harness)
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Start API in background
+        run: |
+          nohup dotnet run --project src/Order.Api --urls http://localhost:5065 > api.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:5065/healthz && break; sleep 1; done
+
+      - name: Concurrency harness — inventory must be conserved (no overselling)
+        run: |
+          python3 load-tests/concurrency/oversell_demo.py \
+            --stock 10 --requests 50 --psql-container '' --settle-seconds 3 | tee result.txt
+          grep -q "RESULT: PASS" result.txt
+
+      - name: Upload API log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-log
+          path: 01-FlashSale-Backend/api.log

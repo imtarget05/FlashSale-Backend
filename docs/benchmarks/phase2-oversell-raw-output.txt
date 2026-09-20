@@ -1,0 +1,25 @@
+# Phase 2 — naive API raw output (overselling reproduced)
+# Executed: 2026-09-19T20:51:15Z
+== Phase 2: overselling experiment (http://localhost:5065) ==
+Target              : http://localhost:5065
+Product             : #1
+Initial stock       : 10
+Concurrent requests : 50
+------------------------------------------------------------
+Stock reset to 10. Orders before: 2. Firing...
+------------------------------------------------------------
+HTTP outcomes        :
+  200 accepted       : 50
+  4xx rejected       : 0
+  transport failures : 0
+  p95 latency        : 319 ms
+Inventory audit      :
+  initial stock      : 10
+  accepted units     : 50
+  expected stock     : -40
+  final stock in DB  : 9
+  orders created     : 50
+------------------------------------------------------------
+RESULT: Race condition reproduced (lost update) - expected -40, got 9.
+Accepted responses exceeded the real inventory decrement.
+

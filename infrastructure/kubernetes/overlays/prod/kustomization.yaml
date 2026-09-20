@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: flash-sale-prod
+
+resources:
+  - ../../base
+
+replicas:
+  - name: order-api
+    count: 2
+
+images:
+  # Điền login server ACR thật (output `acr_login_server` của Terraform Project 01).
+  - name: acrflashsale-placeholder.azurecr.io/order-api
+    newTag: latest
+
+commonLabels:
+  env: prod

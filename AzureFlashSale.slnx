@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/src/Domain/">
+    <Project Path="src/FlashSale.Domain/FlashSale.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Application/">
+    <Project Path="src/FlashSale.Application/FlashSale.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Infrastructure/">
+    <Project Path="src/FlashSale.Infrastructure/FlashSale.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Presentation/">
+    <Project Path="src/Order.Api/Order.Api.csproj" />
+    <Project Path="src/Order.Worker/Order.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/UnitTests/FlashSale.UnitTests.csproj" />
+  </Folder>
+</Solution>

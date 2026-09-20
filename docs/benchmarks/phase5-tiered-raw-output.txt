@@ -1,0 +1,24 @@
+Target              : http://localhost:5065
+Product             : #1
+Initial stock       : 10
+Concurrent requests : 50
+------------------------------------------------------------
+Stock reset to 10. Orders before: 11. Firing...
+------------------------------------------------------------
+HTTP outcomes        :
+  200 accepted       : 10
+  4xx rejected       : 40 {'409': 40}
+  transport failures : 0
+  p95 latency        : 29 ms
+Inventory audit      :
+  initial stock      : 10
+  accepted units     : 10
+  expected stock     : 0
+  final stock in DB  : 0
+  orders created     : 10
+------------------------------------------------------------
+RESULT: PASS - inventory conserved (no overselling, no lost updates).
+final_stock(0) == initial_stock(10) - accepted_units(10).
+
+Next step (Phase 3): make the stock decrement atomic at the database level
+and re-run this exact experiment to show final_stock == expected_stock.

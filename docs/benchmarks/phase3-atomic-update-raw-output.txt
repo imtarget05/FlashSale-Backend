@@ -1,0 +1,24 @@
+# Phase 3 — atomic UPDATE raw output (fix verified)
+# Executed: 2026-09-19T20:53:43Z
+Target              : http://localhost:5065
+Product             : #1
+Initial stock       : 10
+Concurrent requests : 50
+------------------------------------------------------------
+Stock reset to 10. Orders before: 52. Firing...
+------------------------------------------------------------
+HTTP outcomes        :
+  200 accepted       : 10
+  4xx rejected       : 40 {'409': 40}
+  transport failures : 0
+  p95 latency        : 245 ms
+Inventory audit      :
+  initial stock      : 10
+  accepted units     : 10
+  expected stock     : 0
+  final stock in DB  : 0
+  orders created     : 10
+------------------------------------------------------------
+RESULT: PASS - inventory conserved (no overselling, no lost updates).
+final_stock(0) == initial_stock(10) - accepted_units(10).
+
