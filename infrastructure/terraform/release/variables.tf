@@ -37,3 +37,14 @@ variable "github_repo_id" {
   default     = "1378231058"
   description = "GitHub repository numeric id."
 }
+
+# P02 repo (same owner), released through the SAME portfolio identity (Phase 6B).
+variable "legacy_repo" {
+  type    = string
+  default = "Productionized-LegacyApp"
+}
+
+variable "legacy_repo_id" {
+  type    = string
+  default = "1378231376"
+}
