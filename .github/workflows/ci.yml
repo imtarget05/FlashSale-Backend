@@ -226,13 +226,43 @@ jobs:
             --logger trx --results-directory ./test-results
           dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
 
+  detect-changes:
+    # Docs-only commits must not mint a new runtime image (same hardening P02
+    # applies; P01's Phase 6 first shipped without it, so a docs-only commit
+    # rebuilt the images and moved the GitOps SHA — closed here).
+    runs-on: ubuntu-latest
+    outputs:
+      runtime: ${{ steps.filter.outputs.runtime }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect runtime vs docs-only change
+        id: filter
+        run: |
+          BASE="${{ github.event.before }}"
+          [ -n "$BASE" ] && [ "$BASE" != "0000000000000000000000000000000000000000" ] || BASE="HEAD~1"
+          CHANGED=$(git diff --name-only "$BASE" HEAD)
+          echo "changed files:"; echo "$CHANGED"
+          # runtime = anything that is not a docs/markdown-only path
+          if echo "$CHANGED" | grep -qvE '^(README\.md$|docs/|.*\.md$)'; then
+            echo "runtime=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "runtime=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # ---------------------------------------------------------------------------
   # Phase 6 — Release engineering (only on main, only after the CI gate passes)
   # ---------------------------------------------------------------------------
   release-push:
-    needs: ci-gate
-    # the bot commit from gitops-update must not re-trigger a release build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && github.actor != 'github-actions[bot]'
+    needs: [ci-gate, detect-changes]
+    # Publish only artefact-changing commits; docs-only commits run CI checks but
+    # mint no image and move no GitOps SHA. workflow_dispatch can force a release.
+    if: >-
+      github.actor != 'github-actions[bot]' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.ref == 'refs/heads/main' && github.event_name == 'push' &&
+        needs.detect-changes.outputs.runtime == 'true'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

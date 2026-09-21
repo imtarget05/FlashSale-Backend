@@ -62,6 +62,29 @@ resource "azurerm_federated_identity_credential" "pull_request_ids" {
   subject             = "repo:${var.github_org}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:pull_request"
 }
 
+# ---------------------------------------------------------------------------
+# Phase 6B: the SAME portfolio identity also releases P02 (the productionized
+# legacy app). One identity, one ACR, extra repo-scoped subjects — no second
+# managed identity and no client secret (see P02 ADR "Decision" item 2).
+# ---------------------------------------------------------------------------
+resource "azurerm_federated_identity_credential" "legacy_main_branch_ids" {
+  name                = "gh-legacy-main-immutable-ids"
+  resource_group_name = azurerm_resource_group.release.name
+  parent_id           = azurerm_user_assigned_identity.github_release.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = "https://token.actions.githubusercontent.com"
+  subject             = "repo:${var.github_org}@${var.github_owner_id}/${var.legacy_repo}@${var.legacy_repo_id}:ref:refs/heads/main"
+}
+
+resource "azurerm_federated_identity_credential" "legacy_pull_request_ids" {
+  name                = "gh-legacy-pr-immutable-ids"
+  resource_group_name = azurerm_resource_group.release.name
+  parent_id           = azurerm_user_assigned_identity.github_release.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = "https://token.actions.githubusercontent.com"
+  subject             = "repo:${var.github_org}@${var.github_owner_id}/${var.legacy_repo}@${var.legacy_repo_id}:pull_request"
+}
+
 # AcrPush for SHA-tagged image publishes; AcrPull so the identity can also
 # verify what it pushed (digest listing) in the same job.
 resource "azurerm_role_assignment" "acr_push" {
