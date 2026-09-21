@@ -123,3 +123,10 @@ kept in ACR on purpose; that set *is* the rollback set.
    one UI step + `gh variable set SONAR_ENABLED --body true`).
 6. **No environment promotion chain**: `main` → prod overlay is the only lane;
    dev/staging overlays and approvals are not modelled yet.
+
+## Docs-only release filtering (added in Phase 6B convergence)
+
+`detect-changes` gates `release-push`: a docs-only commit runs the quality
+gates but mints no image and moves no GitOps SHA. `workflow_dispatch` can still
+force a release. Proven by the docs-only commit that follows this line and by
+P02 evidence `docs/evidence/release/phase6b-release-engineering.md`.
