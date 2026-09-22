@@ -67,6 +67,14 @@ spec:
                 secretKeyRef:
                   name: flashsale-secrets
                   key: redis-connection
+            # Auth (ADR-013 §2): HS256 signing key, >= 32 bytes. Without it the app
+            # fails fast at startup in Production, which is deliberate — a missing
+            # key must not silently degrade into an unsigned-token deployment.
+            - name: Auth__Jwt__SigningKey
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: jwt-signing-key
             # FIX (7C readiness): the API never received a RabbitMQ connection
             # string, so MessagingProviderSelector.Resolve() fell through both
             # connection-string checks and silently returned InMemory (ADR-005).

@@ -23,4 +23,11 @@ public sealed class OrderReadModel(AppDbContext db) : IOrderReadModel
             .Where(o => o.IdempotencyKey == idempotencyKey)
             .Select(o => new OrderStatusView(o.IdempotencyKey, o.Id, o.ProductId, o.Quantity, o.CreatedAt))
             .FirstOrDefaultAsync(ct);
+
+    public async Task<IReadOnlyList<OrderSummaryView>> GetOrdersByUserAsync(Guid userId, CancellationToken ct = default) =>
+        await db.Orders.AsNoTracking()
+            .Where(o => o.UserId == userId)
+            .OrderByDescending(o => o.CreatedAt)
+            .Select(o => new OrderSummaryView(o.Id, o.ProductId, o.Quantity, o.CreatedAt))
+            .ToListAsync(ct);
 }
