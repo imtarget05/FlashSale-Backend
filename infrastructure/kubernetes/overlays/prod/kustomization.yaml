@@ -24,10 +24,10 @@ images:
   # ship from the same commit, so the same SHA is correct for both.
   - name: order-api
     newName: acrflashsalep6.azurecr.io/order-api
-    newTag: ef483024696fe1988c0f829add71260833055aed
+    newTag: 39f0bbd9b68a06fb84df18767283dd1a09570ff6
   - name: order-worker
     newName: acrflashsalep6.azurecr.io/order-worker
-    newTag: ef483024696fe1988c0f829add71260833055aed
+    newTag: 39f0bbd9b68a06fb84df18767283dd1a09570ff6
 
 commonLabels:
   env: prod
