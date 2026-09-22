@@ -1,5 +1,48 @@
 # Current Tasks (Phase 6–9 — containers, IaC, CI/CD)
 
+## INTERVIEW RELEASE v1.0 — FREEZE (2026-09-22)
+
+Status block for the interview release checkpoint:
+
+Architecture
+- [x] .NET 10 retained — no NestJS rewrite.
+
+Backend
+- [x] async order flow (ADR-004/005): API → Redis reservation → RabbitMQ → worker.
+- [x] PostgreSQL source of truth + EF migrations.
+- [x] Redis Lua CAS reservation (24h idempotency-ledger TTL).
+- [x] RabbitMQ worker + idempotent consumer + DLQ (structured stdout log).
+- [x] idempotency keys end-to-end.
+- [x] concurrency proof: oversell gate 10 accepted / 40 rejected / stock 0.
+
+Auth (merged interview-release/auth)
+- [x] JWT access + refresh, rotation, authorization policies.
+- [x] authenticated orders with userId threading + GET /orders/me.
+- [x] backward-compatible anonymous POST /api/orders.
+
+API
+- [x] OpenAPI contract at /openapi/v1.json (Bearer scheme transformer).
+- [x] Swagger UI at /swagger (serves the SAME document; Authorize button works).
+- [x] Product read API: GET /api/products/{id} (full search deferred — not in v1.0).
+- [x] diagnostics: GET /internal/metrics (in-process snapshot).
+
+Quality
+- [x] 77/77 local tests (58 unit + 19 integration) on the merge tree.
+- [x] post-merge remote CI green — run 35779230807 (FlashSale CI).
+- [ ] interview smoke PASS (checklist: openapi, swagger, register, login,
+      authorize, product read, authenticated 202 → Completed, /orders/me,
+      anonymous 202, metrics).
+- [ ] tag v1.0-interview pushed; freeze = no feature work until after tag.
+
+AI v2 — spec only, implementation DEFERRED (do NOT claim "Integrated
+Qwen/Ollama" in a CV until the backend actually calls the model):
+- [x] architecture selected: Ollama + Qwen3:4b (~4B params, Q4_K_M ≈ 2.5 GB)
+      via OpenAI-compatible endpoint http://localhost:11434/v1 (client sends a
+      dummy key such as `ollama`; the server does not validate it).
+- [ ] runtime integration (first real inference evidence).
+- [ ] grounded assistant.
+- [ ] TTS.
+
 Phase 1–5 (done, evidence kept for traceability):
 - [x] Phase 1: baseline API verified.
 - [x] Phase 2: overselling reproduced (50/50 accepted, stock 10→9) — docs/benchmarks/phase2-oversell-experiment.md
