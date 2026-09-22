@@ -28,11 +28,16 @@ API
 
 Quality
 - [x] 77/77 local tests (58 unit + 19 integration) on the merge tree.
-- [x] post-merge remote CI green — run 35779230807 (FlashSale CI).
-- [ ] interview smoke PASS (checklist: openapi, swagger, register, login,
-      authorize, product read, authenticated 202 → Completed, /orders/me,
-      anonymous 202, metrics).
-- [ ] tag v1.0-interview pushed; freeze = no feature work until after tag.
+- [x] post-merge remote CI green — runs 35779230807 (auth merge) + 35780242190
+      (release HEAD 39f0bbd, Swagger UI), both FlashSale CI success.
+- [x] interview smoke PASS — 48/48 gates, 0 fail (auth_e2e.sh, 2026-09-22):
+      openapi Bearer scheme + bearerFormat, /swagger 200 + bundle, register/
+      duplicate/short-password, login + non-enumeration, /auth/me, refresh
+      rotation + replay 401, access-as-refresh 401, authenticated 202 →
+      Completed, GET /orders/me scoped + 401 anonymous, anonymous 202 (ADR-013
+      §6), logout 204 + refresh 401, metrics histogram/gauge/route tags.
+- [x] tag v1.0-interview pushed as annotated tag `v1.0.0-interview` on this
+      CI-green commit; freeze = no feature work on v1.0 until after tag.
 
 AI v2 — spec only, implementation DEFERRED (do NOT claim "Integrated
 Qwen/Ollama" in a CV until the backend actually calls the model):
