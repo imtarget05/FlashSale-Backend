@@ -1,6 +1,6 @@
+using FlashSale.Application.Messaging;
 using FlashSale.Application.Orders;
 using FlashSale.Domain;
-using FlashSale.Domain.Messaging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FlashSale.UnitTests;

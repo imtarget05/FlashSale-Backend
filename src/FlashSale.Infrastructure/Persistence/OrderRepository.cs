@@ -1,5 +1,5 @@
+using FlashSale.Application.Messaging;
 using FlashSale.Application.Persistence;
-using FlashSale.Domain.Messaging;
 using FlashSale.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 

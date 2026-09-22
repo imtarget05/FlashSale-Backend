@@ -1,5 +1,5 @@
+using FlashSale.Application.Messaging;
 using FlashSale.Application.Orders;
-using FlashSale.Domain.Messaging;
 using FlashSale.Infrastructure.Messaging;
 using FlashSale.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -70,7 +70,7 @@ public sealed class OrderFlowTests(FlashSaleFixture fx)
         var gateway = fx.CreateRedisGateway();
         await gateway.SetStockAsync(productId, 10);
 
-        Assert.Equal(Application.Messaging.ReservationResult.Reserved,
+        Assert.Equal(Application.Inventory.ReservationResult.Reserved,
             await gateway.TryReserveAsync(productId, 1, "dup-key"));
         await using var db = fx.CreateDbContext();
         var repo = new OrderRepository(db);

@@ -1,6 +1,5 @@
 using System.Threading.Channels;
 using FlashSale.Application.Messaging;
-using FlashSale.Domain.Messaging;
 
 namespace FlashSale.Infrastructure.Messaging;
 

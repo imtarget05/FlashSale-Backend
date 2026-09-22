@@ -1,5 +1,5 @@
+using FlashSale.Application.Messaging;
 using FlashSale.Application.Orders;
-using FlashSale.Domain.Messaging;
 using FlashSale.Infrastructure.Messaging;
 using FlashSale.Infrastructure.Persistence;
 using FlashSale.Infrastructure.Redis;
@@ -25,7 +25,7 @@ public sealed class ResilienceTests(FlashSaleFixture fx)
         var deadGateway = new RedisStockGateway(mux);
 
         var reservation = await deadGateway.TryReserveAsync(productId, 1, "fallback-1");
-        Assert.Equal(Application.Messaging.ReservationResult.Unavailable, reservation);
+        Assert.Equal(Application.Inventory.ReservationResult.Unavailable, reservation);
 
         await using var db = fx.CreateDbContext();
         var repo = new OrderRepository(db);
@@ -40,7 +40,7 @@ public sealed class ResilienceTests(FlashSaleFixture fx)
     public async Task RabbitMq_RoundTrip_PersistsOrder_And_Acks()
     {
         var productId = await fx.ResetDatabaseAsync(stock: 10);
-        using var queue = fx.CreateRabbitQueue($"orders-{Guid.NewGuid():N}");
+        using var queue = await fx.CreateRabbitQueueAsync($"orders-{Guid.NewGuid():N}");
 
         Assert.True(await queue.EnqueueAsync(Msg(productId, 2, "rmq-1")));
         var entry = await queue.DequeueAsync();

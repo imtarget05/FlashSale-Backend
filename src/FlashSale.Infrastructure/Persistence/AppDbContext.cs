@@ -13,6 +13,18 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Product configuration
+        modelBuilder.Entity<Product>(entity =>
+        {
+            entity.HasIndex(p => p.SKU).IsUnique();
+            entity.Property(p => p.SKU).HasMaxLength(50);
+            entity.Property(p => p.Name).HasMaxLength(200);
+            entity.Property(p => p.Category).HasMaxLength(100);
+            entity.Property(p => p.Description).HasMaxLength(1000);
+            entity.Property(p => p.OriginalPrice).HasColumnType("decimal(18,2)");
+            entity.Property(p => p.FlashSalePrice).HasColumnType("decimal(18,2)");
+        });
+
         // Idempotency (authoritative layer): the same IdempotencyKey can never
         // produce two orders, even with at-least-once queue redelivery.
         modelBuilder.Entity<Order>(entity =>

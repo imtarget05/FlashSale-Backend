@@ -1,12 +1,14 @@
 using System;
 
-namespace FlashSale.Application.Messaging;
+namespace FlashSale.Infrastructure.Messaging;
 
 /// <summary>
 /// Messaging provider strategy (ADR-005): local development uses RabbitMQ,
 /// Azure production uses managed Service Bus, tests use InMemory.
-/// Application code depends only on IOrderQueueProducer/IOrderQueueConsumer
-/// — never on a broker SDK.
+/// Infrastructure concern (moved out of Application): the enum names concrete
+/// brokers and the selector reads connection-string config paths — neither
+/// belongs in the Application layer. Application code still depends only on
+/// IOrderQueueProducer/IOrderQueueConsumer — never on a broker SDK.
 /// </summary>
 public enum MessagingProvider
 {

@@ -1,4 +1,4 @@
-namespace FlashSale.Application.Messaging;
+namespace FlashSale.Application.Inventory;
 
 /// <summary>Outcome of a stock reservation attempt.</summary>
 public enum ReservationResult
@@ -17,7 +17,8 @@ public enum ReservationResult
 
 /// <summary>
 /// Port: the fast-fail inventory reservation tier (ADR-003). Redis-backed in
-/// production; the Application layer only sees this contract.
+/// production; the Application layer only sees this contract. Lives under
+/// Inventory/ — this is an inventory concern, not a messaging one.
 /// </summary>
 public interface IStockReservationGateway
 {

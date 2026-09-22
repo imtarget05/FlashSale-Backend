@@ -61,9 +61,10 @@ public static class MessagingServiceCollectionExtensions
                 break;
             case MessagingProvider.RabbitMQ:
                 services.AddSingleton<RabbitMQOrderQueue>(sp =>
-                    new RabbitMQOrderQueue(rabbit!,
+                    RabbitMQOrderQueue.CreateAsync(rabbit!,
                         configuration["Messaging:QueueName"] ?? "orders",
-                        sp.GetRequiredService<ILogger<RabbitMQOrderQueue>>()));
+                        sp.GetRequiredService<ILogger<RabbitMQOrderQueue>>())
+                        .GetAwaiter().GetResult());
                 services.AddSingleton<IOrderQueueProducer>(sp => sp.GetRequiredService<RabbitMQOrderQueue>());
                 services.AddSingleton<IOrderQueueConsumer>(sp => sp.GetRequiredService<RabbitMQOrderQueue>());
                 break;

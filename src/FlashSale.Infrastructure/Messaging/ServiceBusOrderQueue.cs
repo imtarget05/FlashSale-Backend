@@ -1,6 +1,5 @@
 using Azure.Messaging.ServiceBus;
 using FlashSale.Application.Messaging;
-using FlashSale.Domain.Messaging;
 using Microsoft.Extensions.Logging;
 
 namespace FlashSale.Infrastructure.Messaging;

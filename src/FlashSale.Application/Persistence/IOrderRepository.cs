@@ -1,4 +1,4 @@
-using FlashSale.Domain.Messaging;
+using FlashSale.Application.Messaging;
 
 namespace FlashSale.Application.Persistence;
 

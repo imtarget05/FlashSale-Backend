@@ -1,5 +1,3 @@
-using FlashSale.Domain.Messaging;
-
 namespace FlashSale.Application.Messaging;
 
 /// <summary>A message received from a queue, plus how to ack/dead-letter it.</summary>

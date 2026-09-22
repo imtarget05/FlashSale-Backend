@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using FlashSale.Application.Messaging;
-using FlashSale.Domain.Messaging;
 using Microsoft.Extensions.Logging;
 
 namespace FlashSale.Infrastructure.Messaging;
@@ -20,30 +19,50 @@ public class RabbitMQOrderQueue : IOrderQueueProducer, IOrderQueueConsumer, IDis
     private readonly AsyncEventingBasicConsumer _consumer;
     private readonly System.Threading.Channels.Channel<BasicDeliverEventArgs> _deliveryChannel;
 
-    public RabbitMQOrderQueue(string connectionString, string queueName, ILogger<RabbitMQOrderQueue> logger)
+    private RabbitMQOrderQueue(
+        IConnection connection,
+        IChannel channel,
+        string queueName,
+        ILogger<RabbitMQOrderQueue> logger,
+        AsyncEventingBasicConsumer consumer,
+        System.Threading.Channels.Channel<BasicDeliverEventArgs> deliveryChannel)
     {
+        _connection = connection;
+        _channel = channel;
         _queueName = queueName;
         _logger = logger;
+        _consumer = consumer;
+        _deliveryChannel = deliveryChannel;
+    }
 
+    /// <summary>
+    /// Async factory — avoids sync-over-async (.GetAwaiter().GetResult()) in the
+    /// constructor, which can cause thread-pool exhaustion under load.
+    /// </summary>
+    public static async Task<RabbitMQOrderQueue> CreateAsync(
+        string connectionString, string queueName, ILogger<RabbitMQOrderQueue> logger)
+    {
         var factory = new ConnectionFactory { Uri = new Uri(connectionString) };
-        _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
-        _channel = _connection.CreateChannelAsync().GetAwaiter().GetResult();
+        var connection = await factory.CreateConnectionAsync();
+        var channel = await connection.CreateChannelAsync();
 
-        _channel.QueueDeclareAsync(queue: _queueName,
+        await channel.QueueDeclareAsync(queue: queueName,
                                  durable: true,
                                  exclusive: false,
                                  autoDelete: false,
-                                 arguments: null).GetAwaiter().GetResult();
-        _channel.BasicQosAsync(0, 10, false).GetAwaiter().GetResult();
+                                 arguments: null);
+        await channel.BasicQosAsync(0, 10, false);
 
-        _deliveryChannel = System.Threading.Channels.Channel.CreateBounded<BasicDeliverEventArgs>(100);
+        var deliveryChannel = System.Threading.Channels.Channel.CreateBounded<BasicDeliverEventArgs>(100);
 
-        _consumer = new AsyncEventingBasicConsumer(_channel);
-        _consumer.ReceivedAsync += async (model, ea) =>
+        var consumer = new AsyncEventingBasicConsumer(channel);
+        consumer.ReceivedAsync += async (model, ea) =>
         {
-            await _deliveryChannel.Writer.WriteAsync(ea);
+            await deliveryChannel.Writer.WriteAsync(ea);
         };
-        _channel.BasicConsumeAsync(queue: _queueName, autoAck: false, consumer: _consumer).GetAwaiter().GetResult();
+        await channel.BasicConsumeAsync(queue: queueName, autoAck: false, consumer: consumer);
+
+        return new RabbitMQOrderQueue(connection, channel, queueName, logger, consumer, deliveryChannel);
     }
 
     public async ValueTask<bool> EnqueueAsync(OrderMessage message, CancellationToken ct = default)
