@@ -12,6 +12,7 @@ name: FlashSale CI (DevSecOps)
 #   docker-build-scan     build API+worker images, Trivy image scan
 #   sonarqube             Sonar analysis + QUALITY GATE (needs SONAR_TOKEN;
 #                         skipped with an explicit log line until configured)
+#   manifest-validation   renders the prod overlay, asserts it is deployable
 #   ci-gate               single aggregate check for branch protection
 
 on:
@@ -334,21 +335,23 @@ jobs:
       # Git state is the desired runtime state (ADR-011). Phase 7 ArgoCD syncs
       # from this commit; nothing is ever kubectl-applied by CI.
       - name: Pin the overlay to the released SHA
-        run: |
-          python3 - infrastructure/kubernetes/overlays/prod/kustomization.yaml \
-                   "${{ vars.ACR_LOGIN_SERVER }}" "${GITHUB_SHA}" <<'PY'
-          import sys, re
-          path, acr, sha = sys.argv[1], sys.argv[2], sys.argv[3]
-          text = open(path).read()
-          # lambda replacements: a plain r'\1' + value breaks when the value
-          # starts with a digit (\1 + "1de…" is parsed as group 11)
-          text = re.sub(r'(?m)^(\s*- name: )\S*/order-api',
-                        lambda m: m.group(1) + acr + '/order-api', text)
-          text = re.sub(r'(?m)^(\s*newTag: ).*$',
-                        lambda m: m.group(1) + sha, text)
-          open(path, 'w').write(text)
-          PY
-          git diff -- infrastructure/kubernetes/overlays/prod/kustomization.yaml
+        # Logic lives in scripts/gitops-pin-overlay.py rather than an inline
+        # heredoc so it can be re-run and unit-tested locally. It pins BOTH
+        # order-api and order-worker, and exits non-zero if either pin did not
+        # land — the old inline version matched `- name: <registry>/order-api`,
+        # a pattern that stopped existing once base became registry-neutral,
+        # and it only ever touched order-api.
+        run: >
+          ./scripts/gitops-pin-overlay.py
+          infrastructure/kubernetes/overlays/prod/kustomization.yaml
+          "${{ vars.ACR_LOGIN_SERVER }}" "${GITHUB_SHA}"
+      - name: Show the pinning diff
+        run: git diff -- infrastructure/kubernetes/overlays/prod/kustomization.yaml
+      # The pushed commit IS the deployment contract that ArgoCD will sync, so
+      # it has to render before it is pushed. This is the gate that was missing
+      # when a green release still produced an un-pullable image reference.
+      - name: Validate the rendered prod overlay
+        run: ./scripts/validate-manifests.sh
       - name: Commit and push the GitOps bump
         run: |
           git config user.name  "github-actions[bot]"
@@ -357,13 +360,36 @@ jobs:
           if git diff --cached --quiet; then
             echo "no change (already pinned to ${GITHUB_SHA})"
           else
-            git commit -m "gitops: pin prod overlay to order-api:${GITHUB_SHA}"
+            git commit -m "gitops: pin prod overlay to ${GITHUB_SHA}"
             git push
           fi
       - name: Summary
         run: |
           echo "### GitOps" >> "$GITHUB_STEP_SUMMARY"
-          echo "Desired state committed: prod overlay → \`${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Desired state committed: prod overlay (order-api + order-worker) -> \`${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  manifest-validation:
+    runs-on: ubuntu-latest
+    # Renders the prod overlay and asserts the OUTPUT is deployable. This job
+    # exists because every other job in this file proves the image, not the
+    # desired state: a green release-push + digest verification coexisted with a
+    # rendered manifest pointing at a non-existent registry and a mutable
+    # `:latest` tag, which no cluster could pull (Phase 7C readiness finding).
+    # Needs no cluster and no credentials — kubectl's built-in kustomize is
+    # enough, so it runs on forks and on every PR.
+    steps:
+      - uses: actions/checkout@v4
+      # PyYAML is preinstalled on ubuntu-latest, but a gate that silently
+      # disappears because an import failed is the exact bug class this job
+      # exists to catch — so it is installed explicitly and validated-objects.py
+      # exits non-zero if the import is still missing.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install validation dependencies
+        run: python3 -m pip install --quiet pyyaml
+      - name: Render and validate the prod overlay
+        run: ./scripts/validate-manifests.sh
 
   ci-gate:
     needs:
@@ -372,6 +398,7 @@ jobs:
       - concurrency-harness
       - security-scan
       - docker-build-scan
+      - manifest-validation
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -382,10 +409,12 @@ jobs:
           echo "concurrency-harness  = ${{ needs.concurrency-harness.result }}"
           echo "security-scan        = ${{ needs.security-scan.result }}"
           echo "docker-build-scan    = ${{ needs.docker-build-scan.result }}"
+          echo "manifest-validation  = ${{ needs.manifest-validation.result }}"
           fail=0
           [ "${{ needs.build-and-unit.result }}"      = "success" ] || { echo "GATE FAIL: build-and-unit";      fail=1; }
           [ "${{ needs.integration-tests.result }}"   = "success" ] || { echo "GATE FAIL: integration-tests";   fail=1; }
           [ "${{ needs.concurrency-harness.result }}" = "success" ] || { echo "GATE FAIL: concurrency-harness"; fail=1; }
           [ "${{ needs.security-scan.result }}"       = "success" ] || { echo "GATE FAIL: security-scan";       fail=1; }
           [ "${{ needs.docker-build-scan.result }}"   = "success" ] || { echo "GATE FAIL: docker-build-scan";   fail=1; }
+          [ "${{ needs.manifest-validation.result }}" = "success" ] || { echo "GATE FAIL: manifest-validation"; fail=1; }
           exit $fail

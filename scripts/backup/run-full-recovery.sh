@@ -64,6 +64,7 @@ T0=$(date +%s)
 ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=$TARGET_DB;Username=postgres;Password=$POSTGRES_PASSWORD" \
 ConnectionStrings__Redis='localhost:6379,abortConnect=false' \
 Messaging__Provider=InMemory \
+ASPNETCORE_ENVIRONMENT=Development \
 ASPNETCORE_URLS='http://localhost:5199' \
 nohup dotnet "$ROOT"/src/Order.Api/bin/Debug/net*/Order.Api.dll > /tmp/3c-api.log 2>&1 &
 for _ in $(seq 1 60); do LIVE="$(curl -s http://localhost:5199/health/live)"; [ -n "$LIVE" ] && break; sleep 1; done

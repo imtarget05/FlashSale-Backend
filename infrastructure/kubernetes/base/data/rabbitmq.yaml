@@ -1,0 +1,111 @@
+# Phase 7C "portfolio mode" broker — RabbitMQ carries the async order hand-off
+# (ADR-004 async fulfillment, ADR-005 local/dev provider). The app declares its
+# own queue at connect time (RabbitMQOrderQueue.QueueDeclareAsync, durable,
+# prefetch 10), so NO pre-created queue/object is needed here.
+#
+# runAsUser 100 / runAsGroup 101: verified against the pinned image — the
+# entrypoint normally starts as root and drops with `su-exec rabbitmq`
+# (/etc/passwd maps rabbitmq to 100:101). readOnlyRootFilesystem was also
+# verified against this exact image (`--read-only --user 100:101` reached
+# "Time to start RabbitMQ"), with /tmp on an emptyDir for Erlang scratch.
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  labels:
+    app: rabbitmq
+    project: flash-sale
+    role: data
+spec:
+  # ClusterIP by omission (no `type:`). Port 5672 only: the management UI
+  # (15672) is intentionally NOT fronted by a Service, so it cannot be reached
+  # or accidentally exposed. Debug it with `kubectl port-forward` if ever needed.
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  labels:
+    app: rabbitmq
+    project: flash-sale
+    role: data
+spec:
+  serviceName: rabbitmq
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 101
+        fsGroup: 101
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3-management-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: "flashsale"
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: rabbitmq-password
+          ports:
+            - name: amqp
+              containerPort: 5672
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/rabbitmq
+            # Erlang/RabbitMQ need writable scratch even with a read-only root.
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # Same diagnostic as the docker-compose healthcheck.
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 60
+            periodSeconds: 15
+      volumes:
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            # Durable broker state is kept so a restart does not silently drop
+            # unpublished-but-acked order messages, which would undermine the
+            # reliability story this project is about.
+            storage: 1Gi

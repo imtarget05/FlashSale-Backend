@@ -11,11 +11,24 @@ replicas:
     count: 2
 
 images:
-  # Real ACR login server (Terraform output `acr_login_server`, Phase 6).
-  # newTag is pinned to the released commit SHA by the CI `gitops-update` job —
-  # never flip this to a hand-written tag, and never to `latest` (ADR-011).
-  - name: acrflashsalep6.azurecr.io/order-api
+  # `name` MUST equal the image name declared in base (registry-neutral,
+  # e.g. `order-api:placeholder-set-by-overlay`); Kustomize matches on that
+  # name and silently skips the transform when it does not match. The real
+  # registry host therefore belongs in `newName`, not in `name`.
+  # The previous form (`name: acrflashsalep6.azurecr.io/order-api`) never
+  # matched the base, so the rendered manifest kept a non-existent
+  # placeholder registry + `:latest` → guaranteed ImagePullBackOff.
+  #
+  # newTag is pinned to the released commit SHA by the CI `gitops-update`
+  # job — never hand-edit it, and never use `latest` (ADR-011). Both images
+  # ship from the same commit, so the same SHA is correct for both.
+  - name: order-api
+    newName: acrflashsalep6.azurecr.io/order-api
+    newTag: 087731cd0ed6d2aeb5892dd3a8fd6f6da7c0339c
+  - name: order-worker
+    newName: acrflashsalep6.azurecr.io/order-worker
     newTag: 087731cd0ed6d2aeb5892dd3a8fd6f6da7c0339c
 
 commonLabels:
   env: prod
+

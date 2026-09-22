@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-worker
+  labels:
+    app: order-worker
+    project: flash-sale
+spec:
+  # Exactly one replica on purpose (Phase 7C portfolio mode). The worker is an
+  # at-least-once consumer with BasicQos prefetch=10 (RabbitMQOrderQueue); more
+  # replicas are safe but unnecessary for the gate, and one replica keeps the
+  # "duplicate request" evidence readable. Autoscaling is deliberately NOT
+  # configured here — that is a later phase, not a 7C requirement.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-worker
+  template:
+    metadata:
+      labels:
+        app: order-worker
+    spec:
+      # Same non-root identity as the API image: both Dockerfiles chown the
+      # publish output to the built-in `app` user (uid 1654) — see
+      # Dockerfile.worker ("USER app") and ADR-007.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+      containers:
+        - name: order-worker
+          # Registry-neutral NAME matched by the prod overlay `images:` entry.
+          # See base/api/deployment.yaml for why the previous
+          # "<placeholder-registry>/..." form silently defeated the override.
+          image: order-worker:placeholder-set-by-overlay
+          # Container-level hardening (Trivy KSV-0014/KSV-0118 check these HERE,
+          # not at pod level) — identical bar to the API container.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          # No containerPort: the worker is a queue consumer with no inbound
+          # network surface, therefore it gets NO Service. Exposing nothing is
+          # the smallest correct contract.
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: pg-connection
+            - name: ConnectionStrings__RabbitMQ
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: rabbitmq-connection
+            # Explicit provider, same rule as the API: never let
+            # MessagingProviderSelector.Resolve() fall back to InMemory, which
+            # is per-process and would silently decouple worker from API.
+            - name: Messaging__Provider
+              value: "RabbitMQ"
+            - name: Messaging__QueueName
+              value: "orders"
+          volumeMounts:
+            # File DLQ writes to /app/logs; readOnlyRootFilesystem needs a
+            # writable scratch mount for it (same pattern as the API).
+            - name: dlq-logs
+              mountPath: /app/logs
+            # Verified against the released image: with `--read-only --user
+            # 1654:1654`, both /tmp and /app/logs are unwritable, so /tmp must
+            # be an explicit emptyDir here too (.NET Path.GetTempPath() -> /tmp).
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # No liveness/readness httpGet: Order.Worker is a BackgroundService
+          # host with no HTTP listener (Dockerfile.worker ENTRYPOINT runs
+          # Order.Worker.dll only, and the image declares no HEALTHCHECK).
+          # A fabricated /health probe here would be a lie; the real liveness
+          # signal at 7C is "the queue drains and the order row reaches
+          # Completed", which is a business-level assertion, not a port check.
+      volumes:
+        - name: dlq-logs
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

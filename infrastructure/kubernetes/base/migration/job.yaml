@@ -1,0 +1,100 @@
+# Phase 7C migration contract — schema is brought to head BEFORE the workloads
+# are allowed to roll, instead of by whichever pod happens to start first.
+#
+# Why a Job and not the existing startup migration: base/api/deployment.yaml runs
+# `replicas: 2`, so two API pods (plus the worker) each call
+# DatabaseInitializer.InitializeAsync -> MigrateAsync against the same PostgreSQL.
+# That is a race on every rollout, and a crash mid-migration leaves a
+# half-migrated schema that the next pod inherits. A Job gives the migration one
+# attempt, one owner, a retry budget, and a log stream (`kubectl logs
+# job/order-migrate`) that says exactly which migrations were applied.
+#
+# Ordering is expressed with a Helm-style `job-before-rollout` workflow rather
+# than a k8s field: Kubernetes has no "run this Job before those Deployments"
+# primitive inside one apply. The GitOps sync step (Phase 7D) is expected to
+# apply this Job and wait for completion before syncing the deployments; see
+# infrastructure/kubernetes/README-migration.md.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: order-migrate
+  labels:
+    app: order-migrate
+    project: flash-sale
+    role: migration
+spec:
+  # Bounded retry: a migration that fails three times is a broken migration, not
+  # a transient fault. Leaving backoffLimit at its default (6) would keep
+  # hammering a database that cannot apply the schema.
+  backoffLimit: 3
+  # Keep the failed pod around for one hour so the log evidence survives long
+  # enough to read, then garbage collect.
+  ttlSecondsAfterFinished: 3600
+  # The Job name is fixed, so a re-sync of an unchanged commit does not stack a
+  # second concurrent migration.
+  completionMode: NonIndexed
+  template:
+    metadata:
+      labels:
+        app: order-migrate
+        role: migration
+    spec:
+      # Never reschedule a migration onto a second node while the first attempt
+      # may still hold the EF advisory lock.
+      restartPolicy: Never
+      # Same identity as the API: both Dockerfiles publish as the built-in `app`
+      # user, uid 1654 (ADR-007). Trivy KSV-0012 asserts this at pod level.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+      containers:
+        - name: migrate
+          # Registry-neutral NAME, deliberately the SAME image as the API: the
+          # migrations live in the app assembly, so the migration Job must be the
+          # exact artifact version being rolled out. The prod overlay `images:`
+          # transformer rewrites this to the pinned SHA alongside order-api.
+          image: order-api:placeholder-set-by-overlay
+          # Exec-form ENTRYPOINT is ["dotnet", "Order.Api.dll"], so these args
+          # append to it: `dotnet Order.Api.dll --migrate`. That branch in
+          # src/Order.Api/Program.cs runs MigrationRunner and exits with its code
+          # without ever touching Redis or the queue.
+          args:
+            - "--migrate"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          env:
+            # PostgreSQL ONLY. Redis and the queue are absent on purpose: a
+            # migration must not be blocked by a broker, and must not seed rows.
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: pg-connection
+            # Stated explicitly rather than inherited from the empty default. The
+            # --migrate branch returns before AddOrderQueue/Redis are registered,
+            # so the Production queue guard never applies here — and if someone
+            # ever moves that branch below the queue registration, this Job fails
+            # loudly on missing broker config instead of quietly resolving
+            # InMemory. Either way the environment is not a silent variable.
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Production"
+          volumeMounts:
+            # readOnlyRootFilesystem=true means .NET's Path.GetTempPath()
+            # (/tmp on Linux) has to be writable or the runtime fails in a way
+            # that looks like an application bug (same finding as the API pod).
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}

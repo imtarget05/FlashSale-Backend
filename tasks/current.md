@@ -23,9 +23,23 @@ Current:
       guaranteed). Evidence: docs/evidence/backup/restore-drill-001.md.
 - [x] Docker Compose: order-worker service + healthchecks + depends_on conditions.
 - [x] Dockerfile.worker for the standalone worker image.
-- [x] Terraform full Azure stack (ACR, PostgreSQL, Redis, Service Bus, Container Apps,
-      Log Analytics) + dev/prod tfvars; `terraform validate` green.
-- [x] CI: build + unit/architecture tests + concurrency harness; CD: ACR push + Container Apps.
+- [x] Terraform **blueprint** for the full Azure stack (ACR, PostgreSQL, Redis,
+      Service Bus, Container Apps, Log Analytics) + dev/prod tfvars;
+      `terraform validate` green.
+      **NOT APPLIED — no such resources exist in the subscription.** Verified live
+      2026-09-21 (`az resource list`): the only P01-owned Azure resources are
+      `acrflashsalep6` + `id-flashsale-github-release` (+ the Phase 3B backup
+      storage account), all created by `infrastructure/terraform/release/` and
+      `.../backup-storage/`. `infrastructure/terraform/main.tf` (the app stack)
+      has never been applied and has no state file.
+      ACTIVE cloud ownership: **P03 `AKS-SRE-Platform` owns shared Azure runtime
+      infrastructure** (resource group, AKS, ACR integration). P01 owns
+      application code, images and workload manifests.
+- [x] CI: build + unit/architecture tests + concurrency harness + Trivy gates;
+      CD: **ACR push of immutable SHA tags + GitOps overlay pin** (ADR-011).
+      There is **no Container Apps deployment** — no such workflow or job exists;
+      the compute target is AKS via GitOps (Phase 7C), which supersedes the
+      original Container Apps plan in AGENTS.md.
 - [x] Interview notes for Phase 2–5 decisions (docs/interview-notes/).
 - [x] **Clean Architecture refactor** (folder-level): Domain / Application (ports) /
       Infrastructure (adapters) / Api + Worker composition roots; 7 tests incl.
@@ -36,4 +50,21 @@ Next (Phase 10 + hardening):
 - [ ] Key Vault CSI driver instead of Kubernetes secrets.
 - [ ] Chaos experiment: kill the worker mid-drain to demonstrate at-least-once redelivery.
 
-*Note: Do not work on concurrency, Redis, Terraform, Azure, or GitHub Actions.*
+Roadmap change 2026-09-21 (mandatory, sequenced AFTER AKS/GitOps/observability baseline):
+- [ ] Phase 9 decomposition target (monorepo, separate runtimes): Order / Inventory /
+      Payment (`FakePaymentProvider`, deterministic `...01/02/03` fixtures) /
+      Checkout.Saga / Fulfillment.Worker; one PG instance, per-service schemas,
+      no cross-service table reads. Full spec:
+      `../AKS-SRE-Platform/plans/2026-09-21-microservices-mandatory-roadmap-9-to-18.md`.
+      NOT STARTED — opens only after platform Phase 8 green.
+
+*Ownership boundary (clarified 2026-09-21, replaces the old blanket "do not work
+on Terraform/Azure" freeze which contradicted the Phase 7 roadmap):
+Do **not** provision P01-owned standalone Azure runtime infrastructure — no
+PostgreSQL Flexible Server, Redis Cache, Service Bus namespace or Container Apps
+environment from this repo. P03 `AKS-SRE-Platform` owns the shared Azure/AKS
+runtime (resource group, cluster, ACR integration, gateway, GitOps).
+P01 **does** own: application code, container images, Kubernetes manifests,
+overlay pins, and the runtime secret contract. Concurrency behaviour, Redis
+semantics and the CI/CD pipeline are likewise settled and should not be
+re-opened without a new ADR.*

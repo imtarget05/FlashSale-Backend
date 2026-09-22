@@ -1,10 +1,25 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# 7C readiness: the manifest tree is split by workload role so the worker and
+# the in-cluster data tier are part of the SAME desired state as the API.
+# Previously base held exactly one Deployment, which is how "CI is green, the
+# image exists in ACR, but the async order flow cannot run" stayed invisible.
 resources:
-  - deployment.yaml
-  - service.yaml
+  - api/deployment.yaml
+  - api/service.yaml
+  - worker/deployment.yaml
+  # Phase 7C: schema migration is its own single-shot workload, not a side
+  # effect of whichever pod happens to start first. See the file header.
+  - migration/job.yaml
+  # Portfolio-mode dependencies (see header comments in each file). Remove these
+  # three entries when PostgreSQL/Redis/RabbitMQ are replaced by managed
+  # services — the app contract does not change, only where it connects to.
+  - data/postgres.yaml
+  - data/redis.yaml
+  - data/rabbitmq.yaml
 
 commonLabels:
   project: flash-sale
   part-of: flash-sale-order-platform
+
