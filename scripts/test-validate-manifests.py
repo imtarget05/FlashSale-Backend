@@ -215,6 +215,41 @@ def mut_duplicate_api_service(docs):
     return docs
 
 
+def mut_api_missing_jwt_key(docs):
+    """ADR-013 §2: a typo in the signing-key ref must fail the gate, not the pod.
+
+    A wrong key name puts order-api in CreateContainerConfigError on a live
+    cluster — the exact failure the secret contract exists to catch offline.
+    """
+    i = find_doc(docs, "Deployment", "order-api")
+    if "key: jwt-signing-key" not in docs[i]:
+        raise KeyError("order-api doc has no jwt-signing-key")
+    docs[i] = docs[i].replace("key: jwt-signing-key", "key: jwt-signing-kev", 1)
+    return docs
+
+
+def mut_job_needs_jwt_key(docs):
+    """The migration Job must never be handed auth config.
+
+    JwtOptions fails fast when the key is absent, so a Job that is asked for one
+    is a Job whose migration path would end up validating JWT configuration —
+    which is what the --migrate branch ordering exists to prevent.
+    """
+    i = find_doc(docs, "Job", "order-migrate")
+    anchor = "key: pg-connection\n"
+    if anchor not in docs[i]:
+        raise KeyError("Job doc has no pg-connection anchor")
+    block = (
+        "        - name: Auth__Jwt__SigningKey\n"
+        "          valueFrom:\n"
+        "            secretKeyRef:\n"
+        "              name: flashsale-secrets\n"
+        "              key: jwt-signing-key\n"
+    )
+    docs[i] = docs[i].replace(anchor, anchor + block, 1)
+    return docs
+
+
 MUTATIONS = [
     ("api_missing_rabbitmq_env", "order-api is missing ConnectionStrings__RabbitMQ", mut_api_missing_rabbitmq_env),
     ("api_missing_messaging_provider", "order-api does not set Messaging__Provider explicitly", mut_api_missing_provider),
@@ -233,6 +268,8 @@ MUTATIONS = [
     ("api_undeclared_volume", "mounts undeclared volume", mut_api_undeclared_volume),
     ("worker_no_cpu_limit", "resources.limits.cpu required", mut_worker_no_cpu_limit),
     ("job_needs_redis", "depends on redis-connection", mut_job_needs_redis),
+    ("job_needs_jwt_key", "depends on jwt-signing-key", mut_job_needs_jwt_key),
+    ("api_missing_jwt_key", "order-api does not reference secret key jwt-signing-key", mut_api_missing_jwt_key),
     ("job_without_migrate_arg", "does not pass --migrate", mut_job_without_migrate_arg),
     ("duplicate_api_service", "declared more than once", mut_duplicate_api_service),
 ]
