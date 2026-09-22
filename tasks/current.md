@@ -44,9 +44,24 @@ Qwen/Ollama" in a CV until the backend actually calls the model):
 - [x] architecture selected: Ollama + Qwen3:4b (~4B params, Q4_K_M ≈ 2.5 GB)
       via OpenAI-compatible endpoint http://localhost:11434/v1 (client sends a
       dummy key such as `ollama`; the server does not validate it).
-- [ ] runtime integration (first real inference evidence).
-- [ ] grounded assistant.
-- [ ] TTS.
+- [x] runtime integration (first real inference evidence) — 2026-09-23:
+      POST /api/assistant/product → 200 from REAL qwen3:4b (Ollama /v1,
+      dummy Bearer key), measured latency 18–70s (qwen3 reasons before
+      answering; `think`/`reasoning_effort` are NOT honored by Ollama's
+      OpenAI endpoint — per-attempt timeout set to 120s accordingly),
+      usage tokens real (e.g. prompt 141 / completion 724). Live smoke
+      scripts/ai-assistant-smoke.sh = 19/19 PASS (401 anonymous, 400 empty
+      question, real grounded answer with productId resolving via
+      /api/products/{id}, Redis rate-limit window, deterministic 429 without
+      model call, metrics flashsale.ai.assistant.*, OpenAPI Assistant tag).
+      Unit 75 + integration 19 = 94/94. Evidence:
+      docs/evidence/ai/assistant-live-smoke.md. CV claim is now honest:
+      "Integrated Ollama (Qwen3:4b) grounded Product Assistant (REST)".
+- [x] grounded assistant — model output validated against read-model
+      candidates; invented/malformed/duplicate productIds are DROPPED and
+      counted (never invented), code fences stripped, sloppy array entries
+      tolerated — unit-tested in AssistantOutputParserTests.
+- [ ] TTS (ElevenLabs — needs a paid API key; not started).
 
 Phase 1–5 (done, evidence kept for traceability):
 - [x] Phase 1: baseline API verified.
