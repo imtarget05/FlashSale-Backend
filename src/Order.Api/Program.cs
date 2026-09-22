@@ -1,16 +1,23 @@
+using FlashSale.Application.Auth;
 using FlashSale.Application.Messaging;
 using FlashSale.Application.Orders;
 using FlashSale.Application.Persistence;
 using FlashSale.Domain;
 using FlashSale.Domain.Entities;
 using FlashSale.Domain.Messaging;
+using FlashSale.Infrastructure.Auth;
 using FlashSale.Infrastructure.Messaging;
 using FlashSale.Infrastructure.Persistence;
 using FlashSale.Infrastructure.Redis;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.IdentityModel.Tokens;
+using Order.Api.Auth;
 using StackExchange.Redis;
+using System.Security.Claims;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +32,42 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderReadModel, OrderReadModel>();
+
+// ---------------------------------------------------------------
+// Authentication & authorization (ADR-013).
+//
+// Registered BEFORE the --migrate branch below so the migration path stays
+// independent of auth configuration: a migration Job must not fail because a
+// signing key is absent.
+// ---------------------------------------------------------------
+var jwtOptions = JwtOptions.FromConfiguration(builder.Configuration, builder.Environment.IsProduction());
+builder.Services.AddSingleton(jwtOptions);
+builder.Services.AddSingleton<ITokenIssuer>(new JwtTokenIssuer(jwtOptions));
+builder.Services.AddSingleton<IPasswordHasher>(new Pbkdf2PasswordHasher());
+builder.Services.AddScoped<IUserStore, UserStore>();
+builder.Services.AddScoped<AuthService>();
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30),
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+            RoleClaimType = ClaimTypes.Role,
+            NameClaimType = ClaimTypes.NameIdentifier,
+        };
+    });
+
+builder.Services.AddAuthorizationBuilder().AddFlashSalePolicies();
 
 // ---------------------------------------------------------------
 // Migration entrypoint (Phase 7C): `dotnet Order.Api.dll --migrate`.
@@ -86,13 +129,21 @@ if (!string.IsNullOrEmpty(kafkaConnectionString))
 
 var app = builder.Build();
 
+// Order matters: authentication must populate HttpContext.User before
+// authorization evaluates the policies registered above.
+app.UseAuthentication();
+app.UseAuthorization();
+
 // Startup concerns live in Infrastructure (schema + seed + Redis mirroring).
 await DatabaseInitializer.InitializeAsync(app.Services);
+
+app.MapAuthEndpoints();
 
 
 app.MapPost("/api/orders", async (
     OrderRequest request,
     HttpRequest http,
+    ClaimsPrincipal user,
     IOrderReadModel readModel,
     IStockReservationGateway redis,
     IOrderQueueProducer queue,
@@ -106,7 +157,13 @@ app.MapPost("/api/orders", async (
         ? headerKey.ToString()
         : Guid.NewGuid().ToString("N");
 
-    var message = new OrderMessage(request.ProductId, request.Quantity, idempotencyKey, DateTimeOffset.UtcNow);
+    // ADR-013 §6: anonymous callers keep working (UserId = null); an
+    // authenticated caller's order is attributed to the JWT `sub`. This endpoint
+    // is deliberately NOT [Authorize] — the anonymous path is existing,
+    // verified behaviour and the concurrency evidence depends on it.
+    var userId = TryGetUserId(user);
+
+    var message = new OrderMessage(request.ProductId, request.Quantity, idempotencyKey, DateTimeOffset.UtcNow, UserId: userId);
 
     // T1 — fast reservation (also deduplicates by idempotency key).
     var reservation = await redis.TryReserveAsync(request.ProductId, request.Quantity, idempotencyKey);
@@ -166,6 +223,22 @@ app.MapGet("/api/orders/{idempotencyKey}", async (string idempotencyKey, IOrderR
         : Results.Json(new { order.IdempotencyKey, status = "completed", order.OrderId, order.ProductId, order.Quantity });
 });
 
+// The caller's own order history (ADR-013 §5). Scoped by the JWT `sub`, so a
+// caller can only ever see their own orders — no resource-based handler is
+// needed because the query itself is the authorization boundary.
+app.MapGet("/orders/me", async (ClaimsPrincipal user, IOrderReadModel readModel, CancellationToken ct) =>
+{
+    var userId = TryGetUserId(user);
+    if (userId is null) return Results.Unauthorized();
+
+    var orders = await readModel.GetOrdersByUserAsync(userId.Value, ct);
+    return Results.Ok(new { count = orders.Count, orders });
+})
+.RequireAuthorization()
+.WithTags("Orders")
+.WithName("MyOrders")
+.WithSummary("List the authenticated caller's orders, newest first.");
+
 // Read endpoint for audits, dashboards and the benchmark harness.
 app.MapGet("/api/products/{id}", async (int id, IOrderReadModel readModel) =>
 {
@@ -214,6 +287,20 @@ app.MapGet("/health/ready", async (AppDbContext db, ILogger<Program> readinessLo
         ? Results.Ok(new { status = "ready" })
         : Results.Json(new { status = "not-ready" }, statusCode: 503);
 });
+
+/// <summary>
+/// Read the caller's user id from the JWT <c>sub</c> claim, or <c>null</c> when
+/// the request is anonymous (ADR-013 §6).
+/// </summary>
+/// <remarks>
+/// A local function, not a helper class: it is used by exactly two endpoints in
+/// this file, and both need the same "anonymous is allowed" answer.
+/// </remarks>
+static Guid? TryGetUserId(ClaimsPrincipal user)
+{
+    var sub = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub");
+    return Guid.TryParse(sub, out var id) ? id : null;
+}
 
 app.Run();
 
