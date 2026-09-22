@@ -1,3 +1,4 @@
+using FlashSale.Application.Assistant;
 using FlashSale.Application.Auth;
 using FlashSale.Application.Inventory;
 using FlashSale.Application.Messaging;
@@ -6,6 +7,7 @@ using FlashSale.Application.Persistence;
 using FlashSale.Domain;
 using FlashSale.Domain.Entities;
 using FlashSale.Infrastructure.Auth;
+using FlashSale.Infrastructure.Ai;
 using FlashSale.Infrastructure.Messaging;
 using FlashSale.Infrastructure.Persistence;
 using FlashSale.Infrastructure.Redis;
@@ -35,6 +37,24 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderReadModel, OrderReadModel>();
 builder.Services.AddScoped<IDatabaseHealthCheck, DatabaseHealthCheck>();
+
+// ---------------------------------------------------------------
+// AI assistant (spec §10) — local Ollama through its OpenAI-compatible API.
+// The typed client owns BaseAddress + dummy bearer key (Ollama ignores it;
+// OpenAI-compatible wire format requires one); the use case owns timeout,
+// bounded retry, grounding validation and the per-user rate limit.
+// ---------------------------------------------------------------
+var aiOptions = builder.Configuration.GetSection(OllamaOptions.SectionName).Get<OllamaOptions>()
+    ?? new OllamaOptions();
+builder.Services.AddSingleton(aiOptions);
+builder.Services.AddHttpClient<IAiChatClient, OllamaChatClient>("ollama", (_, client) =>
+{
+    client.BaseAddress = new Uri($"{aiOptions.BaseUrl.TrimEnd('/')}/");
+    client.DefaultRequestHeaders.Authorization =
+        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", aiOptions.ApiKey);
+});
+builder.Services.AddScoped<IAiRateLimiter, RedisAiRateLimiter>();
+builder.Services.AddScoped<ProductAssistantUseCase>();
 
 // ---------------------------------------------------------------
 // Observability (Phase III).
@@ -287,6 +307,50 @@ app.MapGet("/api/products/{id}", async (int id, IOrderReadModel readModel) =>
     return product is null ? Results.NotFound() : Results.Ok(product);
 });
 
+// AI Feature A — grounded product assistant (spec §10). Authenticated callers
+// only (the rate limit and the answer are per-user); the model may only
+// recommend products that exist in the read model, and its structured output
+// is validated before it ever reaches the response.
+app.MapPost("/api/assistant/product", async (
+    AssistantQuestion request,
+    ClaimsPrincipal user,
+    ProductAssistantUseCase assistant,
+    CancellationToken ct) =>
+{
+    var userId = TryGetUserId(user);
+    if (userId is null) return Results.Unauthorized();
+
+    var result = await assistant.ExecuteAsync(userId.Value, request.Question, ct);
+    ApiMetrics.RecordAiAssistant(result.Outcome.ToString(), result.Model, result.LatencyMs, result.PromptTokens, result.CompletionTokens);
+
+    return result.Outcome switch
+    {
+        AssistantOutcome.InvalidQuestion => Results.BadRequest(new
+        {
+            error = "invalid_question",
+            maxQuestionLength = ProductAssistantUseCase.MaxQuestionLength
+        }),
+        AssistantOutcome.RateLimited => Results.Json(
+            new { error = "rate_limited", retryAfterSeconds = 60 }, statusCode: 429),
+        AssistantOutcome.UpstreamUnavailable => Results.Json(
+            new { error = "assistant_unavailable" }, statusCode: 503),
+        AssistantOutcome.InvalidModelOutput => Results.Json(
+            new { error = "assistant_invalid_output" }, statusCode: 502),
+        _ => Results.Ok(new
+        {
+            answer = result.Answer,
+            recommendedProducts = result.RecommendedProducts,
+            model = result.Model,
+            latencyMs = result.LatencyMs,
+            tokens = new { prompt = result.PromptTokens, completion = result.CompletionTokens }
+        })
+    };
+})
+.RequireAuthorization()
+.WithTags("Assistant")
+.WithName("AskProductAssistant")
+.WithSummary("Grounded AI product assistant (Ollama/Qwen): recommend only from real product data.");
+
 // Ops runbook: rebuild the reservation counter from PostgreSQL truth after drift.
 app.MapPost("/internal/resync-stock/{id}", async (int id, IOrderReadModel readModel, IStockReservationGateway redis) =>
 {
@@ -337,6 +401,9 @@ app.Run();
 return 0;
 
 public record OrderRequest(int ProductId, int Quantity);
+
+/// <summary>Request body for <c>POST /api/assistant/product</c> (spec §10).</summary>
+public record AssistantQuestion(string? Question);
 
 /// <summary>
 /// Exposed so <c>WebApplicationFactory&lt;Program&gt;</c> can boot this exact

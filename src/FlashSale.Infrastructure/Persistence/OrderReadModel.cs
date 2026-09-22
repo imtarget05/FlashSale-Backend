@@ -1,3 +1,4 @@
+using FlashSale.Application.Assistant;
 using FlashSale.Application.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,5 +30,15 @@ public sealed class OrderReadModel(AppDbContext db) : IOrderReadModel
             .Where(o => o.UserId == userId)
             .OrderByDescending(o => o.CreatedAt)
             .Select(o => new OrderSummaryView(o.Id, o.ProductId, o.Quantity, o.CreatedAt))
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<ProductCandidate>> GetProductCandidatesAsync(
+        int max, CancellationToken ct = default) =>
+        await db.Products.AsNoTracking()
+            .Where(p => p.AvailableStock > 0)
+            .OrderBy(p => p.Id)
+            .Take(max)
+            .Select(p => new ProductCandidate(
+                p.Id, p.Name, p.Category, p.Description, p.FlashSalePrice, p.AvailableStock))
             .ToListAsync(ct);
 }

@@ -1,3 +1,5 @@
+using FlashSale.Application.Assistant;
+
 namespace FlashSale.Application.Persistence;
 
 /// <summary>Read model for a product (queries never go through the write model).</summary>
@@ -33,4 +35,11 @@ public interface IOrderReadModel
     /// are never returned, so this cannot leak another caller's history.
     /// </summary>
     Task<IReadOnlyList<OrderSummaryView>> GetOrdersByUserAsync(Guid userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// In-stock product candidates for the AI assistant's grounding context
+    /// (spec §10). The model may only recommend from this set; the use case
+    /// validates its output against it.
+    /// </summary>
+    Task<IReadOnlyList<ProductCandidate>> GetProductCandidatesAsync(int max, CancellationToken ct = default);
 }
