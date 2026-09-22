@@ -374,3 +374,14 @@ app.Run();
 return 0;
 
 public record OrderRequest(int ProductId, int Quantity);
+
+/// <summary>
+/// Exposed so <c>WebApplicationFactory&lt;Program&gt;</c> can boot this exact
+/// composition root from the integration test project (Phase IV E2E).
+/// </summary>
+/// <remarks>
+/// The compiler already generates <c>Program</c> as a partial class for top-level
+/// statements; this declaration only widens its accessibility. It must stay after
+/// the type declarations above, because top-level statements must precede them.
+/// </remarks>
+public partial class Program;
