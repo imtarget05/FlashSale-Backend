@@ -74,7 +74,7 @@ Why it matters here:
 
 ## Delivery Semantics (ADR-004)
 - At-least-once queue delivery; the consumer is idempotent (DB unique index).
-- Retries: exponential backoff, 4 attempts, then DLQ (`logs/dlq.log` / Service Bus DLQ).
+- Retries: exponential backoff, 4 attempts, then DLQ (structured stdout log / Service Bus DLQ).
 - HTTP: `202 Accepted` + status polling via `GET /api/orders/{idempotencyKey}`.
 
 ## Measured Evidence
