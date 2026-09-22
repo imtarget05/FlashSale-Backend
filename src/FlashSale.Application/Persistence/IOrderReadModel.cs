@@ -11,6 +11,13 @@ public sealed record OrderStatusView(
     int Quantity,
     DateTime CreatedAt);
 
+/// <summary>One row of a user's own order history (<c>GET /orders/me</c>).</summary>
+public sealed record OrderSummaryView(
+    int OrderId,
+    int ProductId,
+    int Quantity,
+    DateTime CreatedAt);
+
 /// <summary>
 /// Port: query side (CQRS-lite). Keeps presentation handlers free of EF/DB
 /// details — the API depends only on this contract.
@@ -20,4 +27,10 @@ public interface IOrderReadModel
     Task<int?> GetStockAsync(int productId, CancellationToken ct = default);
     Task<ProductView?> GetProductAsync(int productId, CancellationToken ct = default);
     Task<OrderStatusView?> GetOrderStatusAsync(string idempotencyKey, CancellationToken ct = default);
+
+    /// <summary>
+    /// Orders owned by one user, newest first. Anonymous orders (UserId null)
+    /// are never returned, so this cannot leak another caller's history.
+    /// </summary>
+    Task<IReadOnlyList<OrderSummaryView>> GetOrdersByUserAsync(Guid userId, CancellationToken ct = default);
 }

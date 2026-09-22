@@ -44,7 +44,9 @@ public sealed class OrderRepository(AppDbContext db) : IOrderRepository
             ProductId = message.ProductId,
             Quantity = message.Quantity,
             IdempotencyKey = message.IdempotencyKey,
-            CreatedAt = message.CreatedAt.UtcDateTime
+            CreatedAt = message.CreatedAt.UtcDateTime,
+            // ADR-013 §6: null for anonymous orders, the JWT `sub` otherwise.
+            UserId = message.UserId
         });
 
         await db.SaveChangesAsync(ct);
