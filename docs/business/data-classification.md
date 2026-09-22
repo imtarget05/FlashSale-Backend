@@ -11,6 +11,6 @@
 | Kubernetes manifests | DESIRED STATE IN GIT | Git is the backup; no separate dump |
 | Container images (ACR) | IMMUTABLE RELEASE ARTIFACTS | Registry retention policy (Phase 6) |
 | Application logs / metrics | OPERATIONS EVIDENCE | Short retention locally; central retention (Phase 8) |
-| DLQ evidence (`logs/dlq.log`, `dlq-data` volume) | OPERATIONS EVIDENCE (order failure forensics) | Local volume only in 3A; off-host in 3B |
+| DLQ evidence (structured stdout log, Service Bus native DLQ) | OPERATIONS EVIDENCE (order failure forensics) | Central log store from process start |
 
 Consequence: only PostgreSQL loss is a **critical business outage**. Redis/RabbitMQ loss = degraded mode, recoverable from Postgres truth + redelivery.
