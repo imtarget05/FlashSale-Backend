@@ -26,6 +26,37 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderReadModel, OrderReadModel>();
 
+// ---------------------------------------------------------------
+// Migration entrypoint (Phase 7C): `dotnet Order.Api.dll --migrate`.
+//
+// Positioned HERE, before Redis and the queue are registered, because a
+// migration must depend on PostgreSQL and nothing else. Two reasons this is not
+// cosmetic:
+//   * ConnectionMultiplexer.Connect() below is eager, so a Redis-less Job would
+//     hang/throw before reaching the migration.
+//   * AddOrderQueue() is eager too and fails fast on missing broker config, so
+//     placing the branch after it would make the migration Job unrunnable in
+//     exactly the environment it exists for.
+// infrastructure/kubernetes/base/migration/job.yaml is the only intended caller;
+// the API and worker keep calling InitializeAsync for single-process local runs.
+// ---------------------------------------------------------------
+if (args.Contains("--migrate"))
+{
+    // ASP0000 is intentional: the migration path must run before the app (and
+    // therefore before the queue/Redis singletons) exists, so a throwaway
+    // provider is the only way to obtain a logger.
+#pragma warning disable ASP0000
+    await using var migrationProvider = builder.Services.BuildServiceProvider();
+#pragma warning restore ASP0000
+    var migrationLogger = migrationProvider
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("Migration");
+
+    var exitCode = await MigrationRunner.RunAsync(migrationProvider, migrationLogger);
+    migrationLogger.LogInformation("Migration entrypoint finished with exit code {ExitCode}", exitCode);
+    return exitCode;
+}
+
 // Redis: enabled when reachable, transparently skipped otherwise.
 var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
@@ -34,9 +65,13 @@ builder.Services.AddSingleton<IStockReservationGateway>(sp =>
     new RedisStockGateway(sp.GetRequiredService<IConnectionMultiplexer>()));
 
 // Queue selection: exactly one provider from configuration (ADR-005).
-// Local: RabbitMQ (docker compose). Azure: Service Bus (Terraform).
-// Tests/edge: InMemory fallback. Unknown provider values fail fast.
-builder.Services.AddOrderQueue(builder.Configuration);
+// Local: RabbitMQ (docker compose). Azure/AKS: RabbitMQ or Service Bus.
+// InMemory is opt-in only (tests / single-process dev) and is refused when the
+// host environment is Production — which is the ASP.NET default when
+// ASPNETCORE_ENVIRONMENT is unset, i.e. how both AKS containers run. A
+// per-process broker cannot connect two pods, so failing here is the only way
+// to avoid a silently stuck pipeline. Unknown/incomplete config fails fast.
+builder.Services.AddOrderQueue(builder.Configuration, builder.Environment.EnvironmentName);
 
 builder.Services.AddScoped<OrderProcessor>();
 builder.Services.AddHostedService<OrderProcessorHost>();
@@ -181,5 +216,9 @@ app.MapGet("/health/ready", async (AppDbContext db, ILogger<Program> readinessLo
 });
 
 app.Run();
+
+// Explicit, because the --migrate branch above returns an int: top-level
+// statements require every code path to return a value once one of them does.
+return 0;
 
 public record OrderRequest(int ProductId, int Quantity);

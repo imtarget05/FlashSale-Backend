@@ -1,0 +1,87 @@
+# Phase 7C "portfolio mode" cache tier — Redis holds the fast-fail inventory
+# reservation (ADR-003) and is explicitly a DERIVED cache: PostgreSQL remains
+# the source of truth, and the API transparently skips Redis when it is
+# unreachable (Order.Api/Program.cs: "Redis: enabled when reachable,
+# transparently skipped otherwise").
+#
+# Therefore NO PVC: a warm-kill of this pod loses reservations that are
+# reconstructable from Postgres, and adding durable storage would imply a
+# durability guarantee the application does not make.
+#
+# runAsUser 999 / runAsGroup 1000: verified against the pinned image
+# (`docker run --user 999:1000 redis:7-alpine ... ` → "Ready to accept
+# connections" and `redis-cli ping` → PONG). /etc/passwd in the image maps
+# redis to 999:1000 and /data is already owned by redis:redis.
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    app: redis
+    project: flash-sale
+    role: data
+spec:
+  # ClusterIP by omission (no `type:`) — never publicly reachable.
+  selector:
+    app: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+    project: flash-sale
+    role: data
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 1000
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          # Same persistence-off flags as docker-compose.yml, so a Redis restart
+          # behaves identically locally and in-cluster.
+          args: ["redis-server", "--save", "", "--appendonly", "no"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: redis
+              containerPort: 6379
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          # redis-cli ping is the exact docker-compose healthcheck, ported
+          # 1:1. No auth is configured, matching the compose contract.
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 10

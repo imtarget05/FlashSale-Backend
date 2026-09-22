@@ -1,0 +1,140 @@
+# Phase 7C "portfolio mode" data tier — PostgreSQL is the SOURCE OF TRUTH
+# (ADR-006: EF migrations create the schema at app startup).
+#
+# Deliberately IN-CLUSTER for 7C: no Azure PostgreSQL Flexible Server is
+# provisioned, because tasks/current.md freezes P01-owned Azure runtime
+# infrastructure and P03 (AKS-SRE-Platform) owns shared Azure infra. Promoting
+# to a managed service is a separate, later decision — not a 7C prerequisite.
+#
+# runAsUser 70 / runAsGroup 70: verified against the pinned image, not guessed
+# (`docker run --user 70:70 postgres:15-alpine` reached "ready to accept
+# connections", and initdb succeeded into a mounted volume). The image's own
+# entrypoint starts as root and drops via `gosu postgres`; setting the uid here
+# makes the pod non-root from PID 1, which is what Trivy KSV-0012 asserts.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+    project: flash-sale
+    role: data
+spec:
+  # ClusterIP is the DEFAULT (no type field) — no public exposure by accident.
+  # An AKS LoadBalancer service here would provision a public IP; never add one.
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+    project: flash-sale
+    role: data
+spec:
+  serviceName: postgres
+  # Single replica: this is a correctness demo, not a HA database. Replicas >1
+  # with a ReadWriteOnce PVC would just leave pods stuck unschedulable.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        # fsGroup makes the dynamically provisioned volume group-writable for
+        # uid 70; without it a default StorageClass volume is root-owned and
+        # initdb fails with "data directory has wrong ownership".
+        fsGroup: 70
+      containers:
+        - name: postgres
+          # Pinned to the SAME tag docker-compose uses (postgres:15-alpine) so
+          # local and cluster behaviour cannot diverge. Third-party image, not
+          # our ACR — no overlay `images:` entry needed.
+          image: postgres:15-alpine
+          args: ["postgres", "-c", "max_connections=200"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            # Verified against the pinned image, not assumed: `docker run
+            # --read-only --tmpfs /var/run/postgresql --tmpfs /tmp --user 70:70
+            # postgres:15-alpine` completed initdb, reached "ready to accept
+            # connections", and accepted CREATE TABLE + 1000 INSERTs. The two
+            # emptyDir mounts below are what make a read-only root possible
+            # (Unix socket + scratch); the data itself lives on the PVC.
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: "FlashSaleDb"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: pg-password
+            # initdb writes into PGDATA; keep it on the mounted volume.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - name: postgres
+              containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            # Required by readOnlyRootFilesystem: the Unix socket dir and
+            # scratch space. Both are ephemeral by design — losing them costs a
+            # restart, never committed data (that is on the PVC).
+            - name: run
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          # pg_isready is the real readiness signal (same probe docker-compose uses).
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "FlashSaleDb"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "FlashSaleDb"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            # 1Gi is the AKS default-storage-class minimum; the DB itself is
+            # megabytes. No storageClassName is set on purpose: the cluster
+            # default (managed-csi) is the portable choice, and hardcoding a
+            # class name would break re-hosting in another cluster.
+            storage: 1Gi

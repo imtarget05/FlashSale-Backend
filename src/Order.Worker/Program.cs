@@ -19,8 +19,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<OrderProcessor>();
 
-// Queue selection mirrors the API: exactly one provider (ADR-005).
-builder.Services.AddOrderQueue(builder.Configuration);
+// Queue selection mirrors the API: exactly one provider (ADR-005), and the same
+// Production guard. Both composition roots must resolve the SAME provider, or the
+// API publishes to a broker nobody consumes from.
+builder.Services.AddOrderQueue(builder.Configuration, builder.Environment.EnvironmentName);
 
 builder.Services.AddHostedService<OrderProcessorHost>();
 

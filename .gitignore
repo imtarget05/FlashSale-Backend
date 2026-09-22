@@ -27,3 +27,7 @@ backups/*
 /recovery/
 /.loss-simulation-quarantine/
 /logs/
+
+# Python bytecode from repo scripts (never commit)
+__pycache__/
+*.pyc

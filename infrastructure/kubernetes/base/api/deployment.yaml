@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-api
+  labels:
+    app: order-api
+    project: flash-sale
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-api
+  template:
+    metadata:
+      labels:
+        app: order-api
+    spec:
+      # Phase 5 (Trivy KSV-0014/KSV-0118): pod must declare non-root + hardened
+      # runtime explicitly, not rely on the image default. The app already runs
+      # as uid 1654 (ADR-007); declaring it here makes kubelet enforce it.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+      containers:
+        - name: order-api
+          # Registry-neutral image NAME so the prod overlay's `images:` transformer
+          # actually matches it. Kustomize resolves `images[].name` against the image
+          # name in the base; the previous value
+          # (`acrflashsale-placeholder.azurecr.io/order-api:latest`) never matched the
+          # overlay entry (`acrflashsalep6.azurecr.io/order-api`), so the override was
+          # silently skipped and `kubectl kustomize` rendered a non-existent registry
+          # with a mutable `:latest` tag — which ADR-011 forbids and which no CI job
+          # caught, because CI only ever tested the image build, never the rendered
+          # manifest. The registry host is supplied by the overlay via `newName`.
+          image: order-api:placeholder-set-by-overlay
+          # container-level hardening: Trivy (KSV-0014/KSV-0118) checks these
+          # HERE — pod-level securityContext alone does not satisfy the checks
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            # file DLQ writes to /app/logs; readOnlyRootFilesystem needs a
+            # writable scratch mount for it
+            - name: dlq-logs
+              mountPath: /app/logs
+            # Verified, not assumed: running the released image with
+            # `--read-only --user 1654:1654` gives `touch: cannot touch
+            # '/tmp/probe': Read-only file system`. The app boots past this
+            # (it fails later on the absent DB), but .NET's Path.GetTempPath()
+            # resolves to /tmp on Linux, so any runtime temp-file path would
+            # fail in a way that looks like an application bug.
+            - name: tmp
+              mountPath: /tmp
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: pg-connection
+            - name: ConnectionStrings__Redis
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: redis-connection
+            # FIX (7C readiness): the API never received a RabbitMQ connection
+            # string, so MessagingProviderSelector.Resolve() fell through both
+            # connection-string checks and silently returned InMemory (ADR-005).
+            # InMemory is PER-PROCESS, so the API would enqueue into its own
+            # memory and the worker would wait forever on a queue that does not
+            # exist — the "Order Completed" gate could never be reached on AKS,
+            # with no error anywhere to explain why.
+            # Provider is set EXPLICITLY rather than left to auto-detection: if
+            # the secret is missing, DI resolution fails loudly at startup
+            # instead of degrading to a broken InMemory topology.
+            - name: ConnectionStrings__RabbitMQ
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: rabbitmq-connection
+            - name: Messaging__Provider
+              value: "RabbitMQ"
+            - name: Messaging__QueueName
+              value: "orders"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          # readiness must gate on PostgreSQL (the real dependency), not the
+          # liveness alias — Phase 4 proved /health/ready is the meaningful probe
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+      volumes:
+        - name: dlq-logs
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
