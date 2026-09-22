@@ -119,7 +119,8 @@ WORKER_DOC=$(doc_of Deployment order-worker) || WORKER_DOC=""
 if [ -n "$API_DOC" ]; then
   for kv in "ConnectionStrings__DefaultConnection:pg-connection" \
             "ConnectionStrings__Redis:redis-connection" \
-            "ConnectionStrings__RabbitMQ:rabbitmq-connection"; do
+            "ConnectionStrings__RabbitMQ:rabbitmq-connection" \
+            "Auth__Jwt__SigningKey:jwt-signing-key"; do
     env_name=${kv%%:*}; secret_key=${kv##*:}
     printf '%s' "$API_DOC" | grep -q "name: ${env_name}$" \
       || err "order-api is missing ${env_name} (the app reads ConnectionStrings; without it the API silently falls back to localhost)"
@@ -157,7 +158,11 @@ if [ -n "$MIGRATE_DOC" ]; then
     || err "Job/order-migrate does not pass --migrate (it would start a full API)"
   printf '%s' "$MIGRATE_DOC" | grep -q "key: pg-connection$" \
     || err "Job/order-migrate has no PostgreSQL connection string"
-  for forbidden in rabbitmq-connection redis-connection; do
+  # redis-connection and jwt-signing-key are equally forbidden: the Job must not
+  # need the cache, and it must not need auth config for the same reason — a
+  # signing key the Job is asked to provide is a signing key the migration path
+  # would end up validating (ADR-013 §2).
+  for forbidden in rabbitmq-connection redis-connection jwt-signing-key; do
     printf '%s' "$MIGRATE_DOC" | grep -q "key: ${forbidden}$" \
       && err "Job/order-migrate depends on ${forbidden}; migrations must need Postgres only"
   done
