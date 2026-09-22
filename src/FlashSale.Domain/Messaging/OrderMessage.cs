@@ -5,12 +5,18 @@ namespace FlashSale.Domain.Messaging;
 /// Attempt supports the at-least-once retry model: a failed message is
 /// re-enqueued with Attempt+1 until MaxAttempts, then dead-lettered.
 /// </summary>
+/// <remarks>
+/// <see cref="UserId"/> is carried through the queue so the Worker persists the
+/// owner on the order row (ADR-013 §6). It is optional: anonymous orders keep
+/// working exactly as before.
+/// </remarks>
 public sealed record OrderMessage(
     int ProductId,
     int Quantity,
     string IdempotencyKey,
     DateTimeOffset CreatedAt,
-    int Attempt = 0)
+    int Attempt = 0,
+    Guid? UserId = null)
 {
     public string ToJson() => System.Text.Json.JsonSerializer.Serialize(this);
 
