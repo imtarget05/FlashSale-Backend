@@ -48,6 +48,10 @@ builder.Services.AddScoped<IDatabaseHealthCheck, DatabaseHealthCheck>();
 builder.Services.AddSingleton<ApiMetrics>();
 builder.Services.AddOpenApi(options =>
     options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
+// Swagger UI hosting only (interview smoke gate: GET /swagger → 200). The
+// document itself still comes from AddOpenApi above — Swashbuckle's generator
+// is never asked to produce one, so /openapi/v1.json stays the single contract.
+builder.Services.AddSwaggerGen();
 
 // ---------------------------------------------------------------
 // Migration entrypoint (Phase 7C): `dotnet Order.Api.dll --migrate`.
@@ -152,6 +156,13 @@ app.MapAuthEndpoints();
 // stable, tool-agnostic contract: any client that can read a URL can generate a
 // typed client or render docs from it.
 app.MapOpenApi();
+
+// Interactive UI over the SAME document (GET /swagger → 200). The endpoint
+// points the UI at /openapi/v1.json, whose Bearer security scheme (added by
+// BearerSecuritySchemeTransformer) is what makes the Authorize button work —
+// verifying these two gates independently, as the smoke checklist requires.
+app.UseSwaggerUI(options =>
+    options.SwaggerEndpoint("/openapi/v1.json", "FlashSale API v1"));
 
 // Metrics snapshot (Phase III). Deliberately a JSON snapshot rather than a
 // Prometheus exporter: the interview surface needs a dependency-free view of
