@@ -14,7 +14,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.IdentityModel.Tokens;
+using Order.Api;
 using Order.Api.Auth;
+using Order.Api.OpenApi;
 using StackExchange.Redis;
 using System.Security.Claims;
 using System.Text;
@@ -34,40 +36,17 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderReadModel, OrderReadModel>();
 
 // ---------------------------------------------------------------
-// Authentication & authorization (ADR-013).
+// Observability (Phase III).
 //
-// Registered BEFORE the --migrate branch below so the migration path stays
-// independent of auth configuration: a migration Job must not fail because a
-// signing key is absent.
+// ApiMetrics owns real System.Diagnostics.Metrics instruments; the singleton is
+// what starts the MeterListener that aggregates them for the JSON snapshot.
+//
+// AddOpenApi() costs no new package: Microsoft.AspNetCore.OpenApi already ships
+// in the ASP.NET shared framework and is referenced by this project.
 // ---------------------------------------------------------------
-var jwtOptions = JwtOptions.FromConfiguration(builder.Configuration, builder.Environment.IsProduction());
-builder.Services.AddSingleton(jwtOptions);
-builder.Services.AddSingleton<ITokenIssuer>(new JwtTokenIssuer(jwtOptions));
-builder.Services.AddSingleton<IPasswordHasher>(new Pbkdf2PasswordHasher());
-builder.Services.AddScoped<IUserStore, UserStore>();
-builder.Services.AddScoped<AuthService>();
-
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = jwtOptions.Issuer,
-            ValidateAudience = true,
-            ValidAudience = jwtOptions.Audience,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromSeconds(30),
-            ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
-            RoleClaimType = ClaimTypes.Role,
-            NameClaimType = ClaimTypes.NameIdentifier,
-        };
-    });
-
-builder.Services.AddAuthorizationBuilder().AddFlashSalePolicies();
+builder.Services.AddSingleton<ApiMetrics>();
+builder.Services.AddOpenApi(options =>
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
 
 // ---------------------------------------------------------------
 // Migration entrypoint (Phase 7C): `dotnet Order.Api.dll --migrate`.
@@ -100,6 +79,43 @@ if (args.Contains("--migrate"))
     return exitCode;
 }
 
+// ---------------------------------------------------------------
+// Authentication & authorization (ADR-013).
+//
+// Registered AFTER the --migrate branch, and that ordering is load-bearing:
+// JwtOptions.FromConfiguration() fails fast when a signing key is missing, and
+// the whole point of the migration Job is to depend on PostgreSQL and nothing
+// else. Above the branch, a key-less production Job would refuse to start.
+// ---------------------------------------------------------------
+var jwtOptions = JwtOptions.FromConfiguration(builder.Configuration, builder.Environment.IsProduction());
+builder.Services.AddSingleton(jwtOptions);
+builder.Services.AddSingleton<ITokenIssuer>(new JwtTokenIssuer(jwtOptions));
+builder.Services.AddSingleton<IPasswordHasher>(new Pbkdf2PasswordHasher());
+builder.Services.AddScoped<IUserStore, UserStore>();
+builder.Services.AddScoped<AuthService>();
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30),
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+            RoleClaimType = ClaimTypes.Role,
+            NameClaimType = ClaimTypes.NameIdentifier,
+        };
+    });
+
+builder.Services.AddAuthorizationBuilder().AddFlashSalePolicies();
+
 // Redis: enabled when reachable, transparently skipped otherwise.
 var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
@@ -129,6 +145,11 @@ if (!string.IsNullOrEmpty(kafkaConnectionString))
 
 var app = builder.Build();
 
+// Outermost user middleware: it must see every request — including ones
+// rejected by authentication — so the in-flight gauge and the duration
+// histogram describe the whole surface, not just the authorized part.
+app.UseFlashSaleMetrics();
+
 // Order matters: authentication must populate HttpContext.User before
 // authorization evaluates the policies registered above.
 app.UseAuthentication();
@@ -138,6 +159,20 @@ app.UseAuthorization();
 await DatabaseInitializer.InitializeAsync(app.Services);
 
 app.MapAuthEndpoints();
+
+// OpenAPI document (Phase III). Served as JSON at /openapi/v1.json, which is a
+// stable, tool-agnostic contract: any client that can read a URL can generate a
+// typed client or render docs from it.
+app.MapOpenApi();
+
+// Metrics snapshot (Phase III). Deliberately a JSON snapshot rather than a
+// Prometheus exporter: the interview surface needs a dependency-free view of
+// what THIS process observed, and the instruments behind it are real Meter
+// instruments, so an OTel exporter can be attached later without a rewrite.
+app.MapGet("/internal/metrics", (ApiMetrics metrics) => Results.Ok(metrics.Snapshot()))
+    .WithTags("Ops")
+    .WithName("MetricsSnapshot")
+    .WithSummary("In-process metrics snapshot as JSON (counters + duration histograms).");
 
 
 app.MapPost("/api/orders", async (
@@ -151,7 +186,10 @@ app.MapPost("/api/orders", async (
     ILogger<Program> logger) =>
 {
     if (request.Quantity <= 0)
+    {
+        ApiMetrics.OrderRejected("invalid_quantity");
         return Results.BadRequest(new { error = "Quantity must be positive" });
+    }
 
     var idempotencyKey = http.Headers.TryGetValue("Idempotency-Key", out var headerKey)
         ? headerKey.ToString()
@@ -168,21 +206,35 @@ app.MapPost("/api/orders", async (
     // T1 — fast reservation (also deduplicates by idempotency key).
     var reservation = await redis.TryReserveAsync(request.ProductId, request.Quantity, idempotencyKey);
     if (reservation == ReservationResult.Duplicate)
+    {
+        ApiMetrics.OrderRejected("duplicate");
         return Results.Json(new { error = "Duplicate request", idempotencyKey }, statusCode: 409);
+    }
+
     if (reservation == ReservationResult.SoldOut)
+    {
+        // Refused by the Redis pre-filter — the fast path doing its job.
+        ApiMetrics.OrderRejected("out_of_stock");
         return Results.Json(new { error = "Out of stock" }, statusCode: 409);
+    }
 
     // T1b — unknown product: seed the reservation tier from the DB once, then retry.
     if (reservation == ReservationResult.UnknownProduct)
     {
         var stock = await readModel.GetStockAsync(request.ProductId);
         if (stock is null)
+        {
+            ApiMetrics.OrderRejected("unknown_product");
             return Results.NotFound(new { error = "Product not found" });
+        }
 
         await redis.SetStockAsync(request.ProductId, stock.Value);
         reservation = await redis.TryReserveAsync(request.ProductId, request.Quantity, idempotencyKey);
         if (reservation == ReservationResult.SoldOut)
+        {
+            ApiMetrics.OrderRejected("out_of_stock");
             return Results.Json(new { error = "Out of stock" }, statusCode: 409);
+        }
     }
 
     if (reservation == ReservationResult.Reserved)
@@ -190,6 +242,7 @@ app.MapPost("/api/orders", async (
         // T2 — hand off to the fulfillment pipeline.
         if (await queue.EnqueueAsync(message))
         {
+            ApiMetrics.OrdersAccepted.Add(1);
             return Results.Accepted(
                 $"/api/orders/{idempotencyKey}",
                 new { message = "Order accepted", idempotencyKey, status = "processing" });
@@ -197,6 +250,7 @@ app.MapPost("/api/orders", async (
 
         // Queue full -> backpressure: give the reservation back and shed load.
         await redis.ReleaseReservationAsync(request.ProductId, request.Quantity, idempotencyKey);
+        ApiMetrics.OrderRejected("backpressure");
         return Results.Json(new { error = "System busy, retry shortly" }, statusCode: 503);
     }
 
@@ -206,10 +260,21 @@ app.MapPost("/api/orders", async (
     try
     {
         await processor.ProcessAsync(message, CancellationToken.None);
+        ApiMetrics.OrdersAccepted.Add(1);
+        // Scope note: this counter means "completed by THIS process". Orders that
+        // went through the queue are persisted by Order.Worker, which is a separate
+        // process with its own meter instance — counting them here would be a guess.
+        ApiMetrics.OrdersCompleted.Add(1);
         return Results.Ok(new { Message = "Order placed successfully", IdempotencyKey = idempotencyKey });
     }
     catch (StockDriftException)
     {
+        // ADR-002's guard fired: the conditional UPDATE matched zero rows and the
+        // order was refused instead of overselling. Counted separately from a Redis
+        // refusal because drift means the two tiers disagreed — worth an alert,
+        // whereas a Redis "sold out" is the expected outcome of a flash sale.
+        ApiMetrics.StockDrift.Add(1);
+        ApiMetrics.OrderRejected("stock_drift");
         return Results.Json(new { error = "Out of stock" }, statusCode: 409);
     }
 });
