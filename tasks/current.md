@@ -45,6 +45,34 @@ Current:
       Infrastructure (adapters) / Api + Worker composition roots; 7 tests incl.
       dependency-rule guards. See AGENTS.md "CLEAN ARCHITECTURE RULE".
 
+## P01 OFFLINE READY FOR 7C (2026-09-22, commit 48d2300 + docs 176167e/a798b97)
+
+Offline gates ALL GREEN (all runnable without a cluster):
+
+- [x] Fail-fast messaging (ADR-005 corrected): no silent InMemory fallback;
+      `MessagingConfigurationException`; explicit `InMemory` refused in
+      Production environment. 32/32 unit tests incl. DI-level registration
+      guards (`MessagingRegistrationGuardTests`).
+- [x] Offline validators: `validate-manifests.sh` (rendered-overlay gate),
+      `validate-objects.py` (no-kubeconfig cross-reference),
+      `test-validate-manifests.py` (19/19 mutations caught — every assertion
+      proven able to fail), `capacity-inventory.py` (per-namespace request
+      table: flash-sale-prod = 1150m / 2.25Gi replica-scaled).
+- [x] Migration contract: `MigrationRunner` + `--migrate` entrypoint (Postgres
+      only) + `base/migration/job.yaml`. DESIGN ONLY — Job not applied.
+- [x] CI: `manifest-validation` job added to ci.yml (runs the same offline
+      gate on GitHub runners).
+
+LIVE GATES STILL PENDING (these block calling Phase 7C "done"):
+
+- [ ] Push to origin + GitHub Actions run green (incl. manifest-validation).
+- [ ] Server-side dry-run against the real AKS cluster (client render alone
+      cannot see admission webhooks / quota).
+- [ ] Pods Ready (API x2 + worker + migration Job Completed).
+- [ ] 202 → Completed E2E: POST /api/orders returns 202 AND the order actually
+      completes via RabbitMQ + worker (the original 7C silent-InMemory bug).
+- [ ] Real PostgreSQL/RabbitMQ/Redis runtime evidence (not offline mocks).
+
 Next (Phase 10 + hardening):
 - [ ] Wire OpenTelemetry → Azure Monitor (App Insights) exporter.
 - [ ] Key Vault CSI driver instead of Kubernetes secrets.
