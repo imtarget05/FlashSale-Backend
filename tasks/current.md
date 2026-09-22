@@ -65,7 +65,20 @@ Offline gates ALL GREEN (all runnable without a cluster):
 
 LIVE GATES STILL PENDING (these block calling Phase 7C "done"):
 
-- [ ] Push to origin + GitHub Actions run green (incl. manifest-validation).
+- [x] Push to origin + GitHub Actions run green (incl. manifest-validation).
+      EVIDENCE (run 35738200956, commit 65221cc): ci-gate success;
+      concurrency-harness success (fix-ci commit finally opted in
+      Messaging__Provider=InMemory + hardened health wait);
+      manifest-validation success (10s, rendered overlay deployable);
+      release-push + gitops-update success. One prior FAIL was the harness
+      job (35737398203: API died on MessagingConfigurationException because the
+      old code relied on silent InMemory; failure surfaced misleadingly as
+      'relation "Products" does not exist' — root cause documented in the
+      concurrency-harness step comment). mutation/negative suite remains
+      LOCAL-only (19/19 caught, scripts/test-validate-manifests.py) — CI runs
+      the gate, not the meta-tests. Rendered SHAs at push:
+      order-api + order-worker = 087731cd0ed6d2aeb5892dd3a8fd6f6da7c0339c
+      (ACR_LOGIN_SERVER repo var confirmed = acrflashsalep6.azurecr.io).
 - [ ] Server-side dry-run against the real AKS cluster (client render alone
       cannot see admission webhooks / quota).
 - [ ] Pods Ready (API x2 + worker + migration Job Completed).
