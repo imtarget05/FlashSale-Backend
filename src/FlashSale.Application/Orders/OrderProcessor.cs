@@ -1,6 +1,6 @@
+using FlashSale.Application.Messaging;
 using FlashSale.Application.Persistence;
 using FlashSale.Domain;
-using FlashSale.Domain.Messaging;
 using Microsoft.Extensions.Logging;
 
 namespace FlashSale.Application.Orders;

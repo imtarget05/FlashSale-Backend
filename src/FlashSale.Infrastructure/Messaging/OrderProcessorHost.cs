@@ -1,6 +1,5 @@
 using FlashSale.Application.Messaging;
 using FlashSale.Application.Orders;
-using FlashSale.Domain.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -79,15 +78,18 @@ public sealed class OrderProcessorHost(
         }
     }
 
-    private static async Task DeadLetterAsync(QueueEntry entry)
+    private async Task DeadLetterAsync(QueueEntry entry)
     {
-        var line = $"DLQ|{DateTimeOffset.UtcNow:O}|{entry.Message.IdempotencyKey}" +
-                   $"|product={entry.Message.ProductId}|qty={entry.Message.Quantity}" +
-                   $"|attempt={entry.Message.Attempt + 1}";
+        // Structured stdout log instead of a local logs/dlq.log file: on
+        // Kubernetes a pod restart wipes the container filesystem and the record
+        // with it. Container platforms ship stdout to the central log store, so
+        // this line survives restarts and stays queryable.
         try
         {
-            Directory.CreateDirectory("logs");
-            await File.AppendAllTextAsync(Path.Combine("logs", "dlq.log"), line + Environment.NewLine);
+            logger.LogCritical(
+                "DLQ|{Timestamp}|{IdempotencyKey}|product={ProductId}|qty={Quantity}|attempt={Attempt}",
+                DateTimeOffset.UtcNow, entry.Message.IdempotencyKey,
+                entry.Message.ProductId, entry.Message.Quantity, entry.Message.Attempt + 1);
         }
         catch
         {

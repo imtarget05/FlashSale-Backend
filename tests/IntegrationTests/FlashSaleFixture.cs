@@ -70,8 +70,8 @@ public sealed class FlashSaleFixture : IAsyncLifetime
     public RedisStockGateway CreateRedisGateway(string? connectionString = null) =>
         new(ConnectionMultiplexer.Connect(connectionString ?? RedisConnectionString));
 
-    public RabbitMQOrderQueue CreateRabbitQueue(string queueName = "orders-test") =>
-        new(RabbitMqConnectionString, queueName, NullLogger<RabbitMQOrderQueue>.Instance);
+    public Task<RabbitMQOrderQueue> CreateRabbitQueueAsync(string queueName = "orders-test") =>
+        RabbitMQOrderQueue.CreateAsync(RabbitMqConnectionString, queueName, NullLogger<RabbitMQOrderQueue>.Instance);
 
     public async Task DisposeAsync()
     {

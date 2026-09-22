@@ -1,4 +1,5 @@
 using FlashSale.Application.Messaging;
+using FlashSale.Infrastructure.Messaging;
 using Xunit;
 
 namespace FlashSale.UnitTests;
