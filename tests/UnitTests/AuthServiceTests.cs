@@ -1,5 +1,6 @@
 using FlashSale.Application.Auth;
 using FlashSale.Domain;
+using FlashSale.Infrastructure.Auth;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FlashSale.UnitTests;

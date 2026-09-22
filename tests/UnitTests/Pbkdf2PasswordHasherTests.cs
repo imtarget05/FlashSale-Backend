@@ -1,4 +1,5 @@
 using FlashSale.Application.Auth;
+using FlashSale.Infrastructure.Auth;
 
 namespace FlashSale.UnitTests;
 
