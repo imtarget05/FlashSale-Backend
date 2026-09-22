@@ -29,6 +29,7 @@ public sealed class RedisStockGateway(IConnectionMultiplexer multiplexer) : ISto
         if tonumber(qty) < want then return 0 end     -- sold out
         redis.call('HINCRBY', KEYS[1], 'qty', -want)
         redis.call('SADD', KEYS[2], key)
+        redis.call('EXPIRE', KEYS[2], 86400)          -- 24h TTL: prevents unbounded growth
         return 1                                      -- reserved
         """;
 
