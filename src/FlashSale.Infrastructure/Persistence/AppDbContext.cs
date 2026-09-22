@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
 
     public DbSet<Product> Products { get; set; } = null!;
     public DbSet<Order> Orders { get; set; } = null!;
+    public DbSet<User> Users { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +31,26 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Order>(entity =>
         {
             entity.HasIndex(o => o.IdempotencyKey).IsUnique();
+
+            // ADR-013 §6: ownership is OPTIONAL, so the anonymous order path is
+            // unchanged. Restrict — not Cascade/SetNull — because an order is a
+            // financial record: deleting a user must not silently erase or
+            // orphan it. Deactivate the account instead.
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(o => o.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ADR-013 §1: login identity is unique. The column holds the NORMALIZED
+        // (trimmed, lower-cased) email, so this index is the authoritative
+        // duplicate check — not a pre-flight SELECT, which would race.
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasIndex(u => u.Email).IsUnique();
+            entity.Property(u => u.Email).HasMaxLength(254).IsRequired();
+            entity.Property(u => u.PasswordHash).IsRequired();
+            entity.Property(u => u.Role).HasMaxLength(16).IsRequired();
         });
     }
 }

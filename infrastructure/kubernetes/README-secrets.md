@@ -35,6 +35,7 @@ Namespace: `flash-sale-prod` (set by `overlays/prod`).
 | `pg-connection` | `order-api`, `order-worker` | Npgsql connection string | `Host=postgres;Port=5432;Database=FlashSaleDb;Username=postgres;Password=<pw>;Maximum Pool Size=80` |
 | `redis-connection` | `order-api` | StackExchange.Redis endpoint | `redis:6379` |
 | `rabbitmq-connection` | `order-api`, `order-worker` | AMQP URI | `amqp://<user>:<pw>@rabbitmq:5672/` |
+| `jwt-signing-key` | `order-api` | HS256 signing key, **≥ 32 bytes** | `<random 32+ byte string>` |
 | `pg-password` | `postgres` StatefulSet | bare password | `<pw>` |
 | `rabbitmq-password` | `rabbitmq` StatefulSet | bare password | `<pw>` |
 
@@ -44,6 +45,12 @@ Key names come from the `secretKeyRef.key` fields in the manifests; the
 section. `pg-password` and `rabbitmq-password` exist because the data tier is
 deployed in-cluster for Phase 7C (see the header comments in
 `base/data/*.yaml`) and must agree with the connection strings above.
+
+`jwt-signing-key` backs `Auth__Jwt__SigningKey` (ADR-013 §2). It is required by
+`order-api` **and deliberately absent from `order-migrate`**: `JwtOptions`
+fails fast when the key is missing, so the manifest must not ask the migration
+Job for a signing key it should never need. Rotating this key invalidates every
+issued access token and refresh token, which is the intended blast radius.
 
 ## Create it (Phase 7C bootstrap)
 
@@ -56,6 +63,7 @@ kubectl -n flash-sale-prod create secret generic flashsale-secrets \
   --from-literal=pg-connection="Host=postgres;Port=5432;Database=FlashSaleDb;Username=postgres;Password=$PG_PW;Maximum Pool Size=80" \
   --from-literal=redis-connection="redis:6379" \
   --from-literal=rabbitmq-connection="amqp://flashsale:$RBQ_PW@rabbitmq:5672/" \
+  --from-literal=jwt-signing-key="$JWT_KEY" \
   --from-literal=pg-password="$PG_PW" \
   --from-literal=rabbitmq-password="$RBQ_PW"
 ```

@@ -22,7 +22,12 @@ public enum SubmitOrderOutcome
     /// <summary>Order placed synchronously (reservation tier unavailable).</summary>
     CompletedSynchronously,
     /// <summary>Quantity must be a positive integer.</summary>
-    InvalidQuantity
+    InvalidQuantity,
+    /// <summary>
+    /// Reservation tier and PostgreSQL disagreed (ADR-002 guard refused the
+    /// conditional UPDATE instead of overselling) — alerted, not retried.
+    /// </summary>
+    StockDrift
 }
 
 /// <summary>
@@ -56,12 +61,13 @@ public sealed class SubmitOrderUseCase(
         int productId,
         int quantity,
         string idempotencyKey,
+        Guid? userId = null,
         CancellationToken ct = default)
     {
         if (quantity <= 0)
             return new SubmitOrderResult(SubmitOrderOutcome.InvalidQuantity, idempotencyKey);
 
-        var message = new OrderMessage(productId, quantity, idempotencyKey, DateTimeOffset.UtcNow);
+        var message = new OrderMessage(productId, quantity, idempotencyKey, DateTimeOffset.UtcNow, UserId: userId);
 
         // T1 — fast reservation (also deduplicates by idempotency key).
         var reservation = await reservationGateway.TryReserveAsync(productId, quantity, idempotencyKey);
@@ -106,7 +112,7 @@ public sealed class SubmitOrderUseCase(
         }
         catch (StockDriftException)
         {
-            return new SubmitOrderResult(SubmitOrderOutcome.OutOfStock, idempotencyKey);
+            return new SubmitOrderResult(SubmitOrderOutcome.StockDrift, idempotencyKey);
         }
     }
 }

@@ -35,7 +35,7 @@ SELECTOR_OWNED_KINDS = ("Deployment", "StatefulSet", "DaemonSet")
 SECRET_CONTRACT = {
     "flashsale-secrets": {
         "pg-connection", "pg-password", "redis-connection",
-        "rabbitmq-connection", "rabbitmq-password",
+        "rabbitmq-connection", "rabbitmq-password", "jwt-signing-key",
     }
 }
 

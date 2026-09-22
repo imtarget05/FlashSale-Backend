@@ -9,6 +9,10 @@ services:
       - ConnectionStrings__DefaultConnection=Host=${POSTGRES_HOST:-postgres};Port=5432;Database=${POSTGRES_DB:-FlashSaleDb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=80
       - ConnectionStrings__Redis=${REDIS_HOST:-redis}:6379
       - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@${RABBITMQ_HOST:-rabbitmq}:5672/
+      # Auth (ADR-013 §2). The container runs in the Production environment, where
+      # the app refuses to start without a >= 32-byte HS256 key — so compose must
+      # supply one. The default below is a LOCAL DEV key; never reuse it anywhere real.
+      - Auth__Jwt__SigningKey=${JWT_SIGNING_KEY:-dev-only-insecure-local-signing-key-change-me}
     healthcheck:
       # aspnet runtime has no wget/curl and sh lacks /dev/tcp: run a tiny
       # framework-dependent probe with the SDK-free runtime (dotnet is present
