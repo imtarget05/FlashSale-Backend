@@ -17,7 +17,7 @@ Nâng cấp repo `01-FlashSale-Backend` thành backend production-style phù h�
 - Swagger / OpenAPI
 - async processing
 - third-party integration
-- OpenAI
+- Ollama + Qwen (local LLM)
 - ElevenLabs
 - reliability
 - observability
@@ -30,7 +30,7 @@ Không rewrite toàn bộ nếu repo đã có các thành phần hoạt động.
 
 Project phải chứng minh được:
 
-> Một hệ thống Flash Sale xử lý concurrency cao, tránh overselling, xử lý bất đồng bộ bằng RabbitMQ, dùng Redis cho reservation/cache/rate limit, PostgreSQL cho dữ liệu bền vững, và có AI service tích hợp OpenAI + ElevenLabs theo kiến trúc async.
+> Một hệ thống Flash Sale xử lý concurrency cao, tránh overselling, xử lý bất đồng bộ bằng RabbitMQ, dùng Redis cho reservation/cache/rate limit, PostgreSQL cho dữ liệu bền vững, và có AI service tích hợp Ollama (Qwen) + ElevenLabs theo kiến trúc async.
 
 ---
 
@@ -59,7 +59,7 @@ RabbitMQ
 Order Worker         AI Worker            TTS Worker
                          |                    |
                          v                    v
-                      OpenAI             ElevenLabs
+                      Ollama (Qwen)      ElevenLabs
 ```
 
 ---
@@ -304,7 +304,7 @@ Retrieve product candidates
 Build grounded context
    |
    v
-OpenAI
+Ollama (qwen3:4b)
    |
    v
 Structured JSON response
@@ -547,7 +547,7 @@ src/
   messaging/
   redis/
   ai/
-    openai/
+    ollama/
     tts/
     dto/
     workers/
@@ -620,9 +620,11 @@ Không code trước audit.
 - OpenAPI;
 - GraphQL minimum scope.
 
-## Phase 6 — OpenAI
+## Phase 6 — Ollama + Qwen (local LLM)
 
-- provider abstraction;
+- provider abstraction (`IAssistantProvider` port, fake/real/unavailable);
+- local runtime: `ollama pull qwen3:4b`, endpoint `http://localhost:11434/v1`
+  (OpenAI-compatible, no API key, chạy mượt trên máy 8GB RAM);
 - product assistant;
 - structured output;
 - educational content endpoints.
@@ -704,7 +706,7 @@ Project is interview-ready when:
 - RabbitMQ retry/DLQ works;
 - REST + Swagger works;
 - minimum GraphQL works;
-- OpenAI integration runs with real provider when key supplied;
+- Ollama integration runs against a local server with `qwen3:4b` (no API key needed);
 - ElevenLabs async integration runs when key supplied;
 - provider unavailable path handled;
 - tests exist and pass;
