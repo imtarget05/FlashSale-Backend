@@ -3,6 +3,7 @@ using FlashSale.Domain;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using System.Diagnostics.Metrics;
 using System.Security.Claims;
 
 namespace Order.Api.Auth;
@@ -20,6 +21,7 @@ public static class AuthEndpoints
         group.MapPost("/register", async (RegisterRequest request, AuthService auth, CancellationToken ct) =>
         {
             var result = await auth.RegisterAsync(request, ct);
+            Record(result, ApiMetrics.AuthRegistrations);
             return result.Succeeded
                 ? Results.Created("/api/auth/me", result.Tokens)
                 : ToProblem(result);
@@ -31,6 +33,7 @@ public static class AuthEndpoints
         group.MapPost("/login", async (LoginRequest request, AuthService auth, CancellationToken ct) =>
         {
             var result = await auth.LoginAsync(request, ct);
+            Record(result, ApiMetrics.AuthLogins);
             return result.Succeeded ? Results.Ok(result.Tokens) : ToProblem(result);
         })
         .AllowAnonymous()
@@ -40,6 +43,7 @@ public static class AuthEndpoints
         group.MapPost("/refresh", async (RefreshRequest request, AuthService auth, CancellationToken ct) =>
         {
             var result = await auth.RefreshAsync(request, ct);
+            Record(result, ApiMetrics.AuthRefreshes);
             return result.Succeeded ? Results.Ok(result.Tokens) : ToProblem(result);
         })
         .AllowAnonymous()
@@ -72,6 +76,35 @@ public static class AuthEndpoints
         .WithSummary("Return the identity carried by the current access token.");
 
         return app;
+    }
+
+    /// <summary>
+    /// Feed one auth attempt into the metrics surface (Phase III): the success
+    /// counter for the operation, or the shared failure counter with a reason tag.
+    /// </summary>
+    /// <remarks>
+    /// Kept here rather than in <c>AuthService</c> because Application must not
+    /// reference the API's metrics type, and "how many logins failed" is a
+    /// transport-level question the endpoint is the right place to answer.
+    /// </remarks>
+    private static void Record(AuthResult result, Counter<long>? successCounter)
+    {
+        if (result.Succeeded)
+        {
+            successCounter?.Add(1);
+            return;
+        }
+
+        ApiMetrics.AuthFailed(result.Error switch
+        {
+            AuthError.DuplicateEmail => "duplicate_email",
+            AuthError.InvalidCredentials => "invalid_credentials",
+            // Replay and forgery are the same answer to the client; the tag keeps
+            // them distinguishable on the metrics surface.
+            AuthError.InvalidRefreshToken => "invalid_refresh_token",
+            AuthError.Validation => "validation",
+            _ => "unknown",
+        });
     }
 
     /// <summary>
