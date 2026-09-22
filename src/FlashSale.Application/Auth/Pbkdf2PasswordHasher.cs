@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-
 namespace FlashSale.Application.Auth;
 
 /// <summary>
