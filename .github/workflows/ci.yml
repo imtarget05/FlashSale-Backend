@@ -107,8 +107,25 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Start API in background
         run: |
+          # ADR-005 as corrected in 7C: nothing configured no longer silently
+          # falls back to InMemory — it throws. The harness is a SINGLE process
+          # (accept + consume inside one API instance), which is exactly the
+          # sanctioned InMemory use case, so it opts in EXPLICITLY here.
+          # First run after the guard landed (35737398203) failed exactly there:
+          # the API died on MessagingConfigurationException, the old wait loop
+          # exited 0 anyway, and the real failure surfaced downstream as
+          # 'relation "Products" does not exist' — a misleading symptom.
+          # ASPNETCORE_ENVIRONMENT is also explicit instead of relying on
+          # launchSettings being honoured in CI.
+          Messaging__Provider=InMemory \
+          ASPNETCORE_ENVIRONMENT=Development \
           nohup dotnet run --project src/Order.Api --urls http://localhost:5065 > api.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:5065/healthz && break; sleep 1; done
+          # Fail HERE if the API never came up, so a startup crash reports as a
+          # startup crash (api.log holds the real exception) instead of a
+          # missing-table error in the harness step.
+          curl -sf http://localhost:5065/healthz \
+            || { echo "API did not become healthy; api.log:"; tail -40 api.log; exit 1; }
       - name: Concurrency harness — inventory must be conserved (no overselling)
         run: |
           python3 load-tests/concurrency/oversell_demo.py \
