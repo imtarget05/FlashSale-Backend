@@ -1,3 +1,10 @@
+# Current Tasks — ACTIVE GOAL (2026-09-23, Cline-helper / Antigravity finish)
+
+> Vai trò: làm phụ cho Cline — Cline agents read-only trừ khi được giao task (per plans/3repo-roadmap-phase4-11.md §Approved).
+> Focus plan: `plans/plan-20260923-2239-cline-helper-antigravity-finish.md` (Active).
+> Harness state: `.ai/harness/handoff/resume.md` MISSING (repo chưa opt-in `workflow-contract.json`); `tasks/current.md` là source of truth.
+> Next: (1) khép tracking gap 3B/3C bên dưới; (2) mở Phase 4 P02 audit gate trong Productionized-LegacyApp; (3) sau gate → Phase 5 DevSecOps → Phase 6 ACR → Phase 7 AKS (P03).
+
 # Current Tasks (Phase 6–9 — containers, IaC, CI/CD)
 
 ## Business Automation Platform (spec: 01-FlashSale-Automation)
@@ -180,6 +187,17 @@ Current:
       verified, app smoke green on restored DB (202→completed, stock 98→97),
       original DB untouched, measured restore ~1s, RPO manual-only (target not
       guaranteed). Evidence: docs/evidence/backup/restore-drill-001.md.
+- [x] Phase 3B: off-site backup + restore — upload Entra-only lên
+      `stflashsalebackup/postgres-backups`, quarantine local (coi như mất),
+      download + checksum pass, restore vào `FlashSaleRestore3BFinal`
+      (stock 99→98, download 10s / restore 5s / tổng ~20s); hardening firewall
+      Deny + IP allowlist, lifecycle 30d/90d, Content-MD5 + SHA-256 round-trip.
+      Evidence: docs/evidence/backup/restore-drill-002-offsite.md.
+- [x] Phase 3C: integrated recovery — runbook docs/runbooks/disaster-recovery.md
+      end-to-end (RabbitMQ definitions backup 789B → wipe → rebuild + order thật;
+      Redis FLUSHDB → resync từ PG truth; TF state migrate remote + locking proof;
+      `run-full-recovery.sh` DOWNLOAD 6s / RESTORE 0s / VERIFY 1s).
+      Evidence: docs/evidence/backup/restore-drill-003-integrated.md.
 - [x] Docker Compose: order-worker service + healthchecks + depends_on conditions.
 - [x] Dockerfile.worker for the standalone worker image.
 - [x] Terraform **blueprint** for the full Azure stack (ACR, PostgreSQL, Redis,
