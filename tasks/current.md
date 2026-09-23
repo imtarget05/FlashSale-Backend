@@ -1,4 +1,15 @@
-# Current Tasks — ACTIVE GOAL (2026-09-23, Cline-helper / Antigravity finish)
+# Current Tasks — ACTIVE GOAL (2026-09-23, LOCAL v2 Platform Evolution)
+
+> **⛔ NOTICE TO ALL AGENTS (2026-09-24): plan V2 là đủ — KHÔNG cần AI/LLM.**
+> Scope Ollama/qwen3/AI-assistant/content-generation đã DROP. Không chạy/không fix smoke AI.
+> Chi tiết: `plans/plan-20260923-2349-local-v2-platform.md`.
+> Focus: kind + payment-service CrashLoop + saga smoke + Kafka/observability/KEDA.
+
+> Focus plan: `plans/plan-20260923-2349-local-v2-platform.md` (Active). Trước đó: cline-helper plan DONE (3B/3C ticked).
+> V2 scope: Payment.Service + Checkout.Saga (V2.1, code đã có trong tree) → Kafka KRaft + Outbox/Inbox (V2.2) → Tempo+Loki (V2.3) → Envoy + KEDA (V2.4) → demo + evidence (V2.5). Budget: Docker VM 7.75 GiB.
+> Next: V2.1 verify (build/test/saga-smoke) → V2.2 Kafka.
+
+# Prev Goal (2026-09-23, Cline-helper / Antigravity finish — DONE)
 
 > Vai trò: làm phụ cho Cline — Cline agents read-only trừ khi được giao task (per plans/3repo-roadmap-phase4-11.md §Approved).
 > Focus plan: `plans/plan-20260923-2239-cline-helper-antigravity-finish.md` (Active).
