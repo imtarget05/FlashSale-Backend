@@ -37,6 +37,9 @@ images:
   - name: order-worker
     newName: flashsale/order-worker
     newTag: local
+  - name: payment-service
+    newName: flashsale/payment-service
+    newTag: local
 
 patches:
   # Our own images: loaded into every kind node, so Never is the honest policy.
@@ -50,6 +53,13 @@ patches:
   - target:
       kind: Deployment
       name: order-worker
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: payment-service
     patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/imagePullPolicy
@@ -75,6 +85,56 @@ patches:
     patch: |-
       - op: remove
         path: /spec/ttlSecondsAfterFinished
+
+  # ---------------------------------------------------------------------------
+  # EVENT BACKBONE (V2.2): the domain EVENT transport is configured
+  # INDEPENDENTLY of the ORDER QUEUE.
+  #
+  # Messaging__Provider deliberately stays RabbitMQ: MessagingProviderSelector has
+  # no Kafka arm, so `Messaging__Provider=Kafka` throws
+  # "Unsupported messaging provider" and the pods never start. `Events__Provider`
+  # is the separate switch read by the publisher (API) and the consumer (worker).
+  # Wiring Kafka here without that switch left the broker deployed but unused.
+  - target:
+      kind: Deployment
+      name: order-api
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: order-api
+      spec:
+        template:
+          spec:
+            containers:
+              - name: order-api
+                env:
+                  - name: Events__Provider
+                    value: Kafka
+                  - name: ConnectionStrings__Kafka
+                    value: kafka:9092
+  - target:
+      kind: Deployment
+      name: order-worker
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: order-worker
+      spec:
+        template:
+          spec:
+            containers:
+              - name: order-worker
+                env:
+                  - name: Events__Provider
+                    value: Kafka
+                  - name: ConnectionStrings__Kafka
+                    value: kafka:9092
+                  # Explicit group id: the consumer's committed offsets live in
+                  # Kafka, so changing this name replays the whole topic.
+                  - name: Kafka__ConsumerGroup
+                    value: flashsale-automation
 
   # ---------------------------------------------------------------------------
   # ORDERING (the reason this overlay is not just an image swap).
@@ -113,6 +173,16 @@ patches:
       kind: StatefulSet
       metadata:
         name: rabbitmq
+        annotations:
+          argocd.argoproj.io/sync-wave: "-3"
+  - target:
+      kind: StatefulSet
+      name: kafka
+    patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: kafka
         annotations:
           argocd.argoproj.io/sync-wave: "-3"
   - target:
@@ -156,6 +226,16 @@ patches:
       kind: Deployment
       metadata:
         name: order-worker
+        annotations:
+          argocd.argoproj.io/sync-wave: "0"
+  - target:
+      kind: Deployment
+      name: payment-service
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: payment-service
         annotations:
           argocd.argoproj.io/sync-wave: "0"
 
