@@ -23,6 +23,13 @@ internal sealed class FakeOrderRepository : IOrderRepository
         PersistCalls++;
         if (!NextPersistSucceeds) return Task.FromResult(false);
         _seen.Add(message.IdempotencyKey);
+        _ids[message.IdempotencyKey] = _nextId++;
         return Task.FromResult(true);
     }
+
+    private readonly Dictionary<string, int> _ids = new();
+    private int _nextId = 1;
+
+    public Task<int?> GetOrderIdAsync(string idempotencyKey, CancellationToken ct = default) =>
+        Task.FromResult(_ids.TryGetValue(idempotencyKey, out var id) ? (int?)id : null);
 }

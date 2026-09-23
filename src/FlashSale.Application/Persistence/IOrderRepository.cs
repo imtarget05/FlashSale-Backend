@@ -16,4 +16,7 @@ public interface IOrderRepository
     /// Returns false when the product has insufficient stock (drift).
     /// </summary>
     Task<bool> PersistAsync(OrderMessage message, CancellationToken ct = default);
+
+    /// <summary>Database id for a persisted order, or null when absent (event payload, spec §4).</summary>
+    Task<int?> GetOrderIdAsync(string idempotencyKey, CancellationToken ct = default);
 }

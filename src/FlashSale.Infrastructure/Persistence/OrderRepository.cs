@@ -1,5 +1,6 @@
 using FlashSale.Application.Messaging;
 using FlashSale.Application.Persistence;
+using FlashSale.Domain;
 using FlashSale.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,11 +47,23 @@ public sealed class OrderRepository(AppDbContext db) : IOrderRepository
             IdempotencyKey = message.IdempotencyKey,
             CreatedAt = message.CreatedAt.UtcDateTime,
             // ADR-013 §6: null for anonymous orders, the JWT `sub` otherwise.
-            UserId = message.UserId
+            UserId = message.UserId,
+            // Spec §4/§5: a payment window was set at acceptance → the order
+            // waits for payment; messages without one (legacy/tests) keep the
+            // old terminal semantics so the pre-automation flow is unchanged.
+            Status = message.PaymentDueAt is null ? OrderStatus.Completed : OrderStatus.PendingPayment,
+            PaymentDueAt = message.PaymentDueAt,
+            CorrelationId = message.CorrelationId
         });
 
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return true;
     }
+
+    public async Task<int?> GetOrderIdAsync(string idempotencyKey, CancellationToken ct = default) =>
+        await db.Orders
+            .Where(o => o.IdempotencyKey == idempotencyKey)
+            .Select(o => (int?)o.Id)
+            .FirstOrDefaultAsync(ct);
 }

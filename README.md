@@ -35,6 +35,71 @@ flowchart LR
     Worker -->|4. Atomic Update| DB[(PostgreSQL)]
 ```
 
+## 🤖 Automation Platform (Business Automation Spec)
+
+Event-driven automation layered on the same order path — no core transactional
+logic was moved, and the pre-automation HTTP contract is unchanged.
+
+```mermaid
+flowchart TD
+    O[Order accepted] -->|correlationId| E1{{order.created}}
+    O --> E2{{inventory.reserved}}
+    E1 --> W[Automation worker<br/>audit-first]
+    E2 --> W
+    W --> R[(automation_runs)]
+    P[Payment window] -->|due!| S[Payment timeout scan]
+    S -->|inside grace| N{{reminder + audit}}
+    S -->|past grace| C[Cancel order<br/>+ release stock]
+    C --> E3{{payment.expired}}
+    C --> E4{{order.cancelled}}
+    C --> E5{{inventory.released}}
+    PAY[POST /api/orders/:key/pay] -->|completed| E6{{payment.completed}}
+    PAY --> E6b{{order.confirmed}}
+    PAY -->|failed| E7{{payment.failed}}
+```
+
+### Implemented workflows
+
+| Workflow | Trigger | Condition | Action | Failure path | Retry | Audit | Human approval |
+|---|---|---|---|---|---|---|---|
+| Order events (spec §4) | order accept + worker persist | always | publish `order.created` / `inventory.reserved` | best-effort publish, order stays valid | queue retry ×4 → DLQ | `automation_runs` (worker) | no |
+| Payment timeout (spec §5) | timer (`PaymentTimeoutHostedService`) or `POST /internal/automation/payment-timeout-scan` | `PendingPayment` & past due → remind; past due+grace → cancel | reminder counter; cancel + DB stock release + Redis mirror | guarded UPDATE ⇒ no-op on replay; publish best-effort | bounded scan batch (200) | 1 run per scan (`Success`/`Failed`) | no |
+| Payment recording (spec §4) | `POST /api/orders/{key}/pay` | order is `PendingPayment` | `completed` ⇒ `Confirmed`; `failed` ⇒ stays pending | second call ⇒ 409 (status guard) | n/a (idempotent) | 1 run per call | simulated gateway — no real processor |
+
+### Configuration (never hard-coded — spec §5)
+
+| Key | Default | Meaning |
+|---|---|---|
+| `Automation:Payment:TimeoutMinutes` | 15 | payment window per order |
+| `Automation:Payment:GracePeriodMinutes` | 15 | extra time before cancellation |
+| `Automation:Payment:MaxPaymentReminders` | 3 | reminder cap per order |
+| `Automation:Payment:ScanIntervalSeconds` | 60 | timer scan cadence (worker) |
+
+### Demo — scenario A (timeout → remind → cancel → release → audit)
+
+```bash
+# 1) place an order, then walk it through the payment lifecycle
+curl -X POST localhost:5099/api/orders -H 'Idempotency-Key: demo-1' \
+     -H 'Content-Type: application/json' -d '{"productId":1,"quantity":1}'
+curl -X POST localhost:5099/api/orders/demo-1/pay \
+     -H 'Content-Type: application/json' -d '{"outcome":"completed"}'   # → confirmed
+curl -X POST localhost:5099/api/orders/demo-1/pay \
+     -H 'Content-Type: application/json' -d '{"outcome":"completed"}'   # → 409 (guarded)
+
+# 2) run the abandoned-payment scan (same use case the timer runs)
+curl -X POST localhost:5099/internal/automation/payment-timeout-scan
+#    grace elapsed ⇒ {"scanned":N,"reminded":0,"cancelled":N}, stock restored
+
+# 3) audit trail
+docker exec <postgres> psql -U postgres -d FlashSaleDb -c \
+  'SELECT "WorkflowName","TriggerType","Status","ResultSummary" FROM "AutomationRuns" ORDER BY "Id" DESC LIMIT 5;'
+```
+
+*Verified locally: 21/21 live smoke checks (`/tmp`-style script), 82 unit +
+24 integration tests green, and the v1.0 auth/order smoke (48 checks) still
+passes — the legacy `GET /api/orders/{key}` wording (`processing|completed`)
+was deliberately left untouched.*
+
 ## 📂 Project Structure (Clean Architecture)
 ```text
 src/

@@ -11,6 +11,9 @@ namespace FlashSale.Application.Messaging;
 /// <see cref="UserId"/> is carried through the queue so the Worker persists the
 /// owner on the order row (ADR-013 §6). It is optional: anonymous orders keep
 /// working exactly as before.
+/// <see cref="CorrelationId"/> ties this order to its automation events and
+/// audit rows (spec §1); <see cref="PaymentDueAt"/> starts the payment window
+/// (spec §5). Both are optional so pre-automation payloads still deserialize.
 /// </remarks>
 public sealed record OrderMessage(
     int ProductId,
@@ -18,7 +21,9 @@ public sealed record OrderMessage(
     string IdempotencyKey,
     DateTimeOffset CreatedAt,
     int Attempt = 0,
-    Guid? UserId = null)
+    Guid? UserId = null,
+    Guid? CorrelationId = null,
+    DateTimeOffset? PaymentDueAt = null)
 {
     public string ToJson() => System.Text.Json.JsonSerializer.Serialize(this);
 

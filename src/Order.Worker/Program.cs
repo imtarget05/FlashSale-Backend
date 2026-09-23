@@ -1,6 +1,10 @@
+using FlashSale.Application.Automation;
+using FlashSale.Application.Events;
+using FlashSale.Application.Automation;
 using FlashSale.Application.Messaging;
 using FlashSale.Application.Orders;
 using FlashSale.Application.Persistence;
+using FlashSale.Infrastructure.Automation;
 using FlashSale.Infrastructure.Events;
 using FlashSale.Infrastructure.Messaging;
 using FlashSale.Infrastructure.Persistence;
@@ -33,6 +37,17 @@ builder.Services.AddHostedService<OrderProcessorHost>();
 // so API and worker stay on one topology; both composition roots must agree.
 builder.Services.AddDomainEventPublisher(builder.Configuration);
 builder.Services.AddAutomationWorkerHost(builder.Configuration);
+
+// Payment automation (spec §4/§5): config-bound options, payment transitions,
+// and the periodic abandoned-payment scan. Provider-independent (DB-backed),
+// so it runs regardless of the messaging gate above.
+var paymentOptions = builder.Configuration
+    .GetSection(PaymentAutomationOptions.SectionName).Get<PaymentAutomationOptions>()
+    ?? new PaymentAutomationOptions();
+builder.Services.AddSingleton(paymentOptions);
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<PaymentAutomationUseCase>();
+builder.Services.AddHostedService<PaymentTimeoutHostedService>();
 
 var host = builder.Build();
 host.Run();

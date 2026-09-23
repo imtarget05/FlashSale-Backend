@@ -40,4 +40,7 @@ public class Order
 
     /// <summary>For automation audit (spec §11): automation run id that processed this order.</summary>
     public int? AutomationRunId { get; set; }
+
+    /// <summary>Payment reminders sent so far (spec §5 MAX_PAYMENT_REMINDERS).</summary>
+    public int PaymentReminderCount { get; set; }
 }
