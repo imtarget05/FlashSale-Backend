@@ -20,6 +20,9 @@ public sealed class RabbitMqDomainEventPublisher : IDomainEventPublisher, IAsync
     private readonly IChannel _channel;
     private readonly ILogger<RabbitMqDomainEventPublisher> _logger;
     private readonly string _exchangeName;
+    // Serializes publishes on this singleton channel (see PublishAsync) — same
+    // contract as RabbitMQOrderQueue._publishGate.
+    private readonly SemaphoreSlim _publishGate = new(1, 1);
 
     private RabbitMqDomainEventPublisher(IConnection connection, IChannel channel,
         ILogger<RabbitMqDomainEventPublisher> logger, string exchangeName)
@@ -58,13 +61,26 @@ public sealed class RabbitMqDomainEventPublisher : IDomainEventPublisher, IAsync
                     ["correlation-id"] = domainEvent.CorrelationId.ToString()
                 }
             };
-            await _channel.BasicPublishAsync(
-                exchange: _exchangeName,
-                routingKey: domainEvent.EventType,
-                basicProperties: properties,
-                body: Encoding.UTF8.GetBytes(json),
-                mandatory: true,
-                cancellationToken: ct);
+            // Same publish gate as RabbitMQOrderQueue: singleton channel, concurrent
+            // publishers (e.g. SubmitOrderUseCase + RecordPaymentUseCase) must not
+            // interleave frames on one socket write. Symptom without it: broker
+            // stores the event body truncated mid-string and AutomationWorkerHost
+            // dead-letters it as "Unreadable automation event".
+            await _publishGate.WaitAsync(ct);
+            try
+            {
+                await _channel.BasicPublishAsync(
+                    exchange: _exchangeName,
+                    routingKey: domainEvent.EventType,
+                    basicProperties: properties,
+                    body: Encoding.UTF8.GetBytes(json),
+                    mandatory: true,
+                    cancellationToken: ct);
+            }
+            finally
+            {
+                _publishGate.Release();
+            }
             _logger.LogDebug("Published {EventType} {EventId} to {Exchange}.",
                 domainEvent.EventType, domainEvent.EventId, _exchangeName);
         }
