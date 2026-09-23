@@ -1,0 +1,15 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY ["src/FlashSale.Domain/FlashSale.Domain.csproj", "src/FlashSale.Domain/"]
+COPY ["src/Payment.Service/Payment.Service.csproj", "src/Payment.Service/"]
+RUN dotnet restore "src/Payment.Service/Payment.Service.csproj"
+COPY . .
+WORKDIR "/src/src/Payment.Service"
+RUN dotnet publish "Payment.Service.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+EXPOSE 8080
+COPY --from=build /app/publish .
+USER app
+ENTRYPOINT ["dotnet", "Payment.Service.dll"]

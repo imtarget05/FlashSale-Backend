@@ -3,6 +3,8 @@ using FlashSale.Application.Auth;
 using FlashSale.Application.Automation;
 using FlashSale.Application.Content;
 using FlashSale.Application.Events;
+using FlashSale.Application.Payment;
+using FlashSale.Application.Saga;
 using FlashSale.Application.Support;
 using FlashSale.Application.Inventory;
 using FlashSale.Application.Messaging;
@@ -11,10 +13,14 @@ using FlashSale.Application.Persistence;
 using FlashSale.Domain;
 using FlashSale.Domain.Automation;
 using FlashSale.Domain.Entities;
+using FlashSale.Domain.Outbox;
+using FlashSale.Domain.Saga;
+using FlashSale.Application.Outbox;
 using FlashSale.Infrastructure.Auth;
 using FlashSale.Infrastructure.Ai;
 using FlashSale.Infrastructure.Events;
 using FlashSale.Infrastructure.Messaging;
+using FlashSale.Infrastructure.Payment;
 using FlashSale.Infrastructure.Persistence;
 using FlashSale.Infrastructure.Redis;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -59,6 +65,14 @@ builder.Services.AddScoped<IAutomationRunRepository, AutomationRunRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<PaymentAutomationUseCase>();
 builder.Services.AddScoped<RecordPaymentUseCase>();
+
+// Checkout Saga Orchestration (Phases 9 & 11)
+builder.Services.AddScoped<ICheckoutSagaRepository, CheckoutSagaRepository>();
+builder.Services.AddHttpClient<IPaymentClient, HttpPaymentClient>();
+builder.Services.AddScoped<CheckoutSagaCoordinator>();
+
+// Transactional Outbox & Deduplication Inbox (Phase 10)
+builder.Services.AddTransactionalOutbox();
 
 // Inventory automation (spec §6): low-stock alerts, threshold config-bound.
 var inventoryOptions = builder.Configuration
@@ -676,6 +690,126 @@ app.MapPost("/internal/resync-stock/{id}", async (int id, IOrderReadModel readMo
     return Results.Ok(new { id, resyncedTo = product.AvailableStock });
 });
 
+// ---------------------------------------------------------------
+// Checkout Distributed Saga (Phases 9 & 11)
+// ---------------------------------------------------------------
+app.MapPost("/api/saga/checkout", async (
+    SagaCheckoutApiRequest request,
+    HttpContext httpContext,
+    CheckoutSagaCoordinator coordinator,
+    CancellationToken ct) =>
+{
+    var key = httpContext.Request.Headers["Idempotency-Key"].ToString();
+    if (string.IsNullOrWhiteSpace(key))
+    {
+        key = request.IdempotencyKey ?? $"saga-{Guid.NewGuid():N}";
+    }
+
+    var userId = TryGetUserId(httpContext.User);
+
+    var command = new CheckoutSagaCommand(
+        IdempotencyKey: key,
+        ProductId: request.ProductId,
+        Quantity: request.Quantity,
+        Amount: request.Amount,
+        UserId: userId);
+
+    var result = await coordinator.ExecuteSagaAsync(command, ct);
+
+    if (result.Status == SagaStatus.Completed)
+    {
+        return Results.Ok(result);
+    }
+
+    if (result.Status == SagaStatus.Compensated)
+    {
+        return Results.Json(result, statusCode: StatusCodes.Status422UnprocessableEntity);
+    }
+
+    return Results.BadRequest(result);
+});
+
+app.MapGet("/api/saga/{idempotencyKey}", async (
+    string idempotencyKey,
+    ICheckoutSagaRepository repo,
+    CancellationToken ct) =>
+{
+    var saga = await repo.GetByIdempotencyKeyAsync(idempotencyKey, ct);
+    return saga is not null ? Results.Ok(saga) : Results.NotFound(new { error = $"Saga '{idempotencyKey}' not found." });
+});
+
+// ---------------------------------------------------------------
+// Transactional Outbox & Deduplication Inbox (Phase 10)
+// ---------------------------------------------------------------
+app.MapPost("/api/outbox/enqueue", async (
+    OutboxEnqueueApiRequest request,
+    IOutboxRepository outboxRepo,
+    CancellationToken ct) =>
+{
+    var msg = new OutboxMessage
+    {
+        MessageId = request.MessageId ?? Guid.NewGuid(),
+        EventType = request.EventType ?? "OrderPlacedEvent",
+        Topic = request.Topic ?? "orders.events",
+        Payload = request.Payload ?? $"{{\"orderId\":\"{Guid.NewGuid()}\",\"amount\":99.99}}"
+    };
+
+    await outboxRepo.EnqueueAsync(msg, ct);
+    return Results.Ok(new { status = "enqueued", messageId = msg.MessageId, id = msg.Id });
+});
+
+// Honest view: `pending` is only what the dispatcher can act on RIGHT NOW.
+// Rows dead-lettered or waiting out a backoff are reported separately — the
+// previous version returned count=0 while rows sat permanently stuck.
+app.MapGet("/api/outbox/pending", async (
+    IOutboxRepository outboxRepo,
+    CancellationToken ct) =>
+{
+    var pending = await outboxRepo.GetUnprocessedAsync(50, ct);
+    var stuckCount = await outboxRepo.CountStuckAsync(ct);
+    return Results.Ok(new { count = pending.Count, stuckCount, messages = pending });
+});
+
+app.MapGet("/api/outbox/stuck", async (
+    IOutboxRepository outboxRepo,
+    CancellationToken ct) =>
+{
+    var stuck = await outboxRepo.GetStuckAsync(50, ct);
+    return Results.Ok(new
+    {
+        count = stuck.Count,
+        deadLettered = stuck.Count(m => m.DeadLetteredAt is not null),
+        backingOff = stuck.Count(m => m.DeadLetteredAt is null),
+        messages = stuck
+    });
+});
+
+// Operator recovery path for rows that exhausted their retries (or are stuck in
+// a long backoff). Clears retry/backoff/dead-letter state so the dispatcher
+// picks them up on its next tick — no SQL by hand, no redeploy.
+app.MapPost("/api/outbox/requeue", async (
+    IOutboxRepository outboxRepo,
+    CancellationToken ct) =>
+{
+    var revived = await outboxRepo.RequeueStuckAsync(ct);
+    return Results.Ok(new { status = "requeued", revived });
+});
+
+app.MapPost("/api/inbox/consume", async (
+    InboxConsumeApiRequest request,
+    IInboxRepository inboxRepo,
+    CancellationToken ct) =>
+{
+    var alreadyProcessed = await inboxRepo.HasBeenProcessedAsync(request.MessageId, request.ConsumerName, ct);
+    if (alreadyProcessed)
+    {
+        return Results.Ok(new { status = "deduplicated", messageId = request.MessageId, processed = false });
+    }
+
+    await inboxRepo.MarkProcessedAsync(request.MessageId, request.ConsumerName, ct);
+    return Results.Ok(new { status = "processed", messageId = request.MessageId, processed = true });
+});
+
 app.MapGet("/health/live", () => Results.Ok(new { status = "healthy" }));
 
 // Back-compat alias for compose probes written before the split.
@@ -717,6 +851,9 @@ app.Run();
 return 0;
 
 public record OrderRequest(int ProductId, int Quantity);
+public record SagaCheckoutApiRequest(int ProductId, int Quantity, decimal Amount, string? IdempotencyKey = null);
+public record OutboxEnqueueApiRequest(Guid? MessageId, string? EventType, string? Topic, string? Payload);
+public record InboxConsumeApiRequest(Guid MessageId, string ConsumerName);
 
 /// <summary>Body for <c>POST /api/orders/{key}/pay</c> (spec §4 simulation).</summary>
 public record PaymentRequest(string? Outcome);

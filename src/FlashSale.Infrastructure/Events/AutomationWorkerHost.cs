@@ -20,18 +20,18 @@ public sealed class AutomationWorkerHost : BackgroundService
 {
     private readonly IConnection _connection;
     private readonly IChannel _channel;
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly AutomationEventProcessor _processor;
     private readonly ILogger<AutomationWorkerHost> _logger;
     private readonly System.Threading.Channels.Channel<Delivery> _deliveryChannel;
     private readonly AsyncEventingBasicConsumer _consumer;
     private readonly string _queueName;
 
     private AutomationWorkerHost(IConnection connection, IChannel channel,
-        IServiceScopeFactory scopeFactory, ILogger<AutomationWorkerHost> logger, string queueName)
+        AutomationEventProcessor processor, ILogger<AutomationWorkerHost> logger, string queueName)
     {
         _connection = connection;
         _channel = channel;
-        _scopeFactory = scopeFactory;
+        _processor = processor;
         _logger = logger;
         _queueName = queueName;
         _deliveryChannel = System.Threading.Channels.Channel.CreateBounded<Delivery>(1000);
@@ -76,7 +76,7 @@ public sealed class AutomationWorkerHost : BackgroundService
 
     public static async Task<AutomationWorkerHost> CreateAsync(
         string connectionString,
-        IServiceScopeFactory scopeFactory,
+        AutomationEventProcessor processor,
         ILogger<AutomationWorkerHost> logger,
         string exchangeName = "automation.events",
         string queueName = "automation.events")
@@ -88,7 +88,7 @@ public sealed class AutomationWorkerHost : BackgroundService
         await channel.QueueDeclareAsync(queueName, durable: true, exclusive: false,
             autoDelete: false, arguments: null);
         await channel.QueueBindAsync(queueName, exchangeName, "#");
-        var host = new AutomationWorkerHost(connection, channel, scopeFactory, logger, queueName);
+        var host = new AutomationWorkerHost(connection, channel, processor, logger, queueName);
         await channel.BasicConsumeAsync(queueName, autoAck: false, consumer: host._consumer);
         return host;
     }
@@ -122,137 +122,28 @@ public sealed class AutomationWorkerHost : BackgroundService
 
     private async Task HandleAsync(Delivery delivery, CancellationToken ct)
     {
-        var json = Encoding.UTF8.GetString(delivery.Body);
         // AMQP longstr headers decode as byte[] in RabbitMQ.Client, and
-        // byte[].ToString() is "System.Byte[]" (non-null!) — so the typed
-        // reader MUST run first, otherwise every event lands in the
-        // _ => null arm below and is dead-lettered as unreadable.
-        string? eventType = ReadStringHeader(delivery, "event-type");
-        if (eventType is null)
-        {
-            try
-            {
-                eventType = JsonSerializer.Deserialize<JsonElement>(json).GetProperty("EventType").GetString();
-            }
-            catch (JsonException) { /* fall through to dead-letter */ }
-        }
+        // byte[].ToString() is "System.Byte[]" (non-null!) — the typed reader
+        // must run first, otherwise every event lands in the unknown-type arm
+        // and is dead-lettered as unreadable.
+        var eventType = AutomationEventProcessor.ReadStringHeader(
+            delivery.Headers is { } headers && headers.TryGetValue("event-type", out var raw) ? raw : null);
 
-        var evt = DeserializeSafe(json, eventType);
-        if (evt is null)
+        var outcome = await _processor.ProcessAsync(delivery.Body, eventType, ct);
+
+        if (outcome == AutomationEventOutcome.Unreadable)
         {
-            // Poison message: malformed body (e.g. trailing bytes after a valid
-            // JSON document). The old direct Deserialize let JsonException
-            // escape ExecuteAsync; with the default StopHost behavior one bad
-            // message shut the whole worker down, and the unacked delivery was
-            // requeued — so the container crash-looped on the SAME message
-            // forever (observed: exit 0 "Completed", restartCount climbed to 4+).
-            // Dead-letter it instead, exactly like an unknown event-type.
-            _logger.LogWarning(
-                "Unreadable automation event (type={EventType}) — dead-lettering.",
-                eventType);
+            // Dead-letter rather than requeue: the original code let the parse
+            // exception escape ExecuteAsync, so with the default StopHost behavior
+            // one bad message stopped the worker and the unacked delivery was
+            // requeued — the container crash-looped on the SAME message forever.
             await _channel.BasicRejectAsync(delivery.DeliveryTag, requeue: false);
             return;
         }
 
-        await using var scope = _scopeFactory.CreateAsyncScope();
-        var runs = scope.ServiceProvider.GetRequiredService<IAutomationRunRepository>();
-
-        var run = new AutomationRun
-        {
-            WorkflowName = WorkflowFor(evt),
-            TriggerType = "domain.event",
-            TriggerId = evt.EventId,
-            Status = AutomationRunStatus.Running,
-            StartedAt = DateTimeOffset.UtcNow,
-            CorrelationId = evt.CorrelationId
-        };
-        await runs.CreateAsync(run, ct);
-
-        try
-        {
-            await ProcessAsync(evt, run, ct);
-            run.Status = AutomationRunStatus.Success;
-            run.FinishedAt = DateTimeOffset.UtcNow;
-            run.ResultSummary = $"Processed {evt.EventType}.";
-        }
-        catch (Exception ex)
-        {
-            run.Status = AutomationRunStatus.Failed;
-            run.FinishedAt = DateTimeOffset.UtcNow;
-            run.ErrorCode = ex.GetType().Name;
-            run.ErrorMessage = ex.Message.Length <= 1000 ? ex.Message : ex.Message[..1000];
-            _logger.LogError(ex, "Automation run {RunId} failed for {EventType}.", run.Id, evt.EventType);
-        }
-
-        await runs.UpdateAsync(run, ct);
+        // Ack only after the run record is persisted (at-least-once).
         await _channel.BasicAckAsync(delivery.DeliveryTag, multiple: false);
     }
-
-    private static string? ReadStringHeader(Delivery delivery, string key)
-    {
-        if (delivery.Headers is not { } headers || !headers.TryGetValue(key, out var raw))
-            return null;
-        return raw switch
-        {
-            byte[] bytes => Encoding.UTF8.GetString(bytes),
-            string s => s,
-            _ => raw?.ToString()
-        };
-    }
-
-    /// <summary>
-    /// Deserialize without ever letting a System.Text.Json parse error escape
-    /// into the BackgroundService — a malformed payload must dead-letter, not
-    /// stop the host (see HandleAsync).
-    /// </summary>
-    private static DomainEvent? DeserializeSafe(string json, string? eventType)
-    {
-        try
-        {
-            return Deserialize(json, eventType);
-        }
-        catch (JsonException)
-        {
-            // Intentionally no throw: caller logs eventType and rejects the delivery.
-            return null;
-        }
-    }
-
-    private static DomainEvent? Deserialize(string json, string? eventType) => eventType switch
-    {
-        "order.created" => JsonSerializer.Deserialize<OrderCreatedEvent>(json),
-        "inventory.reserved" => JsonSerializer.Deserialize<InventoryReservedEvent>(json),
-        "payment.completed" => JsonSerializer.Deserialize<PaymentCompletedEvent>(json),
-        "payment.failed" => JsonSerializer.Deserialize<PaymentFailedEvent>(json),
-        "payment.expired" => JsonSerializer.Deserialize<PaymentExpiredEvent>(json),
-        "order.confirmed" => JsonSerializer.Deserialize<OrderConfirmedEvent>(json),
-        "order.cancelled" => JsonSerializer.Deserialize<OrderCancelledEvent>(json),
-        "inventory.released" => JsonSerializer.Deserialize<InventoryReleasedEvent>(json),
-        "inventory.low_stock" => JsonSerializer.Deserialize<InventoryLowStockEvent>(json),
-        _ => null
-    };
-
-    private static string WorkflowFor(DomainEvent evt) => evt switch
-    {
-        OrderCreatedEvent => Domain.Automation.AutomationWorkflow.OrderProcessing.ToString(),
-        PaymentCompletedEvent or PaymentFailedEvent or PaymentExpiredEvent
-            => Domain.Automation.AutomationWorkflow.PaymentTimeout.ToString(),
-        OrderCancelledEvent or InventoryReleasedEvent or InventoryReservedEvent or InventoryLowStockEvent
-            => Domain.Automation.AutomationWorkflow.InventoryAutomation.ToString(),
-        OrderConfirmedEvent => Domain.Automation.AutomationWorkflow.OrderProcessing.ToString(),
-        _ => "unknown"
-    };
-
-    private Task ProcessAsync(DomainEvent evt, AutomationRun run, CancellationToken ct)
-    {
-        // Workflow-specific handlers land in later phases; audit-first means every
-        // event type is already persisted + logged even before side effects exist.
-        _logger.LogInformation(
-            "Automation {Workflow}: handled {EventType} {EventId} (correlation {CorrelationId}).",
-            run.WorkflowName, evt.EventType, evt.EventId, evt.CorrelationId);
-        return Task.CompletedTask;
-    }
-
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
         try { await _channel.CloseAsync(cancellationToken: cancellationToken); } catch { }

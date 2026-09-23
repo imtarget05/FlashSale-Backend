@@ -2,7 +2,9 @@
   <Folder Name="/src/Domain/">
     <Project Path="src/FlashSale.Domain/FlashSale.Domain.csproj" />
   </Folder>
-  <Folder Name="/src/" />
+  <Folder Name="/src/">
+    <Project Path="src/Payment.Service/Payment.Service.csproj" />
+  </Folder>
   <Folder Name="/src/Application/">
     <Project Path="src/FlashSale.Application/FlashSale.Application.csproj" />
   </Folder>

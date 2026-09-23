@@ -126,3 +126,45 @@ public sealed record InventoryLowStockEvent(
 {
     public override object Payload => new { ProductId, AvailableStock, ReorderThreshold };
 }
+
+/// <summary>Checkout Saga started (Phase 11).</summary>
+public sealed record CheckoutSagaStartedEvent(
+    string EventId,
+    Guid CorrelationId,
+    string Source,
+    DateTimeOffset OccurredAt,
+    Guid SagaId,
+    int OrderId,
+    int ProductId,
+    int Quantity,
+    decimal Amount,
+    string IdempotencyKey) : DomainEvent(EventId, "checkout.saga.started", OccurredAt, CorrelationId, Source)
+{
+    public override object Payload => new { SagaId, OrderId, ProductId, Quantity, Amount, IdempotencyKey };
+}
+
+/// <summary>Checkout Saga completed successfully (Phase 11).</summary>
+public sealed record CheckoutSagaCompletedEvent(
+    string EventId,
+    Guid CorrelationId,
+    string Source,
+    DateTimeOffset OccurredAt,
+    Guid SagaId,
+    int OrderId,
+    string TransactionId) : DomainEvent(EventId, "checkout.saga.completed", OccurredAt, CorrelationId, Source)
+{
+    public override object Payload => new { SagaId, OrderId, TransactionId };
+}
+
+/// <summary>Checkout Saga compensated after failure (Phase 11).</summary>
+public sealed record CheckoutSagaCompensatedEvent(
+    string EventId,
+    Guid CorrelationId,
+    string Source,
+    DateTimeOffset OccurredAt,
+    Guid SagaId,
+    int OrderId,
+    string Reason) : DomainEvent(EventId, "checkout.saga.compensated", OccurredAt, CorrelationId, Source)
+{
+    public override object Payload => new { SagaId, OrderId, Reason };
+}
