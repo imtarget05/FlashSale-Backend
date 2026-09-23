@@ -1,3 +1,5 @@
+using FlashSale.Domain;
+using FlashSale.Domain.Automation;
 using FlashSale.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
@@ -11,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Product> Products { get; set; } = null!;
     public DbSet<Order> Orders { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
+    public DbSet<AutomationRun> AutomationRuns { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,25 +29,20 @@ public class AppDbContext : DbContext
             entity.Property(p => p.FlashSalePrice).HasColumnType("decimal(18,2)");
         });
 
-        // Idempotency (authoritative layer): the same IdempotencyKey can never
-        // produce two orders, even with at-least-once queue redelivery.
+        // Order configuration (with automation lifecycle status, spec §4/§11)
         modelBuilder.Entity<Order>(entity =>
         {
             entity.HasIndex(o => o.IdempotencyKey).IsUnique();
 
-            // ADR-013 §6: ownership is OPTIONAL, so the anonymous order path is
-            // unchanged. Restrict — not Cascade/SetNull — because an order is a
-            // financial record: deleting a user must not silently erase or
-            // orphan it. Deactivate the account instead.
+            entity.Property(o => o.Status).HasConversion<string>();
+
             entity.HasOne<User>()
                 .WithMany()
                 .HasForeignKey(o => o.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // ADR-013 §1: login identity is unique. The column holds the NORMALIZED
-        // (trimmed, lower-cased) email, so this index is the authoritative
-        // duplicate check — not a pre-flight SELECT, which would race.
+        // User configuration (ADR-013 §1: login identity is unique)
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasIndex(u => u.Email).IsUnique();
@@ -52,13 +50,28 @@ public class AppDbContext : DbContext
             entity.Property(u => u.PasswordHash).IsRequired();
             entity.Property(u => u.Role).HasMaxLength(16).IsRequired();
         });
+
+        // Automation run audit (spec §11)
+        modelBuilder.Entity<AutomationRun>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.WorkflowName).HasMaxLength(100);
+            entity.Property(r => r.TriggerType).HasMaxLength(50);
+            entity.Property(r => r.TriggerId).HasMaxLength(100);
+            entity.Property(r => r.Status).HasConversion<string>();
+            entity.Property(r => r.ErrorCode).HasMaxLength(50);
+            entity.Property(r => r.ErrorMessage).HasMaxLength(1000);
+            entity.Property(r => r.ResultSummary).HasMaxLength(2000);
+
+            entity.HasIndex(r => r.CorrelationId);
+            entity.HasIndex(r => r.WorkflowName);
+            entity.HasIndex(r => r.Status);
+            entity.HasIndex(r => r.StartedAt);
+        });
     }
 }
 
-/// <summary>
-/// Design-time factory so `dotnet ef migrations` works without booting the API.
-/// Uses the same local-dev defaults as the composition roots.
-/// </summary>
+/// <summary>Design-time factory so `dotnet ef migrations` works without booting the API.</summary>
 public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 {
     public AppDbContext CreateDbContext(string[] args)

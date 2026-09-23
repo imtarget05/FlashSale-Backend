@@ -8,6 +8,7 @@ using FlashSale.Domain;
 using FlashSale.Domain.Entities;
 using FlashSale.Infrastructure.Auth;
 using FlashSale.Infrastructure.Ai;
+using FlashSale.Infrastructure.Events;
 using FlashSale.Infrastructure.Messaging;
 using FlashSale.Infrastructure.Persistence;
 using FlashSale.Infrastructure.Redis;
@@ -37,6 +38,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderReadModel, OrderReadModel>();
 builder.Services.AddScoped<IDatabaseHealthCheck, DatabaseHealthCheck>();
+
+// Business automation platform (spec §1): one domain-event publisher — RabbitMQ
+// topic exchange when Messaging:Provider=RabbitMQ, in-memory otherwise.
+builder.Services.AddDomainEventPublisher(builder.Configuration);
 
 // ---------------------------------------------------------------
 // AI assistant (spec §10) — local Ollama through its OpenAI-compatible API.

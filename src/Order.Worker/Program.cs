@@ -1,6 +1,7 @@
 using FlashSale.Application.Messaging;
 using FlashSale.Application.Orders;
 using FlashSale.Application.Persistence;
+using FlashSale.Infrastructure.Events;
 using FlashSale.Infrastructure.Messaging;
 using FlashSale.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,13 @@ builder.Services.AddScoped<OrderProcessor>();
 builder.Services.AddOrderQueue(builder.Configuration, builder.Environment.EnvironmentName);
 
 builder.Services.AddHostedService<OrderProcessorHost>();
+
+// Business automation platform (spec §1/§11): the same event publisher plus the
+// audit-first AutomationWorkerHost (consume automation.events → AutomationRun
+// record → workflow logic). Same ADR-005 gate as the order queue: RabbitMQ only,
+// so API and worker stay on one topology; both composition roots must agree.
+builder.Services.AddDomainEventPublisher(builder.Configuration);
+builder.Services.AddAutomationWorkerHost(builder.Configuration);
 
 var host = builder.Build();
 host.Run();
