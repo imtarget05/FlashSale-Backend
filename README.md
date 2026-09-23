@@ -65,6 +65,7 @@ flowchart TD
 | Order events (spec §4) | order accept + worker persist | always | publish `order.created` / `inventory.reserved` | best-effort publish, order stays valid | queue retry ×4 → DLQ | `automation_runs` (worker) | no |
 | Payment timeout (spec §5) | timer (`PaymentTimeoutHostedService`) or `POST /internal/automation/payment-timeout-scan` | `PendingPayment` & past due → remind; past due+grace → cancel | reminder counter; cancel + DB stock release + Redis mirror | guarded UPDATE ⇒ no-op on replay; publish best-effort | bounded scan batch (200) | 1 run per scan (`Success`/`Failed`) | no |
 | Payment recording (spec §4) | `POST /api/orders/{key}/pay` | order is `PendingPayment` | `completed` ⇒ `Confirmed`; `failed` ⇒ stays pending | second call ⇒ 409 (status guard) | n/a (idempotent) | 1 run per call | simulated gateway — no real processor |
+| Low-stock alert (spec §6) | timer (`LowStockScanHostedService`) or `POST /internal/automation/low-stock-scan` | `AvailableStock <= ReorderThreshold` (inclusive) | create deduplicated Open `StockAlerts` row + publish `inventory.low_stock` | rule re-checked in-process; duplicate insert rejected by partial unique index ⇒ reported as deduped | periodic rescan | 1 run per scan (`InventoryAutomation`) | no — advisory only, stock numbers never come from AI |
 
 ### Configuration (never hard-coded — spec §5)
 
@@ -74,6 +75,8 @@ flowchart TD
 | `Automation:Payment:GracePeriodMinutes` | 15 | extra time before cancellation |
 | `Automation:Payment:MaxPaymentReminders` | 3 | reminder cap per order |
 | `Automation:Payment:ScanIntervalSeconds` | 60 | timer scan cadence (worker) |
+| `Automation:Inventory:DefaultReorderThreshold` | 5 | fallback reorder point (product value wins when > 0) |
+| `Automation:Inventory:ScanIntervalSeconds` | 60 | low-stock scan cadence (worker) |
 
 ### Demo — scenario A (timeout → remind → cancel → release → audit)
 

@@ -1,6 +1,7 @@
 using FlashSale.Domain;
 using FlashSale.Domain.Automation;
 using FlashSale.Domain.Entities;
+using FlashSale.Domain.Inventory;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -14,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<Order> Orders { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<AutomationRun> AutomationRuns { get; set; } = null!;
+    public DbSet<StockAlert> StockAlerts { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +29,8 @@ public class AppDbContext : DbContext
             entity.Property(p => p.Description).HasMaxLength(1000);
             entity.Property(p => p.OriginalPrice).HasColumnType("decimal(18,2)");
             entity.Property(p => p.FlashSalePrice).HasColumnType("decimal(18,2)");
+            // Spec §6: existing rows get the platform default reorder threshold.
+            entity.Property(p => p.ReorderThreshold).HasDefaultValue(5);
         });
 
         // Order configuration (with automation lifecycle status, spec §4/§11)
@@ -67,6 +71,20 @@ public class AppDbContext : DbContext
             entity.HasIndex(r => r.WorkflowName);
             entity.HasIndex(r => r.Status);
             entity.HasIndex(r => r.StartedAt);
+        });
+
+        // Low-stock alerts (spec §6). The partial unique index is the dedupe
+        // backstop: at most ONE Open alert per product, so a rescan (or a race
+        // between two workers) cannot spam duplicates.
+        modelBuilder.Entity<StockAlert>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.Status).HasConversion<string>().HasMaxLength(20);
+
+            entity.HasIndex(a => a.ProductId)
+                .IsUnique()
+                .HasFilter("\"Status\" = 'Open'");
+            entity.HasIndex(a => a.CreatedAt);
         });
     }
 }

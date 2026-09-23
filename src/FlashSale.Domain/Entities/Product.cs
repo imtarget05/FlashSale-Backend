@@ -11,4 +11,11 @@ public class Product
     public decimal OriginalPrice { get; set; }
     public decimal FlashSalePrice { get; set; }
     public int AvailableStock { get; set; }
+
+    /// <summary>
+    /// Low-stock alert threshold (spec §6): when AvailableStock falls to this
+    /// value or below, the inventory automation raises a LOW_STOCK alert.
+    /// 0 means "use the platform default" (Automation:Inventory).
+    /// </summary>
+    public int ReorderThreshold { get; set; }
 }

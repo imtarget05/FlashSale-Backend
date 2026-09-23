@@ -113,3 +113,16 @@ public sealed record InventoryReleasedEvent(
 {
     public override object Payload => new { OrderId, ProductId, Quantity };
 }
+
+/// <summary>Low-stock alert raised (spec §6).</summary>
+public sealed record InventoryLowStockEvent(
+    string EventId,
+    Guid CorrelationId,
+    string Source,
+    DateTimeOffset OccurredAt,
+    int ProductId,
+    int AvailableStock,
+    int ReorderThreshold) : DomainEvent(EventId, "inventory.low_stock", OccurredAt, CorrelationId, Source)
+{
+    public override object Payload => new { ProductId, AvailableStock, ReorderThreshold };
+}
