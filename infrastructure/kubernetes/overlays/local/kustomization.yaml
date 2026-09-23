@@ -47,6 +47,22 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/imagePullPolicy
         value: Never
+  # L9.3 — GitOps forward-deploy proof marker. A commit on main changes this
+  # value; Argo detects OutOfSync, syncs, and the Deployment rolls a new pod
+  # template. Reverted by the L9.4 rollback proof.
+  - target:
+      kind: Deployment
+      name: order-api
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: order-api
+      spec:
+        template:
+          metadata:
+            annotations:
+              platform.local/gitops-proof: "forward-1"
   - target:
       kind: Deployment
       name: order-worker
