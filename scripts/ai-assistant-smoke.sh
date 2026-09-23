@@ -55,6 +55,20 @@ CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/assistant/produ
 check "empty question -> 400" "400" "$CODE"
 
 echo "--- real inference (qwen3:4b, may take a while) ---"
+# The limiter stamps TryAcquire at CALL time with a 70s TTL, but inference can
+# run 80s+ — a post-hoc GET races expiry. Poll DURING the call instead: the
+# key is written within seconds of the request arriving.
+SUB0=$(printf '%s' "$ACCESS" | cut -d. -f2 | python3 -c 'import sys,base64,json; p=sys.stdin.read().strip(); print(json.loads(base64.urlsafe_b64decode(p+"="*(-len(p)%4)))["sub"])' 2>/dev/null)
+MIN0=$(( $(date +%s) / 60 ))
+rm -f /tmp/ai_rl_seen
+( for i in $(seq 1 24); do
+    for m in "$MIN0" "$((MIN0+1))"; do
+      v=$(docker exec flashsale-authclean-redis-1 redis-cli GET "flashsale:ai:rl:$SUB0:$m" 2>/dev/null)
+      if [ -n "$v" ]; then echo "$v" > /tmp/ai_rl_seen; exit 0; fi
+    done
+    sleep 5
+  done ) &
+POLLER=$!
 START=$(date +%s)
 BODY=$(curl -s --max-time 300 -w '\n%{http_code}' -X POST "$BASE/api/assistant/product" -H "$AUTH" \
   -H "Authorization: Bearer $ACCESS" \
@@ -62,6 +76,7 @@ BODY=$(curl -s --max-time 300 -w '\n%{http_code}' -X POST "$BASE/api/assistant/p
 CODE=$(printf '%s' "$BODY" | tail -1)
 JSON=$(printf '%s' "$BODY" | sed '$d')
 END=$(date +%s)
+kill $POLLER 2>/dev/null; wait $POLLER 2>/dev/null
 check "authenticated assistant status" "200" "$CODE"
 contains "response carries a non-empty answer" '"answer":"' "$JSON"
 contains "model is qwen3:4b" '"model":"qwen3:4b"' "$JSON"
@@ -84,11 +99,18 @@ echo "--- rate limiter engaged in Redis (production wiring) ---"
 SUB=$(printf '%s' "$ACCESS" | cut -d. -f2 | python3 -c 'import sys,base64,json; p=sys.stdin.read().strip(); print(json.loads(base64.urlsafe_b64decode(p+"="*(-len(p)%4)))["sub"])' 2>/dev/null)
 MIN=$(( $(date +%s) / 60 ))
 KEY="flashsale:ai:rl:$SUB:$MIN"
-# The inference can take 70s+ and roll the minute bucket between the CALL and
-# this check — accept the window from either minute (the limiter uses "now").
+# The inference can take 70s+ (90s observed under load) and roll the minute
+# bucket between the CALL and this check — accept the window from the last
+# three minutes (the limiter stamps "now" at CALL time, up to 2 rolls).
 CNT=$(docker exec flashsale-authclean-redis-1 redis-cli GET "$KEY")
 if [ -z "$CNT" ] || [ "$CNT" = "" ]; then
   CNT=$(docker exec flashsale-authclean-redis-1 redis-cli GET "flashsale:ai:rl:$SUB:$((MIN-1))")
+fi
+if [ -z "$CNT" ] || [ "$CNT" = "" ]; then
+  CNT=$(docker exec flashsale-authclean-redis-1 redis-cli GET "flashsale:ai:rl:$SUB:$((MIN-2))")
+fi
+if [ -z "$CNT" ] || [ "$CNT" = "" ]; then
+  CNT=$(cat /tmp/ai_rl_seen 2>/dev/null)
 fi
 if [ -n "$CNT" ] && [ "$CNT" -ge 1 ] 2>/dev/null; then
   echo "PASS  Redis window key exists with count=$CNT"; PASS=$((PASS+1))
