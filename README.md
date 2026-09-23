@@ -66,6 +66,7 @@ flowchart TD
 | Payment timeout (spec §5) | timer (`PaymentTimeoutHostedService`) or `POST /internal/automation/payment-timeout-scan` | `PendingPayment` & past due → remind; past due+grace → cancel | reminder counter; cancel + DB stock release + Redis mirror | guarded UPDATE ⇒ no-op on replay; publish best-effort | bounded scan batch (200) | 1 run per scan (`Success`/`Failed`) | no |
 | Payment recording (spec §4) | `POST /api/orders/{key}/pay` | order is `PendingPayment` | `completed` ⇒ `Confirmed`; `failed` ⇒ stays pending | second call ⇒ 409 (status guard) | n/a (idempotent) | 1 run per call | simulated gateway — no real processor |
 | Low-stock alert (spec §6) | timer (`LowStockScanHostedService`) or `POST /internal/automation/low-stock-scan` | `AvailableStock <= ReorderThreshold` (inclusive) | create deduplicated Open `StockAlerts` row + publish `inventory.low_stock` | rule re-checked in-process; duplicate insert rejected by partial unique index ⇒ reported as deduped | periodic rescan | 1 run per scan (`InventoryAutomation`) | no — advisory only, stock numbers never come from AI |
+| Daily report (spec §7) | timer (`DailyReportHostedService`, `RunAtHourUtc`) or `POST /internal/automation/daily-report` | every report day (UTC window) | aggregate orders/revenue/failed payments/cancellations/top products/low stock from PostgreSQL → persist one `DailyReports` row (rerun upserts) | run recorded `Failed`, row untouched | rerun recomputes the day | 1 run per generation (`DailyReport`) | no — all numbers are DB aggregates; AI summary NOT implemented (PLANNED) |
 
 ### Configuration (never hard-coded — spec §5)
 
@@ -77,6 +78,9 @@ flowchart TD
 | `Automation:Payment:ScanIntervalSeconds` | 60 | timer scan cadence (worker) |
 | `Automation:Inventory:DefaultReorderThreshold` | 5 | fallback reorder point (product value wins when > 0) |
 | `Automation:Inventory:ScanIntervalSeconds` | 60 | low-stock scan cadence (worker) |
+| `Automation:Reporting:RunAtHourUtc` | 0 | UTC hour the daily report fires |
+| `Automation:Reporting:ScanIntervalSeconds` | 300 | how often the scheduler checks the hour |
+| `Automation:Reporting:TopProductCount` | 5 | rows in the top-products ranking |
 
 ### Demo — scenario A (timeout → remind → cancel → release → audit)
 

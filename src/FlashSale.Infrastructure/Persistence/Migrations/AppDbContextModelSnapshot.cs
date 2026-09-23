@@ -268,6 +268,60 @@ namespace FlashSale.Infrastructure.Persistence.Migrations
                     b.ToTable("StockAlerts");
                 });
 
+            modelBuilder.Entity("FlashSale.Domain.Reporting.DailyReport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AverageOrderValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("CancelledOrders")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ConfirmedOrders")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CorrelationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FailedPayments")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("LowStockProductsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("RefundCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ReportDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("Revenue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TopProductsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("TotalOrders")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReportDate")
+                        .IsUnique();
+
+                    b.ToTable("DailyReports");
+                });
+
             modelBuilder.Entity("FlashSale.Domain.Entities.Order", b =>
                 {
                     b.HasOne("FlashSale.Domain.Entities.User", null)

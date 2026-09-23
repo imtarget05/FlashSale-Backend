@@ -65,6 +65,14 @@ builder.Services.AddSingleton(inventoryOptions);
 builder.Services.AddScoped<IStockAlertRepository, StockAlertRepository>();
 builder.Services.AddScoped<LowStockAlertUseCase>();
 
+// Reporting automation (spec §7): daily report aggregation + persistence.
+var reportingOptions = builder.Configuration
+    .GetSection(ReportingAutomationOptions.SectionName).Get<ReportingAutomationOptions>()
+    ?? new ReportingAutomationOptions();
+builder.Services.AddSingleton(reportingOptions);
+builder.Services.AddScoped<IDailyReportRepository, DailyReportRepository>();
+builder.Services.AddScoped<DailyReportUseCase>();
+
 // ---------------------------------------------------------------
 // AI assistant (spec §10) — local Ollama through its OpenAI-compatible API.
 // The typed client owns BaseAddress + dummy bearer key (Ollama ignores it;
@@ -378,6 +386,39 @@ app.MapPost("/internal/automation/low-stock-scan", async (
 .WithTags("Ops")
 .WithName("LowStockScan")
 .WithSummary("Evaluate the low-stock rule for every product and raise deduplicated LOW_STOCK alerts.");
+
+// Daily business report (spec §7/§17-C): aggregates straight from PostgreSQL.
+// ?date=YYYY-MM-DD recomputes a past day (upsert — same row, refreshed figures).
+app.MapPost("/internal/automation/daily-report", async (
+    string? date,
+    DailyReportUseCase useCase,
+    CancellationToken ct) =>
+{
+    DateTime? day = null;
+    if (!string.IsNullOrWhiteSpace(date))
+    {
+        if (!DateTime.TryParse(date, out var parsed))
+            return Results.BadRequest(new { error = "date must be YYYY-MM-DD" });
+        day = parsed;
+    }
+
+    var report = await useCase.ExecuteAsync(day, "manual", ct);
+    return Results.Ok(report);
+})
+.WithTags("Ops")
+.WithName("RunDailyReport")
+.WithSummary("Generate (or refresh) the daily business report from database aggregates.");
+
+app.MapGet("/internal/automation/daily-report/latest", async (
+    IDailyReportRepository reports,
+    CancellationToken ct) =>
+{
+    var report = await reports.GetLatestAsync(ct);
+    return report is null ? Results.NotFound(new { error = "no report yet" }) : Results.Ok(report);
+})
+.WithTags("Ops")
+.WithName("LatestDailyReport")
+.WithSummary("Most recent persisted daily business report.");
 
 // The caller's own order history (ADR-013 §5). Scoped by the JWT `sub`, so a
 // caller can only ever see their own orders — no resource-based handler is

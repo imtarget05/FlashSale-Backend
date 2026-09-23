@@ -2,6 +2,7 @@ using FlashSale.Domain;
 using FlashSale.Domain.Automation;
 using FlashSale.Domain.Entities;
 using FlashSale.Domain.Inventory;
+using FlashSale.Domain.Reporting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -16,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<AutomationRun> AutomationRuns { get; set; } = null!;
     public DbSet<StockAlert> StockAlerts { get; set; } = null!;
+    public DbSet<DailyReport> DailyReports { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -85,6 +87,16 @@ public class AppDbContext : DbContext
                 .IsUnique()
                 .HasFilter("\"Status\" = 'Open'");
             entity.HasIndex(a => a.CreatedAt);
+        });
+
+        // Daily business reports (spec §7): one row per UTC day — the unique
+        // index is what makes a rerun an upsert instead of a duplicate.
+        modelBuilder.Entity<DailyReport>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.HasIndex(r => r.ReportDate).IsUnique();
+            entity.Property(r => r.Revenue).HasColumnType("decimal(18,2)");
+            entity.Property(r => r.AverageOrderValue).HasColumnType("decimal(18,2)");
         });
     }
 }
