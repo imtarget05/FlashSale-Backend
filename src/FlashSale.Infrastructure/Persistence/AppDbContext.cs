@@ -4,6 +4,8 @@ using FlashSale.Domain.Entities;
 using FlashSale.Domain.Content;
 using FlashSale.Domain.Inventory;
 using FlashSale.Domain.Reporting;
+using FlashSale.Domain.Saga;
+using FlashSale.Domain.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -20,6 +22,9 @@ public class AppDbContext : DbContext
     public DbSet<StockAlert> StockAlerts { get; set; } = null!;
     public DbSet<DailyReport> DailyReports { get; set; } = null!;
     public DbSet<ProductContentDraft> ProductContentDrafts { get; set; } = null!;
+    public DbSet<CheckoutSagaState> CheckoutSagas { get; set; } = null!;
+    public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
+    public DbSet<InboxMessage> InboxMessages { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -110,6 +115,39 @@ public class AppDbContext : DbContext
             entity.Property(d => d.Model).HasMaxLength(100);
             entity.HasIndex(d => d.ProductId);
             entity.HasIndex(d => d.Status);
+        });
+
+        // Checkout Saga (Phases 9 & 11)
+        modelBuilder.Entity<CheckoutSagaState>(entity =>
+        {
+            entity.HasKey(s => s.SagaId);
+            entity.HasIndex(s => s.IdempotencyKey).IsUnique();
+            entity.HasIndex(s => s.OrderId);
+            entity.Property(s => s.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(s => s.Status).HasConversion<string>().HasMaxLength(32);
+            entity.Property(s => s.InventoryStatus).HasConversion<string>().HasMaxLength(32);
+            entity.Property(s => s.PaymentStatus).HasConversion<string>().HasMaxLength(32);
+            entity.Property(s => s.FailureReason).HasMaxLength(500);
+            entity.Property(s => s.CompensationReason).HasMaxLength(500);
+            entity.Property(s => s.Version).IsConcurrencyToken();
+        });
+
+        // Transactional Outbox (Phase 10, ADR-012)
+        modelBuilder.Entity<OutboxMessage>(entity =>
+        {
+            entity.HasKey(o => o.Id);
+            entity.HasIndex(o => o.MessageId).IsUnique();
+            entity.HasIndex(o => o.ProcessedAt);
+            entity.Property(o => o.EventType).HasMaxLength(100);
+            entity.Property(o => o.Topic).HasMaxLength(100);
+        });
+
+        // Deduplication Inbox (Phase 10)
+        modelBuilder.Entity<InboxMessage>(entity =>
+        {
+            entity.HasKey(i => new { i.MessageId, i.ConsumerName });
+            entity.Property(i => i.ConsumerName).HasMaxLength(100);
+            entity.HasIndex(i => i.ProcessedAt);
         });
     }
 }

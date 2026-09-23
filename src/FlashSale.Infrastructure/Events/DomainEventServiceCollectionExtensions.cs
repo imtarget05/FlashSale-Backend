@@ -15,14 +15,46 @@ namespace FlashSale.Infrastructure.Events;
 /// </summary>
 public static class DomainEventServiceCollectionExtensions
 {
+    /// <summary>
+    /// Configuration key that selects the DOMAIN EVENT transport
+    /// (<c>Kafka</c>, <c>RabbitMQ</c>, <c>InMemory</c>).
+    ///
+    /// Deliberately separate from <c>Messaging:Provider</c>, which selects the
+    /// ORDER QUEUE transport: <see cref="Messaging.MessagingProviderSelector"/>
+    /// has no Kafka arm, so a Kafka value there throws
+    /// "Unsupported messaging provider". The two transports are independent —
+    /// the command queue stays RabbitMQ while the event backbone can be Kafka —
+    /// and the fallback below keeps existing deployments (compose, kind) working
+    /// unchanged because they only set Messaging:Provider.
+    /// </summary>
+    public const string ProviderKey = "Events:Provider";
+
+    /// <summary>Resolved event transport provider name for this configuration.</summary>
+    public static string? ResolveProvider(IConfiguration configuration)
+        => configuration[ProviderKey] ?? configuration["Messaging:Provider"];
+
+    /// <summary>Topic the Kafka producer/consumer agree on for domain events.</summary>
+    public static string ResolveKafkaTopic(IConfiguration configuration)
+        => configuration["Kafka:Topics:Events"] ?? "orders.events";
+
     public static IServiceCollection AddDomainEventPublisher(
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        var kafka = configuration.GetConnectionString("Kafka") ?? configuration["Kafka:BootstrapServers"];
         var rabbit = configuration.GetConnectionString("RabbitMQ");
-        var provider = configuration["Messaging:Provider"];
+        var provider = ResolveProvider(configuration);
 
-        if (string.Equals(provider, "RabbitMQ", StringComparison.OrdinalIgnoreCase)
+        if (string.Equals(provider, "Kafka", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(kafka))
+        {
+            services.AddSingleton<IDomainEventPublisher>(sp =>
+                new KafkaDomainEventPublisher(
+                    kafka!,
+                    sp.GetRequiredService<ILogger<KafkaDomainEventPublisher>>(),
+                    ResolveKafkaTopic(configuration)));
+        }
+        else if (string.Equals(provider, "RabbitMQ", StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(rabbit))
         {
             services.AddSingleton<IDomainEventPublisher>(sp =>
@@ -42,17 +74,45 @@ public static class DomainEventServiceCollectionExtensions
         return services;
     }
 
+    public static IServiceCollection AddTransactionalOutbox(
+        this IServiceCollection services)
+    {
+        services.AddScoped<FlashSale.Application.Outbox.IOutboxRepository, OutboxRepository>();
+        services.AddScoped<FlashSale.Application.Outbox.IInboxRepository, InboxRepository>();
+        services.AddScoped<FlashSale.Application.Outbox.OutboxDispatcherUseCase>();
+        services.AddHostedService<FlashSale.Infrastructure.Outbox.OutboxDispatcherHostedService>();
+        return services;
+    }
+
     public static IServiceCollection AddAutomationWorkerHost(
         this IServiceCollection services,
         IConfiguration configuration)
     {
         // Audit repository is provider-independent (DB-backed): the payment
         // timeout scan runs on ANY messaging provider, so this registration
-        // must stay OUTSIDE the RabbitMQ gate below.
+        // must stay OUTSIDE the transport gate below.
         services.AddScoped<IAutomationRunRepository, AutomationRunRepository>();
 
         var rabbit = configuration.GetConnectionString("RabbitMQ");
-        var provider = configuration["Messaging:Provider"];
+        var kafka = configuration.GetConnectionString("Kafka") ?? configuration["Kafka:BootstrapServers"];
+        var provider = ResolveProvider(configuration);
+
+        if (string.Equals(provider, "Kafka", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(kafka))
+        {
+            // Both transports share ONE processor, so a Kafka cutover cannot
+            // silently change what an event does.
+            services.AddSingleton<AutomationEventProcessor>();
+            services.AddHostedService(sp => new KafkaAutomationEventConsumer(
+                kafka!,
+                ResolveKafkaTopic(configuration),
+                configuration["Kafka:ConsumerGroup"] ?? "flashsale-automation",
+                sp.GetRequiredService<AutomationEventProcessor>(),
+                sp.GetRequiredService<ILogger<KafkaAutomationEventConsumer>>()));
+            return services;
+        }
+
+        services.AddSingleton<AutomationEventProcessor>();
 
         if (string.Equals(provider, "RabbitMQ", StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(rabbit))
@@ -60,7 +120,7 @@ public static class DomainEventServiceCollectionExtensions
             services.AddHostedService(sp =>
                 AutomationWorkerHost.CreateAsync(
                         rabbit!,
-                        sp.GetRequiredService<IServiceScopeFactory>(),
+                        sp.GetRequiredService<AutomationEventProcessor>(),
                         sp.GetRequiredService<ILogger<AutomationWorkerHost>>())
                     .GetAwaiter().GetResult());
         }
