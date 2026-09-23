@@ -119,6 +119,9 @@ namespace FlashSale.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("PaymentProcessedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("PaymentReminderCount")
+                        .HasColumnType("integer");
+
                     b.Property<int>("ProductId")
                         .HasColumnType("integer");
 

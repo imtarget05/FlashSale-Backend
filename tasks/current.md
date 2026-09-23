@@ -1,5 +1,45 @@
 # Current Tasks (Phase 6–9 — containers, IaC, CI/CD)
 
+## Business Automation Platform (spec: 01-FlashSale-Automation)
+
+Phases per the automation spec; each phase is only ticked with evidence.
+
+- [x] Phase 0 — audit: event-ready order path confirmed; gaps = no event model,
+      no payment lifecycle, no audit table, no scheduler, no dashboard.
+- [x] Phase 1 — event model standardization (commit 25659e5, CI 35807116862):
+      8 typed events (order.created, inventory.reserved, payment.completed,
+      payment.failed, payment.expired, order.confirmed, order.cancelled,
+      inventory.released) with eventId/eventType/occurredAt/correlationId/source;
+      RabbitMQ topic exchange `automation.events`; audit-first
+      AutomationWorkerHost; `AutomationRuns` table + EF migrations; wired into
+      API + Worker roots (provider gate = ADR-005 RabbitMQ-only).
+- [x] Phase 2 — order + payment automation (§4/§5), verified locally:
+      - publish order.created (worker, real order id) + inventory.reserved (API);
+      - orders persist as PendingPayment with PaymentDueAt = accept + TimeoutMinutes
+        (messages without a window keep the OLD terminal semantics → v1.0 flow
+        and the legacy `processing|completed` wording are untouched);
+      - PaymentTimeoutRule (pure) + scan use case: reminder inside grace
+        (PaymentReminderCount ≤ MaxPaymentReminders), past grace → guarded
+        cancel + DB stock release (same transaction) + Redis mirror;
+      - POST /api/orders/{key}/pay (simulated gateway, status-guarded exactly
+        once) and POST /internal/automation/payment-timeout-scan (manual trigger,
+        TriggerType distinguishes timer vs manual in the audit row).
+      - Config (never hard-coded): Automation:Payment:{TimeoutMinutes=15,
+        GracePeriodMinutes=15, MaxPaymentReminders=3, ScanIntervalSeconds=60}.
+      - Tests: 82 unit + 24 integration green (was 75+19); live smoke 21/21
+        (reminder → cancel → stock 4→3, audit rows PaymentTimeout|manual|Success,
+        OrderProcessing|api|Success); v1.0 auth/order smoke still 48/48.
+      - KNOWN LIMITATIONS: event publish is best-effort (no outbox) — bus outage
+        loses events but never the order/audit row; reminder "notification" is
+        structured log + audit (email/webhook PLANNED); payment gateway SIMULATED
+        (no real processor — never claim otherwise); timeout scan runs in
+        Order.Worker + manual endpoint (not in the API timer).
+- [ ] Phase 3 — inventory low-stock automation (§6).
+- [ ] Phase 4 — daily business report (§7).
+- [ ] Phase 5 — AI content generation + support triage (§8/§9).
+- [ ] Phase 6 — automation dashboard endpoint (§14).
+- [ ] Phase 7 — demo scenarios B/C/D + E2E script (§17).
+
 ## INTERVIEW RELEASE v1.0 — FREEZE (2026-09-22)
 
 Status block for the interview release checkpoint:

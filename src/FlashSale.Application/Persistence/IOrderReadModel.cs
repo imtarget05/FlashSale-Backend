@@ -3,7 +3,7 @@ using FlashSale.Application.Assistant;
 namespace FlashSale.Application.Persistence;
 
 /// <summary>Read model for a product (queries never go through the write model).</summary>
-public sealed record ProductView(int Id, string Name, int AvailableStock);
+public sealed record ProductView(int Id, string Name, int AvailableStock, decimal FlashSalePrice);
 
 /// <summary>Read model for order status polling (202-accepted -> completed).</summary>
 public sealed record OrderStatusView(
@@ -42,4 +42,11 @@ public interface IOrderReadModel
     /// validates its output against it.
     /// </summary>
     Task<IReadOnlyList<ProductCandidate>> GetProductCandidatesAsync(int max, CancellationToken ct = default);
+
+    /// <summary>
+    /// Pending-payment orders for the payment-timeout scan (spec §5), oldest
+    /// due date first, capped at <paramref name="take"/> rows per scan so one
+    /// run stays bounded.
+    /// </summary>
+    Task<IReadOnlyList<PendingPaymentView>> GetPendingPaymentOrdersAsync(int take, CancellationToken ct = default);
 }

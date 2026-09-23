@@ -1,5 +1,6 @@
 using FlashSale.Application.Assistant;
 using FlashSale.Application.Persistence;
+using FlashSale.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace FlashSale.Infrastructure.Persistence;
@@ -16,7 +17,7 @@ public sealed class OrderReadModel(AppDbContext db) : IOrderReadModel
     public async Task<ProductView?> GetProductAsync(int productId, CancellationToken ct = default) =>
         await db.Products.AsNoTracking()
             .Where(p => p.Id == productId)
-            .Select(p => new ProductView(p.Id, p.Name, p.AvailableStock))
+            .Select(p => new ProductView(p.Id, p.Name, p.AvailableStock, p.FlashSalePrice))
             .FirstOrDefaultAsync(ct);
 
     public async Task<OrderStatusView?> GetOrderStatusAsync(string idempotencyKey, CancellationToken ct = default) =>
@@ -40,5 +41,16 @@ public sealed class OrderReadModel(AppDbContext db) : IOrderReadModel
             .Take(max)
             .Select(p => new ProductCandidate(
                 p.Id, p.Name, p.Category, p.Description, p.FlashSalePrice, p.AvailableStock))
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<PendingPaymentView>> GetPendingPaymentOrdersAsync(
+        int take, CancellationToken ct = default) =>
+        await db.Orders.AsNoTracking()
+            .Where(o => o.Status == OrderStatus.PendingPayment && o.PaymentDueAt != null)
+            .OrderBy(o => o.PaymentDueAt)
+            .Take(take)
+            .Select(o => new PendingPaymentView(
+                o.Id, o.ProductId, o.Quantity, o.IdempotencyKey,
+                o.CreatedAt, o.PaymentDueAt, o.PaymentReminderCount))
             .ToListAsync(ct);
 }

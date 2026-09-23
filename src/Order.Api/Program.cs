@@ -1,10 +1,13 @@
 using FlashSale.Application.Assistant;
 using FlashSale.Application.Auth;
+using FlashSale.Application.Automation;
+using FlashSale.Application.Events;
 using FlashSale.Application.Inventory;
 using FlashSale.Application.Messaging;
 using FlashSale.Application.Orders;
 using FlashSale.Application.Persistence;
 using FlashSale.Domain;
+using FlashSale.Domain.Automation;
 using FlashSale.Domain.Entities;
 using FlashSale.Infrastructure.Auth;
 using FlashSale.Infrastructure.Ai;
@@ -42,6 +45,17 @@ builder.Services.AddScoped<IDatabaseHealthCheck, DatabaseHealthCheck>();
 // Business automation platform (spec §1): one domain-event publisher — RabbitMQ
 // topic exchange when Messaging:Provider=RabbitMQ, in-memory otherwise.
 builder.Services.AddDomainEventPublisher(builder.Configuration);
+
+// Payment automation (spec §4/§5): config-bound options (never hard-coded),
+// guarded payment transitions, timeout scan + manual triggers.
+var paymentOptions = builder.Configuration
+    .GetSection(PaymentAutomationOptions.SectionName).Get<PaymentAutomationOptions>()
+    ?? new PaymentAutomationOptions();
+builder.Services.AddSingleton(paymentOptions);
+builder.Services.AddScoped<IAutomationRunRepository, AutomationRunRepository>();
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<PaymentAutomationUseCase>();
+builder.Services.AddScoped<RecordPaymentUseCase>();
 
 // ---------------------------------------------------------------
 // AI assistant (spec §10) — local Ollama through its OpenAI-compatible API.
@@ -281,6 +295,10 @@ app.MapPost("/api/orders", async (
 });
 
 // Status polling: did my (idempotent) order actually persist?
+// NOTE (spec §4): this legacy view answers the FULFILLMENT question from row
+// existence alone; the payment lifecycle lives in Order.Status and is exposed
+// by the automation endpoints below — deliberately not changed here, because
+// the v1.0 smoke contract depends on processing|completed wording.
 app.MapGet("/api/orders/{idempotencyKey}", async (string idempotencyKey, IOrderReadModel readModel) =>
 {
     var order = await readModel.GetOrderStatusAsync(idempotencyKey);
@@ -288,6 +306,51 @@ app.MapGet("/api/orders/{idempotencyKey}", async (string idempotencyKey, IOrderR
         ? Results.Json(new { idempotencyKey, status = "processing" })
         : Results.Json(new { order.IdempotencyKey, status = "completed", order.OrderId, order.ProductId, order.Quantity });
 });
+
+// Simulated payment gateway (spec §4 paid? branch). outcome: completed|failed.
+// Guarded transitions make duplicate calls idempotent (second → 409).
+app.MapPost("/api/orders/{idempotencyKey}/pay", async (
+    string idempotencyKey,
+    PaymentRequest request,
+    RecordPaymentUseCase useCase,
+    CancellationToken ct) =>
+{
+    var outcome = request.Outcome?.ToLowerInvariant() switch
+    {
+        "completed" or "paid" => PaymentOutcome.Completed,
+        "failed" or "fail" => PaymentOutcome.Failed,
+        _ => (PaymentOutcome?)null
+    };
+    if (outcome is null)
+        return Results.BadRequest(new { error = "outcome must be 'completed' or 'failed'" });
+
+    var result = await useCase.ExecuteAsync(idempotencyKey, outcome.Value, ct);
+    if (!result.Found) return Results.NotFound(new { error = "Order not found" });
+
+    return outcome == PaymentOutcome.Completed
+        ? (result.Transitioned
+            ? Results.Ok(new { idempotencyKey, status = "confirmed" })
+            : Results.Json(new { error = "Order is not pending payment" }, statusCode: 409))
+        : (result.Transitioned
+            ? Results.Ok(new { idempotencyKey, status = "payment_failed_recorded" })
+            : Results.Json(new { error = "Order is not pending payment" }, statusCode: 409));
+})
+.WithTags("Automation")
+.WithName("RecordPayment")
+.WithSummary("Simulated payment gateway: completed → Confirmed, failed → stays PendingPayment (spec §4).");
+
+// Manual payment-timeout scan (spec §5/§17-A): same use case as the timer,
+// different trigger_type in the audit record — demo-friendly determinism.
+app.MapPost("/internal/automation/payment-timeout-scan", async (
+    PaymentAutomationUseCase useCase,
+    CancellationToken ct) =>
+{
+    var result = await useCase.ExecuteAsync("manual", ct);
+    return Results.Ok(new { trigger = "manual", result.Scanned, result.Reminded, result.Cancelled });
+})
+.WithTags("Ops")
+.WithName("PaymentTimeoutScan")
+.WithSummary("Run the abandoned-payment scan now: reminders + cancel/stock-release (writes an AutomationRun row).");
 
 // The caller's own order history (ADR-013 §5). Scoped by the JWT `sub`, so a
 // caller can only ever see their own orders — no resource-based handler is
@@ -406,6 +469,9 @@ app.Run();
 return 0;
 
 public record OrderRequest(int ProductId, int Quantity);
+
+/// <summary>Body for <c>POST /api/orders/{key}/pay</c> (spec §4 simulation).</summary>
+public record PaymentRequest(string? Outcome);
 
 /// <summary>Request body for <c>POST /api/assistant/product</c> (spec §10).</summary>
 public record AssistantQuestion(string? Question);

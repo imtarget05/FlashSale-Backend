@@ -1,7 +1,10 @@
+using FlashSale.Application.Automation;
+using FlashSale.Application.Events;
 using FlashSale.Application.Inventory;
 using FlashSale.Application.Messaging;
 using FlashSale.Application.Persistence;
 using FlashSale.Domain;
+using FlashSale.Domain.Events;
 using Microsoft.Extensions.Logging;
 
 namespace FlashSale.Application.Orders;
@@ -55,6 +58,8 @@ public sealed class SubmitOrderUseCase(
     IOrderQueueProducer queueProducer,
     IOrderReadModel readModel,
     OrderProcessor processor,
+    IDomainEventPublisher eventPublisher,
+    PaymentAutomationOptions paymentOptions,
     ILogger<SubmitOrderUseCase> logger)
 {
     public async Task<SubmitOrderResult> ExecuteAsync(
@@ -67,7 +72,15 @@ public sealed class SubmitOrderUseCase(
         if (quantity <= 0)
             return new SubmitOrderResult(SubmitOrderOutcome.InvalidQuantity, idempotencyKey);
 
-        var message = new OrderMessage(productId, quantity, idempotencyKey, DateTimeOffset.UtcNow, UserId: userId);
+        // Spec §1: one correlation id per submission ties events + audit rows.
+        var correlationId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var message = new OrderMessage(
+            productId, quantity, idempotencyKey, now,
+            UserId: userId,
+            CorrelationId: correlationId,
+            // Spec §5: the payment window starts at acceptance; worker persists it.
+            PaymentDueAt: now.AddMinutes(paymentOptions.TimeoutMinutes));
 
         // T1 — fast reservation (also deduplicates by idempotency key).
         var reservation = await reservationGateway.TryReserveAsync(productId, quantity, idempotencyKey);
@@ -93,7 +106,27 @@ public sealed class SubmitOrderUseCase(
         {
             // T2 — hand off to the fulfillment pipeline.
             if (await queueProducer.EnqueueAsync(message, ct))
+            {
+                // Spec §4: stock is genuinely reserved in Redis at this point.
+                // Best-effort publish — a bus outage must NOT fail acceptance
+                // (the order row is the truth; no-outbox is a documented gap).
+                // OrderId=0: the row does not exist yet; correlationId links
+                // this event to order.created, which carries the real id.
+                try
+                {
+                    await eventPublisher.PublishAsync(new InventoryReservedEvent(
+                        Guid.NewGuid().ToString("N"), correlationId, "order-api",
+                        DateTimeOffset.UtcNow, 0, productId, quantity, idempotencyKey), ct);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex,
+                        "inventory.reserved publish failed for {Key} (acceptance proceeds; best-effort).",
+                        idempotencyKey);
+                }
+
                 return new SubmitOrderResult(SubmitOrderOutcome.Accepted, idempotencyKey);
+            }
 
             // Queue full -> backpressure: give the reservation back and shed load.
             await reservationGateway.ReleaseReservationAsync(productId, quantity, idempotencyKey);

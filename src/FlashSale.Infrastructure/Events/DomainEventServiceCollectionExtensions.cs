@@ -46,13 +46,17 @@ public static class DomainEventServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Audit repository is provider-independent (DB-backed): the payment
+        // timeout scan runs on ANY messaging provider, so this registration
+        // must stay OUTSIDE the RabbitMQ gate below.
+        services.AddScoped<IAutomationRunRepository, AutomationRunRepository>();
+
         var rabbit = configuration.GetConnectionString("RabbitMQ");
         var provider = configuration["Messaging:Provider"];
 
         if (string.Equals(provider, "RabbitMQ", StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(rabbit))
         {
-            services.AddScoped<IAutomationRunRepository, AutomationRunRepository>();
             services.AddHostedService(sp =>
                 AutomationWorkerHost.CreateAsync(
                         rabbit!,
