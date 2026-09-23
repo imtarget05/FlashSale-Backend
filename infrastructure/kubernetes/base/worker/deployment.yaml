@@ -54,6 +54,14 @@ spec:
                 secretKeyRef:
                   name: flashsale-secrets
                   key: rabbitmq-connection
+            # Redis reservation tier: the worker's automation use cases
+            # (PaymentAutomationUseCase) release reservations through
+            # RedisStockGateway — same secret key the API already uses.
+            - name: ConnectionStrings__Redis
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: redis-connection
             # Explicit provider, same rule as the API: never let
             # MessagingProviderSelector.Resolve() fall back to InMemory, which
             # is per-process and would silently decouple worker from API.

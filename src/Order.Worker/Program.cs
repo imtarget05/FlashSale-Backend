@@ -1,6 +1,7 @@
 using FlashSale.Application.Automation;
 using FlashSale.Application.Events;
 using FlashSale.Application.Automation;
+using FlashSale.Application.Inventory;
 using FlashSale.Application.Messaging;
 using FlashSale.Application.Orders;
 using FlashSale.Application.Persistence;
@@ -8,9 +9,11 @@ using FlashSale.Infrastructure.Automation;
 using FlashSale.Infrastructure.Events;
 using FlashSale.Infrastructure.Messaging;
 using FlashSale.Infrastructure.Persistence;
+using FlashSale.Infrastructure.Redis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -23,6 +26,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<OrderProcessor>();
+
+// Query-side port + Redis reservation tier: the automation use cases below
+// (PaymentAutomationUseCase et al.) depend on BOTH, exactly like the API
+// composition root — without them the payment-timeout scan cannot resolve
+// and every iteration dies on GetRequiredService<IOrderReadModel>().
+builder.Services.AddScoped<IOrderReadModel, OrderReadModel>();
+var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+    ConnectionMultiplexer.Connect(redisConnection));
+builder.Services.AddSingleton<IStockReservationGateway>(sp =>
+    new RedisStockGateway(sp.GetRequiredService<IConnectionMultiplexer>()));
 
 // Queue selection mirrors the API: exactly one provider (ADR-005), and the same
 // Production guard. Both composition roots must resolve the SAME provider, or the
