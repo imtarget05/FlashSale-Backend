@@ -1,0 +1,37 @@
+=== LOCAL v2 / Phase 11: Checkout Saga Live Verification ===
+Target Gateway: http://127.0.0.1:8088 (Host: flashsale.local)
+  PASS: Envoy Gateway Health (=200)
+
+--- Scenario 1: Happy Path (.01 -> Success -> Confirmed) ---
+  PASS: Scenario 1 Success Flag (=true)
+  PASS: Scenario 1 Status (3=Completed) (=3)
+  PASS: Scenario 1 InventoryStatus (1=Reserved) (=1)
+  PASS: Scenario 1 PaymentStatus (1=Successful) (=1)
+
+--- Scenario 2: Payment Decline (.02 -> Declined -> Compensated) ---
+  PASS: Scenario 2 HTTP Status (422 Unprocessable) (=422)
+  PASS: Scenario 2 Status (5=Compensated) (=5)
+  PASS: Scenario 2 InventoryStatus (2=Released) (=2)
+  PASS: Scenario 2 PaymentStatus (2=Declined) (=2)
+  PASS: Scenario 2 Compensation Reason (contains 'insufficient funds')
+  PASS: Scenario 2 Stock Restored After Compensation (=47)
+
+--- Scenario 3: Payment Timeout (.03 -> Retries Exhausted -> Compensated) ---
+  PASS: Scenario 3 HTTP Status (422 Unprocessable) (=422)
+  PASS: Scenario 3 Status (5=Compensated) (=5)
+  PASS: Scenario 3 InventoryStatus (2=Released) (=2)
+  PASS: Scenario 3 PaymentStatus (3=TimedOut) (=3)
+  PASS: Scenario 3 Stock Restored After Compensation (=47)
+
+--- Scenario 4: Fast-Fail Inventory SoldOut (No Payment Invocation) ---
+  PASS: Scenario 4 HTTP Status (400 Bad Request) (=400)
+  PASS: Scenario 4 Status (6=Failed) (=6)
+  PASS: Scenario 4 InventoryStatus (3=Rejected) (=3)
+
+--- Scenario 5: Duplicate Idempotency Replay Guard ---
+  PASS: Scenario 5 Replay Success (=true)
+  PASS: Scenario 5 Idempotent Response (contains 'idempotently')
+
+==========================================================
+Saga Live Verification Result: 21 Passed, 0 Failed
+==========================================================

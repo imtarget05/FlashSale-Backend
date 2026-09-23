@@ -7,6 +7,28 @@
 
 A portfolio-grade, event-driven backend built to handle high-concurrency "flash sale" scenarios. The core engineering challenge is processing thousands of simultaneous purchase attempts for limited inventory without overselling, while keeping latency low and the database healthy.
 
+> **Role:** Backend Engineer (C# / .NET 10, PostgreSQL, Redis, RabbitMQ).
+> **One-liner for HR:** I built an order system where 50 buyers race for 10 items — exactly 10 sales succeed, 40 get honest fast-fails, p95 29ms. All numbers from real Testcontainers + k6 runs, not slides.
+> **For Tech Lead:** Clean Architecture (Domain <- Application <- Infrastructure <- Api/Worker) with dependency-direction guards in `tests/UnitTests/ArchitectureTests.cs`. Evidence in `docs/benchmarks/` + `docs/adr/001-005`.
+
+## 🧠 Skills Demonstrated (scan in 30s)
+
+| Area | What I did | Where to verify |
+|---|---|---|
+| Concurrency control | Redis Lua CAS gatekeeper + PG atomic conditional `UPDATE` | `docs/adr/002-003-*`, `docs/benchmarks/phase2-005-*` |
+| Async / resilience | RabbitMQ at-least-once, ack-after-persist, DLQ, idempotency keys | `docs/adr/004-005-*`, `src/Order.Worker/` |
+| Data integrity | Zero-oversell invariant: 50 req / stock 10 → 10 sales, stock 0 | `docs/benchmarks/phase2-oversell-experiment.md` |
+| Performance | p95 29ms tiered vs 574ms naive sync; pool cap 80/100 to keep operator headroom | `docs/benchmarks/phase4-highload-experiment.md`, `phase5-tiered-experiment.md` |
+| Operability | pg_dump -Fc backup + SHA-256 + restore smoke test | `docs/adr/008-009-*` |
+| Architecture discipline | Port + adapter for every infra addition; thin `Program.cs` | `src/FlashSale.Application/`, `tests/UnitTests/ArchitectureTests.cs` |
+
+## 🔍 Problem → Decision → Tradeoff (how I think)
+
+1. **Naive sync oversells under race** → reproduced first (`docs/benchmarks/phase2-*`), then fixed with atomic conditional UPDATE. Tradeoff: hot-row lock queues (p95 574ms at 200 conc.) — accepted as correctness baseline.
+2. **90% wasted DB round-trips just to say "no"** → Redis Lua CAS pre-filter (single RTT, atomic). Tradeoff: cache/DB divergence risk — mitigated by PG as authoritative truth + Redis mirror on cancel path.
+3. **Traffic spikes kill DB** → RabbitMQ buffer + worker persist + ack-after-persist. Tradeoff: at-least-once duplicates — mitigated by idempotency keys + guarded UPDATEs.
+4. **Pool saturation locks out operators** → cap API pool 80 < server 100. Small fix, big SRE lesson: always leave headroom.
+
 ## 📖 The Business Problem & Engineering Solution
 
 During a flash sale, inventory is strictly limited (e.g., 10 items). A naive synchronous approach falls apart under concurrent load, leading to race conditions (overselling) and database timeouts.

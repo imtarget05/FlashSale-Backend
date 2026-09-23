@@ -95,6 +95,22 @@ Complete this inventory before implementation. If any line is unknown, keep the 
 - [x] 5. Verify: `git status --short`, `git diff --stat`, đọc lại 2 file; acceptance = plan Active + tasks/current.md có Active Goal + 3B/3C ticked với link evidence.
 
 ## Acceptance Criteria
-- [x] Plan này ở trạng thái Active với goal/verif/rollback điền đầy đủ. (verified 2026-09-23: Status Active, Goal/Verification/Rollback/Promotion đầy đủ dòng 3-10)
+- [x] Plan này ở trạng thái Active với goal/verif/rollback điền đầy đủ. (verified 2026-09-23: Status Active, Goal/Verification/Rollback/Promotion đầy đủ)
 - [x] `tasks/current.md` đầu file có `ACTIVE GOAL (2026-09-23)` + next steps trỏ Phase 4 P02 audit gate. (verified: grep line 1 hit)
 - [x] Không sửa runtime code; chỉ docs/tracker; `git diff` chỉ chạm plans/ + tasks/. (verified: `git diff --stat` = tasks/current.md 18 insertions; plan file untracked new; evidence 001/002/003 tồn tại)
+
+## Local Run 2026-09-23 ~23:00 (tay chân: chạy toàn bộ dưới local)
+
+| Suite | Kết quả | Ghi chú |
+|---|---|---|
+| dotnet build | ✅ 0 error (9 warnings cũ) | trước khi tree bị sửa |
+| dotnet test | ✅ 134 unit + 40 integration = 174/174 | Testcontainers, ~16s |
+| payment-automation-smoke | ✅ 21/21 sau fix | lần đầu 17-18/21 do dính API stale trên :5099 (kill PID 79155/79166 → xanh) |
+| lowstock-alert-smoke | ✅ 11/11 | |
+| daily-report-smoke | ✅ 12/12 | |
+| content-support-smoke | ⛔ 7/24 → 13/24 → BLOCKED | lần 1: ai đó `compose down` 22:52 (DB refused); restart DB xong lần 2: Ollama lạnh (attempt timeout 120s×2, draft 12 vẫn tạo được 81s); lần 3: tree có WIP Phase 9 (CheckoutSagaState, chưa migration) → API crash PendingModelChangesWarning |
+| ai-assistant-smoke | ⏸ chưa chạy | chờ tree ổn định + migration |
+
+Rerun 23:17–23:26: migration AddCheckoutSagas đã có → build 0 error → content smoke boot OK, generate vẫn 503 (Ollama timeout 2×120s, triage xanh) → rerun tiếp thì API lại crash PendingModelChangesWarning vì Cline thêm tiếp Outbox/Inbox/Payment/Saga sau migration. DỪNG chạy để tránh giẫm chân; chạy full 1 lượt khi Cline xong + migration đủ.
+
+BLOCKER: working tree đang có WIP của Cline (AppDbContext.cs + ModelSnapshot + DomainEvents.cs + Program.cs, binary rebuild 22:59) — không stash/sửa để tránh xung đột. Chạy tiếp khi Cline thêm migration xong.

@@ -1,0 +1,39 @@
+=== LOCAL v2 / Phase 10: Outbox recovery verification ===
+Gateway: http://127.0.0.1:8088   API: http://127.0.0.1:8088
+
+--- Scenario A: transient outage must self-heal ---
+  baseline pending=0
+  broker stopped
+  enqueued id=6 while the broker is down
+  mid-outage: {"count":0,"stuckCount":3,"messages":[]}
+  PASS: mid-outage row is visible as stuck (stuckCount=3), not silently pending=0
+  PASS: A backoff deadline was scheduled instead of burning every retry instantly (=1)
+  PASS: A row 6 is genuinely still undelivered mid-outage (=1)
+        (RetryCount=3 after ~7s of outage — with a 2s/4s/8s schedule, not 5-in-one-second)
+  broker started; waiting for self-heal (no pod restart, no requeue, no SQL)
+  PASS: row 6 drained by itself after the broker returned (RetryCount=3)
+
+--- Scenario B: exhausted outage must be dead-lettered AND visible ---
+  broker stopped
+  enqueued id=7 (dead-letter expected in ~30s)
+  PASS: row 7 reached the DLQ marker
+  PASS: B pending count is 0 (nothing the dispatcher can act on) (=0)
+  PASS: B stuckCount=3 — the old bug was pending=0 with NO other signal
+  PASS: B /api/outbox/stuck reports at least one dead-lettered row (contains '"deadLettered":[1-9]')
+  broker started; recovering through the operator endpoint
+  PASS: requeue revived 3 row(s)
+  PASS: revived row 7 drained
+
+--- Scenario C: consumer replay must not double-apply ---
+  PASS: C first delivery is processed (contains '"processed":true')
+  PASS: C four replays are all deduplicated (=4)
+  PASS: C exactly one inbox row exists for that MessageId (=1)
+
+--- Final state ---
+  pending: {"count":0,"stuckCount":0,"messages":[]}
+  stuck:   {"count":0,"deadLettered":0,"backingOff":0,"messages":[]}
+  PASS: No unprocessed outbox rows remain (=0)
+
+==========================================================
+Outbox recovery verification: 14 Passed, 0 Failed
+==========================================================
