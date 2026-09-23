@@ -30,5 +30,8 @@
          ArchitectureTests). -->
     <ProjectReference Include="..\..\src\FlashSale.Infrastructure\FlashSale.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.0" />
+  </ItemGroup>
 
 </Project>

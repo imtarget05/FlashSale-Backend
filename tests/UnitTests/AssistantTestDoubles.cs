@@ -46,7 +46,7 @@ internal sealed class FakeAssistantReadModel : IOrderReadModel
     public Task<int?> GetStockAsync(int productId, CancellationToken ct = default) => Task.FromResult<int?>(5);
 
     public Task<ProductView?> GetProductAsync(int productId, CancellationToken ct = default) =>
-        Task.FromResult<ProductView?>(new ProductView(1, "Phone X", 5, 199m));
+        Task.FromResult<ProductView?>(new ProductView(1, "Phone X", 5, 199m, "Flagship smartphone"));
 
     public Task<OrderStatusView?> GetOrderStatusAsync(string idempotencyKey, CancellationToken ct = default) =>
         Task.FromResult<OrderStatusView?>(null);
@@ -62,4 +62,8 @@ internal sealed class FakeAssistantReadModel : IOrderReadModel
 
     /// <summary>Test hook: rows the payment-timeout scan will see.</summary>
     public IReadOnlyList<PendingPaymentView>? PendingPayments { get; set; }
+
+    public Task<ProductFactsView?> GetProductFactsAsync(int productId, CancellationToken ct = default) =>
+        Task.FromResult<ProductFactsView?>(
+            new ProductFactsView(1, "Phone X", "Electronics", "Flagship smartphone", 199m, 5));
 }

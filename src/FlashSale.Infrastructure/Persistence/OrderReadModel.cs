@@ -17,7 +17,7 @@ public sealed class OrderReadModel(AppDbContext db) : IOrderReadModel
     public async Task<ProductView?> GetProductAsync(int productId, CancellationToken ct = default) =>
         await db.Products.AsNoTracking()
             .Where(p => p.Id == productId)
-            .Select(p => new ProductView(p.Id, p.Name, p.AvailableStock, p.FlashSalePrice))
+            .Select(p => new ProductView(p.Id, p.Name, p.AvailableStock, p.FlashSalePrice, p.Description))
             .FirstOrDefaultAsync(ct);
 
     public async Task<OrderStatusView?> GetOrderStatusAsync(string idempotencyKey, CancellationToken ct = default) =>
@@ -53,4 +53,12 @@ public sealed class OrderReadModel(AppDbContext db) : IOrderReadModel
                 o.Id, o.ProductId, o.Quantity, o.IdempotencyKey,
                 o.CreatedAt, o.PaymentDueAt, o.PaymentReminderCount))
             .ToListAsync(ct);
+
+    public async Task<ProductFactsView?> GetProductFactsAsync(
+        int productId, CancellationToken ct = default) =>
+        await db.Products.AsNoTracking()
+            .Where(p => p.Id == productId)
+            .Select(p => new ProductFactsView(
+                p.Id, p.Name, p.Category, p.Description, p.FlashSalePrice, p.AvailableStock))
+            .FirstOrDefaultAsync(ct);
 }
