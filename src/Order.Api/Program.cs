@@ -1,7 +1,9 @@
 using FlashSale.Application.Assistant;
 using FlashSale.Application.Auth;
 using FlashSale.Application.Automation;
+using FlashSale.Application.Content;
 using FlashSale.Application.Events;
+using FlashSale.Application.Support;
 using FlashSale.Application.Inventory;
 using FlashSale.Application.Messaging;
 using FlashSale.Application.Orders;
@@ -26,6 +28,7 @@ using Order.Api.OpenApi;
 using StackExchange.Redis;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -73,6 +76,13 @@ builder.Services.AddSingleton(reportingOptions);
 builder.Services.AddScoped<IDailyReportRepository, DailyReportRepository>();
 builder.Services.AddScoped<DailyReportUseCase>();
 
+// AI content + support triage (spec §8/§9): same Ollama client + rate limiter as
+// the product assistant; every AI result is reviewed or grounded by rule.
+builder.Services.AddScoped<IContentRepository, ContentRepository>();
+builder.Services.AddScoped<ProductContentUseCase>();
+builder.Services.AddScoped<ContentReviewUseCase>();
+builder.Services.AddScoped<SupportTriageUseCase>();
+
 // ---------------------------------------------------------------
 // AI assistant (spec §10) — local Ollama through its OpenAI-compatible API.
 // The typed client owns BaseAddress + dummy bearer key (Ollama ignores it;
@@ -87,6 +97,10 @@ builder.Services.AddHttpClient<IAiChatClient, OllamaChatClient>("ollama", (_, cl
     client.BaseAddress = new Uri($"{aiOptions.BaseUrl.TrimEnd('/')}/");
     client.DefaultRequestHeaders.Authorization =
         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", aiOptions.ApiKey);
+    // Must exceed the use case's AttemptTimeout (120s) so the use case owns the
+    // timeout/retry budget; the HttpClient default (100s) would otherwise fire
+    // first and burn the retry (2 × 100s → user-visible 503 at ~200s).
+    client.Timeout = TimeSpan.FromSeconds(150);
 });
 builder.Services.AddScoped<IAiRateLimiter, RedisAiRateLimiter>();
 builder.Services.AddScoped<ProductAssistantUseCase>();
@@ -227,6 +241,29 @@ app.MapGet("/internal/metrics", (ApiMetrics metrics) => Results.Ok(metrics.Snaps
     .WithTags("Ops")
     .WithName("MetricsSnapshot")
     .WithSummary("In-process metrics snapshot as JSON (counters + duration histograms).");
+
+// Automation dashboard (spec §14). DB-only roll-up of today's audit rows, so
+// this endpoint stays read-only and dependency-free: no Redis, no queue, no
+// background timing — just what AutomationRuns already recorded.
+// ---------------------------------------------------------------
+app.MapGet("/internal/automation/summary", async (IAutomationRunRepository runs) =>
+{
+    var summary = await runs.GetSummaryAsync();
+    return Results.Ok(summary);
+})
+    .WithTags("Ops")
+    .WithName("AutomationSummary")
+    .WithSummary("Today's automation dashboard roll-up (runs by status, avg duration, top failing workflow).");
+
+app.MapGet("/internal/automation/alerts", async (IStockAlertRepository alerts) =>
+{
+    var open = await alerts.ListOpenAsync(50);
+    return Results.Ok(open);
+})
+    .WithTags("Ops")
+    .WithName("OpenAlerts")
+    .WithSummary("Open low-stock alerts (spec §6), newest first.");
+
 
 
 // ---------------------------------------------------------------
@@ -487,6 +524,149 @@ app.MapPost("/api/assistant/product", async (
 .WithName("AskProductAssistant")
 .WithSummary("Grounded AI product assistant (Ollama/Qwen): recommend only from real product data.");
 
+// ---------------------------------------------------------------
+// AI product content (spec §8) — STAFF/ADMIN only. Generation ALWAYS lands in
+// ReviewRequired; publish requires an explicit human approval first (spec §13).
+// ---------------------------------------------------------------
+app.MapPost("/api/products/{id:int}/content/generate", async (
+    int id,
+    ClaimsPrincipal user,
+    ProductContentUseCase useCase,
+    CancellationToken ct) =>
+{
+    var staffId = TryGetUserId(user);
+    if (staffId is null) return Results.Unauthorized();
+
+    var result = await useCase.GenerateAsync(staffId.Value, id, ct);
+    return result.Outcome switch
+    {
+        ContentGenerationOutcome.ProductNotFound => Results.NotFound(new { error = "Product not found" }),
+        ContentGenerationOutcome.RateLimited => Results.Json(
+            new { error = "rate_limited", retryAfterSeconds = 60 }, statusCode: 429),
+        ContentGenerationOutcome.UpstreamUnavailable => Results.Json(
+            new { error = "assistant_unavailable" }, statusCode: 503),
+        ContentGenerationOutcome.InvalidModelOutput => Results.Json(
+            new { error = "assistant_invalid_output" }, statusCode: 502),
+        _ => Results.Ok(new
+        {
+            draftId = result.Draft!.Id,
+            status = result.Draft.Status.ToString(),
+            result.Draft.ShortDescription,
+            result.Draft.SeoDescription,
+            keywords = JsonSerializer.Deserialize<List<string>>(result.Draft.KeywordsJson),
+            result.Draft.SocialCaption,
+            faq = JsonSerializer.Deserialize<JsonElement>(result.Draft.FaqJson),
+            model = result.Model,
+            latencyMs = result.LatencyMs,
+            tokens = new { prompt = result.PromptTokens, completion = result.CompletionTokens }
+        })
+    };
+})
+.RequireAuthorization(AuthPolicies.StaffOrAdmin)
+.WithTags("Content")
+.WithName("GenerateProductContent")
+.WithSummary("Generate AI product content as a draft awaiting human review (never auto-published).");
+
+app.MapGet("/api/content/review-queue", async (ContentReviewUseCase useCase, CancellationToken ct) =>
+{
+    var queue = await useCase.ReviewQueueAsync(ct);
+    return Results.Ok(new { count = queue.Count, drafts = queue });
+})
+.RequireAuthorization(AuthPolicies.StaffOrAdmin)
+.WithTags("Content")
+.WithName("ContentReviewQueue")
+.WithSummary("Drafts waiting for a human decision (spec §13).");
+
+app.MapPost("/api/content/{draftId:int}/approve", async (
+    int draftId, ClaimsPrincipal user, ContentReviewUseCase useCase, CancellationToken ct) =>
+{
+    var reviewerId = TryGetUserId(user);
+    if (reviewerId is null) return Results.Unauthorized();
+
+    var result = await useCase.ApproveAsync(reviewerId.Value, draftId, ct);
+    if (!result.Found) return Results.NotFound(new { error = "Draft not found" });
+    return result.Transitioned
+        ? Results.Ok(new { draftId, status = result.Status.ToString() })
+        : Results.Json(new { error = "Draft is not awaiting review", status = result.Status.ToString() }, statusCode: 409);
+})
+.RequireAuthorization(AuthPolicies.StaffOrAdmin)
+.WithTags("Content")
+.WithName("ApproveContent")
+.WithSummary("Human approval: ReviewRequired → Approved (publishing is a separate call).");
+
+app.MapPost("/api/content/{draftId:int}/reject", async (
+    int draftId, ContentRejectRequest request, ClaimsPrincipal user,
+    ContentReviewUseCase useCase, CancellationToken ct) =>
+{
+    var reviewerId = TryGetUserId(user);
+    if (reviewerId is null) return Results.Unauthorized();
+    if (string.IsNullOrWhiteSpace(request.Reason))
+        return Results.BadRequest(new { error = "reason is required" });
+
+    var result = await useCase.RejectAsync(reviewerId.Value, draftId, request.Reason.Trim(), ct);
+    if (!result.Found) return Results.NotFound(new { error = "Draft not found" });
+    return result.Transitioned
+        ? Results.Ok(new { draftId, status = result.Status.ToString() })
+        : Results.Json(new { error = "Draft cannot be rejected from its state", status = result.Status.ToString() }, statusCode: 409);
+})
+.RequireAuthorization(AuthPolicies.StaffOrAdmin)
+.WithTags("Content")
+.WithName("RejectContent")
+.WithSummary("Human rejection with a reason (regeneration stays possible).");
+
+app.MapPost("/api/content/{draftId:int}/publish", async (
+    int draftId, ContentReviewUseCase useCase, CancellationToken ct) =>
+{
+    var result = await useCase.PublishAsync(draftId, ct);
+    if (!result.Found) return Results.NotFound(new { error = "Draft not found" });
+    return result.Transitioned
+        ? Results.Ok(new { draftId, status = result.Status.ToString() })
+        : Results.Json(new { error = "Draft is not approved — publish requires human approval", status = result.Status.ToString() }, statusCode: 409);
+})
+.RequireAuthorization(AuthPolicies.StaffOrAdmin)
+.WithTags("Content")
+.WithName("PublishContent")
+.WithSummary("Apply approved content to the product (Approved → Published only).");
+
+// Support triage (spec §9) — any authenticated caller; drafts are grounded in
+// real order data and sensitive categories are flagged for human review.
+app.MapPost("/api/support/triage", async (
+    SupportTriageRequest request, ClaimsPrincipal user, SupportTriageUseCase useCase, CancellationToken ct) =>
+{
+    var userId = TryGetUserId(user);
+    if (userId is null) return Results.Unauthorized();
+
+    var result = await useCase.ExecuteAsync(userId.Value, request.Message, request.OrderKey, ct);
+    return result.Outcome switch
+    {
+        SupportTriageOutcome.InvalidMessage => Results.BadRequest(new
+        {
+            error = "message_required",
+            maxMessageLength = SupportTriageUseCase.MaxMessageLength
+        }),
+        SupportTriageOutcome.RateLimited => Results.Json(
+            new { error = "rate_limited", retryAfterSeconds = 60 }, statusCode: 429),
+        SupportTriageOutcome.UpstreamUnavailable => Results.Json(
+            new { error = "assistant_unavailable" }, statusCode: 503),
+        SupportTriageOutcome.InvalidModelOutput => Results.Json(
+            new { error = "assistant_invalid_output" }, statusCode: 502),
+        _ => Results.Ok(new
+        {
+            category = result.Category.ToString().ToUpperInvariant(),
+            draftResponse = result.DraftResponse,
+            requiresHumanReview = result.RequiresHumanReview,
+            groundedFacts = result.GroundedFacts,
+            model = result.Model,
+            latencyMs = result.LatencyMs,
+            tokens = new { prompt = result.PromptTokens, completion = result.CompletionTokens }
+        })
+    };
+})
+.RequireAuthorization()
+.WithTags("Support")
+.WithName("SupportTriage")
+.WithSummary("Classify a support message, ground it in the real order, and draft a reply (sensitive → human review).");
+
 // Ops runbook: rebuild the reservation counter from PostgreSQL truth after drift.
 app.MapPost("/internal/resync-stock/{id}", async (int id, IOrderReadModel readModel, IStockReservationGateway redis) =>
 {
@@ -540,6 +720,12 @@ public record OrderRequest(int ProductId, int Quantity);
 
 /// <summary>Body for <c>POST /api/orders/{key}/pay</c> (spec §4 simulation).</summary>
 public record PaymentRequest(string? Outcome);
+
+/// <summary>Body for <c>POST /api/content/{id}/reject</c> (spec §8).</summary>
+public record ContentRejectRequest(string? Reason);
+
+/// <summary>Body for <c>POST /api/support/triage</c> (spec §9).</summary>
+public record SupportTriageRequest(string? Message, string? OrderKey);
 
 /// <summary>Request body for <c>POST /api/assistant/product</c> (spec §10).</summary>
 public record AssistantQuestion(string? Question);

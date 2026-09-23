@@ -47,4 +47,18 @@ public interface IAutomationRunRepository
     Task UpdateAsync(AutomationRun run, CancellationToken ct = default);
     Task<AutomationRun?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<IReadOnlyList<AutomationRun>> GetRecentAsync(int count, CancellationToken ct = default);
+
+    /// <summary>Today's dashboard summary (spec §14): counts by status, average
+    /// duration, and the most-failing workflow — all aggregated from audit rows.</summary>
+    Task<AutomationSummary> GetSummaryAsync(CancellationToken ct = default);
 }
+
+/// <summary>Dashboard roll-up of today's automation runs (spec §14).</summary>
+public sealed record AutomationSummary(
+    int RunsToday,
+    int Successful,
+    int Failed,
+    int Retrying,
+    int ManualReview,
+    double AverageDurationSeconds,
+    string? TopFailingWorkflow);

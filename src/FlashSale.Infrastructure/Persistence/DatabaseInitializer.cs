@@ -53,6 +53,32 @@ public static class DatabaseInitializer
         {
             await gateway.SetStockAsync(product.Id, product.AvailableStock);
         }
+
+        // Seed a STAFF account for smoke/ops (spec §8: content generation is
+        // STAFF/ADMIN only). Upsert: ensures the seeded credential always matches
+        // the smoke-script password even if prior runs left stale/incorrect hashes.
+        var staffEmail = "staff@flashsale.local";
+        var hasher = scope.ServiceProvider.GetRequiredService<FlashSale.Application.Auth.IPasswordHasher>();
+        var staffUser = await db.Users.FirstOrDefaultAsync(u => u.Email == staffEmail, ct);
+        if (staffUser is null)
+        {
+            db.Users.Add(new User
+            {
+                Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                Email = staffEmail,
+                PasswordHash = hasher.Hash("correct-horse-battery-staple"),
+                Role = FlashSale.Domain.AuthRoles.Staff,
+                TokenVersion = 0,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+        else
+        {
+            staffUser.PasswordHash = hasher.Hash("correct-horse-battery-staple");
+            staffUser.Role = FlashSale.Domain.AuthRoles.Staff;
+            staffUser.TokenVersion = 0;
+        }
+        await db.SaveChangesAsync(ct);
     }
 
     /// <summary>Test/ops helper: apply schema only, without demo seeding.</summary>

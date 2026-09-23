@@ -69,9 +69,32 @@ Phases per the automation spec; each phase is only ticked with evidence.
         exists (documented, never faked); local revenue reads 0 because the
         seeded product price is 0 in this DB (the integration test asserts the
         150/75 math with a set price).
-- [ ] Phase 5 — AI content generation + support triage (§8/§9).
-- [ ] Phase 6 — automation dashboard endpoint (§14).
-- [ ] Phase 7 — demo scenarios B/C/D + E2E script (§17).
+- [x] Phase 5 — AI content generation + support triage (§8/§9) — DONE 2026-09-23:
+      approval state machine (REVIEW_REQUIRED→APPROVED/REJECTED→PUBLISHED,
+      publish-before-approve = 409, human approval mandatory §13), grounded
+      support triage (facts from PostgreSQL; REFUND ⇒ human review; model never
+      invents order status §9). Real qwen3:4b smoke
+      scripts/content-support-smoke.sh = **24/24 PASS** (generate216s wall =
+      attempt-1 timeout 120s → attempt-2 success, §12 bounded retry; approve/
+      publish → Products.Description updated only after human approval).
+      Fixed en route: HttpClient.Timeout 150s (use case owns the budget),
+      UTC-day boundary in dashboard query (`Kind=Unspecified` local-offset →
+      Npgsql 42P10), stock top-up before grounding-order step.
+      Evidence: docs/evidence/automation-01/phase5-content-support-triage.md
+- [x] Phase 6 — automation dashboard endpoint (§14) — DONE 2026-09-23:
+      GET /internal/automation/summary → {runsToday:76, successful:71, failed:4,
+      retrying:0, manualReview:0, averageDurationSeconds:49.24,
+      topFailingWorkflow:"AiContentGeneration"} (live, UTC-day fixed);
+      GET /internal/automation/alerts → open StockAlerts (live, HTTP 200).
+      Evidence: docs/evidence/automation-01/phase6-automation-dashboard.md
+- [x] Phase 7 — demo scenarios B/C/D + E2E script (§17) — DONE 2026-09-23:
+      reproducible scripts committed under scripts/ (payment-automation-smoke =
+      §16 E2E timeout→remind→cancel→release→audit; lowstock-alert-smoke;
+      daily-report-smoke; content-support-smoke = scenario D + §9 triage;
+      ai-assistant-smoke = grounded assistant) + runbook
+      docs/interview-demo/automation.md. Regression on final build:
+      **134 unit + 40 integration = 174 PASS, build clean, all four smokes green
+      against live PostgreSQL/Redis/RabbitMQ (+ Ollama qwen3:4b for AI paths).**
 
 ## INTERVIEW RELEASE v1.0 — FREEZE (2026-09-22)
 
