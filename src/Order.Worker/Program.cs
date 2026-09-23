@@ -59,6 +59,15 @@ builder.Services.AddScoped<IStockAlertRepository, StockAlertRepository>();
 builder.Services.AddScoped<LowStockAlertUseCase>();
 builder.Services.AddHostedService<LowStockScanHostedService>();
 
+// Reporting automation (spec §7): daily scheduler + report persistence.
+var reportingOptions = builder.Configuration
+    .GetSection(ReportingAutomationOptions.SectionName).Get<ReportingAutomationOptions>()
+    ?? new ReportingAutomationOptions();
+builder.Services.AddSingleton(reportingOptions);
+builder.Services.AddScoped<IDailyReportRepository, DailyReportRepository>();
+builder.Services.AddScoped<DailyReportUseCase>();
+builder.Services.AddHostedService<DailyReportHostedService>();
+
 var host = builder.Build();
 host.Run();
 

@@ -50,7 +50,25 @@ Phases per the automation spec; each phase is only ticked with evidence.
         PLANNED, spec §6 "notify dashboard/email"); alert resolution/ack flow
         lands with the dashboard phase; AI recommendation inputs (velocity, lead
         time) NOT implemented — and stock values never come from AI.
-- [ ] Phase 4 — daily business report (§7).
+- [x] Phase 4 — daily business report (§7), verified locally:
+      - DailyReportUseCase aggregates ONLY from PostgreSQL (orders by status,
+        revenue on confirmed orders at the stored flash-sale price, failed
+        payments, cancellations, top products, low-stock list) and persists
+        one row per UTC day (unique ReportDate ⇒ rerun = upsert);
+      - ReportWindow helper is UTC-pinned and unit-tested (locale-proof);
+      - DailyReportHostedService fires at Automation:Reporting:RunAtHourUtc
+        (default 0 = midnight UTC) + manual POST /internal/automation/daily-report
+        and GET /internal/automation/daily-report/latest;
+      - Config: Automation:Reporting:{RunAtHourUtc=0, ScanIntervalSeconds=300,
+        TopProductCount=5}.
+      - Tests: 91 unit + 31 integration green; live smoke 12/12 (report from DB:
+        orders=11 confirmed=3 cancelled=6, low-stock list correct, upsert single
+        row, audit DailyReport|manual|Success).
+      - LIMITATIONS: AI summary of the metrics NOT implemented (spec §7 marks it
+        optional) — PLANNED; refundCount is always 0 because no refund workflow
+        exists (documented, never faked); local revenue reads 0 because the
+        seeded product price is 0 in this DB (the integration test asserts the
+        150/75 math with a set price).
 - [ ] Phase 5 — AI content generation + support triage (§8/§9).
 - [ ] Phase 6 — automation dashboard endpoint (§14).
 - [ ] Phase 7 — demo scenarios B/C/D + E2E script (§17).
