@@ -1,0 +1,24 @@
+# L8 — shared north-south routing: hostname-based so the app sees its normal
+# paths untouched (no base-path rewrite). Attached to the cross-namespace
+# portfolio Gateway in platform-gateway; backendRef stays in this namespace,
+# so no ReferenceGrant is required.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: flashsale
+  namespace: flashsale
+spec:
+  parentRefs:
+    - name: portfolio-gateway
+      namespace: platform-gateway
+      sectionName: http
+  hostnames:
+    - flashsale.local
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: order-api
+          port: 80
