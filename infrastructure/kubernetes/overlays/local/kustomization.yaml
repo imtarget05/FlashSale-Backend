@@ -19,6 +19,9 @@ namespace: flashsale
 
 resources:
   - ../../base
+  # L8 — shared north-south route. Lives in THIS overlay so the HTTPRoute is
+  # GitOps-managed (Argo builds this overlay), never hand-applied.
+  - httproute.yaml
 
 replicas:
   - name: order-api
