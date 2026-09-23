@@ -163,6 +163,7 @@ public sealed class AutomationWorkerHost : BackgroundService
         "order.confirmed" => JsonSerializer.Deserialize<OrderConfirmedEvent>(json),
         "order.cancelled" => JsonSerializer.Deserialize<OrderCancelledEvent>(json),
         "inventory.released" => JsonSerializer.Deserialize<InventoryReleasedEvent>(json),
+        "inventory.low_stock" => JsonSerializer.Deserialize<InventoryLowStockEvent>(json),
         _ => null
     };
 
@@ -171,7 +172,7 @@ public sealed class AutomationWorkerHost : BackgroundService
         OrderCreatedEvent => Domain.Automation.AutomationWorkflow.OrderProcessing.ToString(),
         PaymentCompletedEvent or PaymentFailedEvent or PaymentExpiredEvent
             => Domain.Automation.AutomationWorkflow.PaymentTimeout.ToString(),
-        OrderCancelledEvent or InventoryReleasedEvent or InventoryReservedEvent
+        OrderCancelledEvent or InventoryReleasedEvent or InventoryReservedEvent or InventoryLowStockEvent
             => Domain.Automation.AutomationWorkflow.InventoryAutomation.ToString(),
         OrderConfirmedEvent => Domain.Automation.AutomationWorkflow.OrderProcessing.ToString(),
         _ => "unknown"

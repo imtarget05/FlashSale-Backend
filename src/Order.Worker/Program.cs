@@ -49,6 +49,16 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<PaymentAutomationUseCase>();
 builder.Services.AddHostedService<PaymentTimeoutHostedService>();
 
+// Inventory automation (spec §6): periodic low-stock scan, same use case as the
+// API's manual trigger (trigger_type distinguishes timer vs manual in audit).
+var inventoryOptions = builder.Configuration
+    .GetSection(InventoryAutomationOptions.SectionName).Get<InventoryAutomationOptions>()
+    ?? new InventoryAutomationOptions();
+builder.Services.AddSingleton(inventoryOptions);
+builder.Services.AddScoped<IStockAlertRepository, StockAlertRepository>();
+builder.Services.AddScoped<LowStockAlertUseCase>();
+builder.Services.AddHostedService<LowStockScanHostedService>();
+
 var host = builder.Build();
 host.Run();
 

@@ -34,7 +34,22 @@ Phases per the automation spec; each phase is only ticked with evidence.
         structured log + audit (email/webhook PLANNED); payment gateway SIMULATED
         (no real processor — never claim otherwise); timeout scan runs in
         Order.Worker + manual endpoint (not in the API timer).
-- [ ] Phase 3 — inventory low-stock automation (§6).
+- [x] Phase 3 — inventory low-stock automation (§6), verified locally:
+      - Product.ReorderThreshold (per-product, 0 = use platform default) with
+        DB default 5; pure LowStockRule (inclusive boundary, unit-tested);
+      - LowStockAlertUseCase scans REAL stock values (SQL + rule re-check),
+        creates deduplicated `StockAlerts` rows (partial unique index on
+        ProductId WHERE Status='Open'), publishes inventory.low_stock, writes
+        one InventoryAutomation audit run per scan;
+      - timer LowStockScanHostedService (worker) + manual
+        POST /internal/automation/low-stock-scan (trigger_type proves which);
+      - Config: Automation:Inventory:{DefaultReorderThreshold=5, ScanIntervalSeconds=60}.
+      - Tests: 89 unit + 28 integration green; live smoke 11/11 (healthy → 0,
+        stock 5 <= threshold 5 → alert + log + audit, rescan → deduped).
+      - LIMITATIONS: notification is structured log + audit row (dashboard/email
+        PLANNED, spec §6 "notify dashboard/email"); alert resolution/ack flow
+        lands with the dashboard phase; AI recommendation inputs (velocity, lead
+        time) NOT implemented — and stock values never come from AI.
 - [ ] Phase 4 — daily business report (§7).
 - [ ] Phase 5 — AI content generation + support triage (§8/§9).
 - [ ] Phase 6 — automation dashboard endpoint (§14).

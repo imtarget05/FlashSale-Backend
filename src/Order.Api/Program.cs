@@ -57,6 +57,14 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<PaymentAutomationUseCase>();
 builder.Services.AddScoped<RecordPaymentUseCase>();
 
+// Inventory automation (spec §6): low-stock alerts, threshold config-bound.
+var inventoryOptions = builder.Configuration
+    .GetSection(InventoryAutomationOptions.SectionName).Get<InventoryAutomationOptions>()
+    ?? new InventoryAutomationOptions();
+builder.Services.AddSingleton(inventoryOptions);
+builder.Services.AddScoped<IStockAlertRepository, StockAlertRepository>();
+builder.Services.AddScoped<LowStockAlertUseCase>();
+
 // ---------------------------------------------------------------
 // AI assistant (spec §10) — local Ollama through its OpenAI-compatible API.
 // The typed client owns BaseAddress + dummy bearer key (Ollama ignores it;
@@ -351,6 +359,25 @@ app.MapPost("/internal/automation/payment-timeout-scan", async (
 .WithTags("Ops")
 .WithName("PaymentTimeoutScan")
 .WithSummary("Run the abandoned-payment scan now: reminders + cancel/stock-release (writes an AutomationRun row).");
+
+// Manual low-stock scan (spec §6/§17-B): DB-backed stock values only — the AI
+// layer is never the source of truth for inventory.
+app.MapPost("/internal/automation/low-stock-scan", async (
+    LowStockAlertUseCase useCase,
+    CancellationToken ct) =>
+{
+    var result = await useCase.ExecuteAsync("manual", ct);
+    return Results.Ok(new
+    {
+        trigger = "manual",
+        result.Scanned,
+        result.AlertsCreated,
+        result.ProductIds
+    });
+})
+.WithTags("Ops")
+.WithName("LowStockScan")
+.WithSummary("Evaluate the low-stock rule for every product and raise deduplicated LOW_STOCK alerts.");
 
 // The caller's own order history (ADR-013 §5). Scoped by the JWT `sub`, so a
 // caller can only ever see their own orders — no resource-based handler is
