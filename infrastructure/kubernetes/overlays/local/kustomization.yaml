@@ -1,0 +1,176 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# L5 — LOCAL overlay: the FlashSale stack on the local kind cluster.
+#
+# Deliberately MINIMAL. It changes only what must differ locally:
+#   1. namespace        -> flashsale (the platform's unified namespace)
+#   2. image names      -> locally built arm64 images (never the ACR amd64 pins)
+#   3. imagePullPolicy  -> Never for our own images, so a pod can only start from
+#                          an image loaded by local/kind/load-image.sh; a missing
+#                          image surfaces as ErrImageNeverPull instead of pulling
+#                          something else from a registry.
+#
+# It does NOT touch: securityContext (non-root, readOnlyRootFilesystem,
+# capabilities drop), probes, resource requests/limits, replica counts or the
+# data-tier topology. Production manifests are NOT weakened to fit the laptop —
+# the prod sizing fits (see platform evidence for the measured footprint).
+namespace: flashsale
+
+resources:
+  - ../../base
+
+replicas:
+  - name: order-api
+    count: 2
+
+images:
+  # `name` MUST equal the registry-neutral image name used in base, otherwise
+  # Kustomize skips the transform silently (same trap documented in
+  # overlays/prod/kustomization.yaml).
+  - name: order-api
+    newName: flashsale/order-api
+    newTag: local
+  - name: order-worker
+    newName: flashsale/order-worker
+    newTag: local
+
+patches:
+  # Our own images: loaded into every kind node, so Never is the honest policy.
+  - target:
+      kind: Deployment
+      name: order-api
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: order-worker
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Job
+      name: order-migrate
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  # The data tier images are pulled from Docker Hub locally (no ACR), so they
+  # keep the default IfNotPresent; they are pre-loaded into the kind nodes by
+  # the L5 runbook, which makes that pull a no-op.
+  #
+  # TTL removal: the base Job garbage-collects itself after 1h. Under Argo CD
+  # that reads as "resource missing" and triggers a re-create on every sync
+  # (harmless but noisy, and it re-runs an already-applied migration). Locally
+  # the finished Job is kept as evidence instead.
+  - target:
+      kind: Job
+      name: order-migrate
+    patch: |-
+      - op: remove
+        path: /spec/ttlSecondsAfterFinished
+
+  # ---------------------------------------------------------------------------
+  # ORDERING (the reason this overlay is not just an image swap).
+  #
+  # On a FRESH database every process that calls EF MigrateAsync at startup must
+  # not race: base/api/Program.cs and Order.Worker both run DatabaseInitializer,
+  # and the migration Job runs the same entry point with --migrate. Applying the
+  # whole tree at once produced exactly the corruption the Job's own header warns
+  # about:
+  #     ERROR: relation "__EFMigrationsHistory" does not exist
+  #     ERROR: column "Category" of relation "Products" already exists
+  # Argo CD enforces "schema first, then workloads" with sync-waves, and the
+  # migration Job is the natural PreSync hook (run to completion, then continue).
+  # A plain `kubectl apply -k` cannot order anything — use ./bootstrap.sh, which
+  # applies the same three waves explicitly for cold starts.
+  #
+  # Wave -3  : data tier (must be accepting connections first)
+  # PreSync  : order-migrate Job (hook = Argo waits for it to succeed)
+  # Wave 0   : application workloads
+  # ---------------------------------------------------------------------------
+  - target:
+      kind: StatefulSet
+      name: postgres
+    patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: postgres
+        annotations:
+          argocd.argoproj.io/sync-wave: "-3"
+  - target:
+      kind: StatefulSet
+      name: rabbitmq
+    patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: rabbitmq
+        annotations:
+          argocd.argoproj.io/sync-wave: "-3"
+  - target:
+      kind: Deployment
+      name: redis
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: redis
+        annotations:
+          argocd.argoproj.io/sync-wave: "-3"
+  - target:
+      kind: Job
+      name: order-migrate
+    patch: |-
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: order-migrate
+        annotations:
+          argocd.argoproj.io/hook: PreSync
+          # Keep the last completed Job (and its logs) as RUN-time evidence; it is
+          # replaced before the next Argo sync creates a new one.
+          argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+  - target:
+      kind: Deployment
+      name: order-api
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: order-api
+        annotations:
+          argocd.argoproj.io/sync-wave: "0"
+  - target:
+      kind: Deployment
+      name: order-worker
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: order-worker
+        annotations:
+          argocd.argoproj.io/sync-wave: "0"
+
+  # Probe timing, LOCAL ONLY. The base probes rely on the 1s default
+  # `timeoutSeconds`. On this workstation the rabbitmq-diagnostics subcommand
+  # takes longer than that (measured: readiness AND liveness both reported
+  # "command timed out after 1s" while the broker logged "Server startup
+  # complete"), so kubelet killed a healthy broker in a restart loop. Raising the
+  # timeout is an environment fix, not a weakened check: same command, same
+  # periods, same failure thresholds.
+  - target:
+      kind: StatefulSet
+      name: rabbitmq
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/readinessProbe/timeoutSeconds
+        value: 10
+      - op: add
+        path: /spec/template/spec/containers/0/livenessProbe/timeoutSeconds
+        value: 10
+
