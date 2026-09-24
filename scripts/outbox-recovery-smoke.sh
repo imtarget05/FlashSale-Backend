@@ -80,10 +80,7 @@ row_retries() { psql_row "SELECT \"RetryCount\" FROM \"OutboxMessages\" WHERE \"
 ORIGINAL_AUTOMATED="$(kubectl get application flashsale -n argocd -o json | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["spec"].get("syncPolicy",{}).get("automated")))')"
 restore_runtime() {
   kubectl scale statefulset/kafka -n "$KAFKA_NS" --replicas=1 >/dev/null 2>&1 || true
-  if [ "$ORIGINAL_AUTOMATED" != "None" ]; then
-    kubectl patch application flashsale -n argocd --type merge \
-      -p "{\"spec\":{\"syncPolicy\":{\"automated\":$ORIGINAL_AUTOMATED}}}" >/dev/null 2>&1 || true
-  fi
+  case "$ORIGINAL_AUTOMATED" in \{*) kubectl patch application flashsale -n argocd --type merge -p "{\"spec\":{\"syncPolicy\":{\"automated\":$ORIGINAL_AUTOMATED}}}" >/dev/null 2>&1 || true;; *) echo "restore: skip autosync (was None)";; esac
 }
 trap restore_runtime EXIT
 pause_autosync() {
