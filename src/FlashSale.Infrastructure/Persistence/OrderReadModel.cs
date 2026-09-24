@@ -1,4 +1,3 @@
-using FlashSale.Application.Assistant;
 using FlashSale.Application.Persistence;
 using FlashSale.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -33,15 +32,7 @@ public sealed class OrderReadModel(AppDbContext db) : IOrderReadModel
             .Select(o => new OrderSummaryView(o.Id, o.ProductId, o.Quantity, o.CreatedAt))
             .ToListAsync(ct);
 
-    public async Task<IReadOnlyList<ProductCandidate>> GetProductCandidatesAsync(
-        int max, CancellationToken ct = default) =>
-        await db.Products.AsNoTracking()
-            .Where(p => p.AvailableStock > 0)
-            .OrderBy(p => p.Id)
-            .Take(max)
-            .Select(p => new ProductCandidate(
-                p.Id, p.Name, p.Category, p.Description, p.FlashSalePrice, p.AvailableStock))
-            .ToListAsync(ct);
+    // AI DROP 2026-09-24: GetProductCandidatesAsync removed.
 
     public async Task<IReadOnlyList<PendingPaymentView>> GetPendingPaymentOrdersAsync(
         int take, CancellationToken ct = default) =>

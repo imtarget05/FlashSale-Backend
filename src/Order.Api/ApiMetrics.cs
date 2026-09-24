@@ -55,35 +55,7 @@ public sealed class ApiMetrics : IDisposable
         unit: "{event}",
         description: "Stock guard fired: conditional UPDATE matched zero rows.");
 
-    // ---------------------------------------------------------------
-    // AI assistant (spec §10: "log model, latency, token usage"). Three
-    // instruments answer three questions: how many requests (by outcome),
-    // how slow (by outcome/model), how much inference budget (by direction).
-    // ---------------------------------------------------------------
-
-    public static readonly Counter<long> AiAssistantRequests = Meter.CreateCounter<long>(
-        "flashsale.ai.assistant.requests",
-        unit: "{request}",
-        description: "Product assistant requests, tagged by outcome and model.");
-
-    public static readonly Counter<long> AiAssistantTokens = Meter.CreateCounter<long>(
-        "flashsale.ai.assistant.tokens",
-        unit: "{token}",
-        description: "Assistant token usage, tagged by direction (prompt|completion).");
-
-    public static readonly Histogram<double> AiAssistantLatencyMs = Meter.CreateHistogram<double>(
-        "flashsale.ai.assistant.latency",
-        unit: "ms",
-        description: "End-to-end assistant latency, tagged by outcome and model.");
-
-    /// <summary>Called exactly once per request, from the assistant endpoint.</summary>
-    public static void RecordAiAssistant(string outcome, string model, long latencyMs, long promptTokens, long completionTokens)
-    {
-        AiAssistantRequests.Add(1, new("outcome", outcome), new("model", model));
-        AiAssistantTokens.Add(promptTokens, new("direction", "prompt"), new("model", model));
-        AiAssistantTokens.Add(completionTokens, new("direction", "completion"), new("model", model));
-        AiAssistantLatencyMs.Record(latencyMs, new("outcome", outcome), new("model", model));
-    }
+    // AI scope DROP 2026-09-24 triệt để: instruments flashsale.ai.* removed.
 
     // ---------------------------------------------------------------
     // Auth (ADR-013). Failures are one counter with a reason tag rather than

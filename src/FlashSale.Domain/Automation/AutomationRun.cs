@@ -1,13 +1,15 @@
 namespace FlashSale.Domain.Automation;
 
-/// <summary>Automation workflow names (spec §4-§10).</summary>
+/// <summary>Automation workflow names (AI DROP 2026-09-24: AiContentGeneration/SupportTriage kept as obsolete for DB compat, no runtime).</summary>
 public enum AutomationWorkflow
 {
     OrderProcessing,
     PaymentTimeout,
     InventoryAutomation,
     DailyReport,
+    [Obsolete("DROP AI 2026-09-24")]
     AiContentGeneration,
+    [Obsolete("DROP AI 2026-09-24")]
     SupportTriage,
     RiskFraudRuleEngine
 }
