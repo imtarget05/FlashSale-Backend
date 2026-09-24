@@ -1,0 +1,11 @@
+NAME                              READY   STATUS      RESTARTS         AGE
+kafka-0                           1/1     Running     0                13m
+kafka-topic-init-7j8sg            0/1     Completed   0                88m
+order-api-5496df7d86-pgdrl        1/1     Running     4 (4h57m ago)    6h4m
+order-api-5496df7d86-xkvwv        1/1     Running     4 (5h ago)       6h4m
+order-migrate-hvfhc               0/1     Completed   0                13m
+order-worker-8664dd8c4c-n5gxk     1/1     Running     0                6h47m
+payment-service-c94684c4d-6s75k   1/1     Running     2 (5h ago)       6h4m
+postgres-0                        1/1     Running     2 (14h ago)      31h
+rabbitmq-0                        1/1     Running     12 (4h48m ago)   23h
+redis-695b986ccc-v6tgz            1/1     Running     4 (5h ago)       31h
