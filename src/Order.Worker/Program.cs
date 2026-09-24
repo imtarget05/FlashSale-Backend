@@ -52,10 +52,9 @@ builder.Services.AddDomainEventPublisher(builder.Configuration);
 builder.Services.AddAutomationWorkerHost(builder.Configuration);
 
 // Transactional Outbox & Deduplication Inbox (Phase 10/V2.2): the shared
-// AutomationEventProcessor resolves IInboxRepository on EVERY event — without
-// this registration the Kafka consumer throws
-// "No service for type ... IInboxRepository" and the host stops (observed as a
-// 13x CrashLoopBackOff). Same call as the API composition root (Program.cs:75).
+// AutomationEventProcessor resolves IInboxRepository on every event. Register the
+// same persistence services in this composition root as in the API; otherwise
+// the Kafka consumer exits and the Deployment enters CrashLoopBackOff.
 builder.Services.AddTransactionalOutbox();
 
 // Payment automation (spec §4/§5): config-bound options, payment transitions,

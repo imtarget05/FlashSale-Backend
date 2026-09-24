@@ -1,0 +1,20 @@
+# Least-privilege management access for local KEDA verification.
+# This ClusterIP Service exposes only RabbitMQ's management API inside kind;
+# it is not reachable outside the cluster and has no Gateway route.
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-mgmt
+  namespace: flashsale
+  labels:
+    app: rabbitmq
+    project: flash-sale
+    role: data
+    purpose: keda-autoscaling
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+    - name: management
+      port: 15672
+      targetPort: 15672

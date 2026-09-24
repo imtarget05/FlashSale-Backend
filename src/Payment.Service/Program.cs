@@ -1,8 +1,26 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
+
+var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+builder.Services
+    .AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService(
+        serviceName: "payment-service",
+        serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString()))
+    .WithTracing(tracing =>
+    {
+        tracing.AddAspNetCoreInstrumentation();
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        {
+            tracing.AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint));
+        }
+    });
 
 var app = builder.Build();
 
@@ -10,8 +28,15 @@ var paymentStore = new ConcurrentDictionary<string, PaymentRecordDto>();
 
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "Payment.Service", timestamp = DateTimeOffset.UtcNow }));
 
-app.MapPost("/api/payments", (ProcessPaymentRequest request) =>
+app.MapPost("/api/payments", (ProcessPaymentRequest request, ILoggerFactory loggerFactory) =>
 {
+    var activity = Activity.Current;
+    var logger = loggerFactory.CreateLogger("Payment.Service");
+    logger.LogInformation(
+        "Payment request received: IdempotencyKey={IdempotencyKey} TraceId={TraceId} SpanId={SpanId}",
+        request.IdempotencyKey,
+        activity?.TraceId.ToString() ?? "none",
+        activity?.SpanId.ToString() ?? "none");
     if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
     {
         return Results.BadRequest(new { error = "IdempotencyKey is required." });

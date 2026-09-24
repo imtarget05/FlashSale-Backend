@@ -44,9 +44,11 @@ Quy ước: số liệu chỉ được claim nếu có raw output hoặc log l�
 |---|---|---|
 | Checkout saga 5 scenarios live | `docs/evidence/saga/saga-live-2026-09-24.log` | 21/21 qua Envoy `flashsale.local` |
 | Kafka broker + `orders.events` | `kafka-topics.sh --list` on kind | broker chạy, app vẫn đi RabbitMQ (cutover chưa làm) |
-| Outbox drain + replay dedup | `docs/evidence/v2/outbox-inbox-2026-09-24.md` | drain ✅, replay 1+4 ✅, broker-down lộ retry-gap (Cline fix) |
-| Outbox/Inbox | migration `AddOutboxAndInbox` (code) | chưa deploy lên kind (kind DB mới tới `AddCheckoutSagas`) |
-| Tempo/Loki/KEDA | — | chưa deploy |
+| Outbox drain + replay dedup | `docs/evidence/v2/outbox-inbox-2026-09-24.md` | drain ✅, replay 1+4 ✅, Kafka-down ~20min → DLQ → requeue → no loss ✅ |
+| Loki + Tempo + Grafana | `docs/evidence/v2/observability-autoscaling-2026-09-24.md` | infra ✅ datasources OK; OTel E2E trace live (`order-api` -> `payment-service` trace ID `db8921ac21f8f2a20c9bca642a07bf9a`) |
+| KEDA worker autoscaling | `docs/evidence/v2/observability-autoscaling-2026-09-24.md` | ScaledObject READY=True, ACTIVE=True; HPA live reading Kafka lag on `orders.events` |
+| V2 demo script | `scripts/demo-local-platform-v2.sh` | verified run 2026-09-24 (workloads, saga, outbox, observability) |
+| Outbox/Inbox | migration `AddOutboxAndInbox` (code) | deploy & migrate OK on kind (Outbox zero stuck, 14/14 recovery) |
 
 ## 6. OUT OF SCOPE (không claim)
 

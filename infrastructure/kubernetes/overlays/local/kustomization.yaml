@@ -22,6 +22,10 @@ resources:
   # L8 — shared north-south route. Lives in THIS overlay so the HTTPRoute is
   # GitOps-managed (Argo builds this overlay), never hand-applied.
   - httproute.yaml
+  # V2.4 — KEDA is a local-platform capability; production keeps its managed
+  # autoscaling contract outside this portfolio kind overlay.
+  - keda/scaledobject.yaml
+  - keda/rabbitmq-mgmt.yaml
 
 replicas:
   - name: order-api
@@ -113,6 +117,26 @@ patches:
                     value: Kafka
                   - name: ConnectionStrings__Kafka
                     value: kafka:9092
+                  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                    value: http://tempo.monitoring:4317
+                  - name: Payment__ServiceUrl
+                    value: http://payment-service:80
+  - target:
+      kind: Deployment
+      name: payment-service
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: payment-service
+      spec:
+        template:
+          spec:
+            containers:
+              - name: payment-service
+                env:
+                  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                    value: http://tempo.monitoring:4317
   - target:
       kind: Deployment
       name: order-worker
@@ -136,6 +160,33 @@ patches:
                   - name: Kafka__ConsumerGroup
                     value: flashsale-automation
 
+  # Local Kafka advertises its cluster-local FQDN so KEDA (namespace `keda`)
+  # resolves the same broker identity as the services in `flashsale`.
+  - target:
+      kind: StatefulSet
+      name: kafka
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: PLAINTEXT://kafka.flashsale.svc.cluster.local:9092
+      - op: add
+        path: /spec/template/spec/containers/0/lifecycle
+        value:
+          postStart:
+            exec:
+            command:
+              - /bin/bash
+              - -ec
+              - |
+                for attempt in {1..60}; do
+                  if /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic orders.events --partitions 3 --replication-factor 1 \
+                    && /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic payments.events --partitions 3 --replication-factor 1; then
+                    exit 0
+                  fi
+                  sleep 2
+                done
+                echo "failed to provision local Kafka topics after 120s" >&2
+                exit 1
   # ---------------------------------------------------------------------------
   # ORDERING (the reason this overlay is not just an image swap).
   #

@@ -28,6 +28,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.IdentityModel.Tokens;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Order.Api;
 using Order.Api.Auth;
 using Order.Api.OpenApi;
@@ -135,6 +137,25 @@ builder.Services.AddOpenApi(options =>
 // document itself still comes from AddOpenApi above — Swashbuckle's generator
 // is never asked to produce one, so /openapi/v1.json stays the single contract.
 builder.Services.AddSwaggerGen();
+
+// LOCAL v2 distributed tracing. The exporter is opt-in so the migration Job and
+// production manifests remain independent of an observability collector.
+var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+builder.Services
+    .AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService(
+        serviceName: "order-api",
+        serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString()))
+    .WithTracing(tracing =>
+    {
+        tracing.AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddSource(HttpPaymentClient.ActivitySourceName);
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        {
+            tracing.AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint));
+        }
+    });
 
 // ---------------------------------------------------------------
 // Migration entrypoint (Phase 7C): `dotnet Order.Api.dll --migrate`.

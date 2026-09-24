@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FlashSale.Application.Payment;
@@ -19,6 +20,9 @@ public sealed class HttpPaymentClient(
     IConfiguration configuration,
     ILogger<HttpPaymentClient> logger) : IPaymentClient
 {
+    public const string ActivitySourceName = "FlashSale.Payment";
+    private static readonly ActivitySource ActivitySource = new(ActivitySourceName);
+
     private readonly string _baseUrl = configuration["Payment:ServiceUrl"] ?? "http://localhost:5002";
 
     public async Task<PaymentClientResult> ProcessPaymentAsync(
@@ -28,7 +32,16 @@ public sealed class HttpPaymentClient(
         try
         {
             var uri = new Uri(new Uri(_baseUrl.TrimEnd('/') + "/"), "api/payments");
+            using var activity = ActivitySource.StartActivity(
+                "POST payment-service /api/payments",
+                ActivityKind.Client);
+            activity?.SetTag("http.request.method", "POST");
+            activity?.SetTag("url.full", uri.ToString());
+            activity?.SetTag("server.address", uri.Host);
+            activity?.SetTag("server.port", uri.Port);
+
             var response = await httpClient.PostAsJsonAsync(uri, request, ct);
+            activity?.SetTag("http.response.status_code", (int)response.StatusCode);
 
             if (response.IsSuccessStatusCode)
             {
