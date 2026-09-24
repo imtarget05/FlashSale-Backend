@@ -35,10 +35,44 @@ spec:
       labels:
         app: kafka
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      # Seed a writable copy of the image's default Kafka config: the broker
+      # entrypoint rewrites /opt/kafka/config at startup, which fails on a
+      # read-only root. The main container then mounts the seed (writable).
+      initContainers:
+        - name: kafka-config-seed
+          image: apache/kafka:3.8.0
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "cp -r /opt/kafka/config/. /config-seed/"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: kafka-config
+              mountPath: /config-seed
       containers:
         - name: kafka
           image: apache/kafka:3.8.0
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            # apache/kafka image runs as UID 1001 (appuser); pinned above at pod
+            # level + read-only root like postgres/rabbitmq/redis.
+            runAsNonRoot: true
+            runAsUser: 1001
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 9092
             - containerPort: 9093
@@ -97,9 +131,27 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 6
+          # NOTE: parent mount (/tmp) must come before the child
+          # (/tmp/kraft-combined-logs) or the child is hidden by the parent.
           volumeMounts:
+            # Scratch writable dirs required by a read-only root: /tmp
+            # (Kafka + JVM temp files) alongside the existing log-data volume.
+            - name: kafka-tmp
+              mountPath: /tmp
             - name: kafka-data
               mountPath: /tmp/kraft-combined-logs
+            # Writable seeded copy of the image config (see initContainer above).
+            - name: kafka-config
+              mountPath: /opt/kafka/config
+            # JVM GC logs default to /opt/kafka/logs — writable scratch.
+            - name: kafka-logs
+              mountPath: /opt/kafka/logs
       volumes:
         - name: kafka-data
+          emptyDir: {}
+        - name: kafka-tmp
+          emptyDir: {}
+        - name: kafka-config
+          emptyDir: {}
+        - name: kafka-logs
           emptyDir: {}
