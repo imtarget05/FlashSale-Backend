@@ -1,0 +1,80 @@
+# LOCAL v2 Kafka topics are declared as a bounded, idempotent Job. Keeping
+# topic provisioning out of the broker postStart hook prevents Kafka startup
+# from being coupled to repeated AdminClient timeouts. The Job uses the same
+# image as the broker and creates topics only; it never deletes records.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topic-init
+  labels:
+    app: kafka-topic-init
+    project: flash-sale
+    role: local-platform-init
+spec:
+  backoffLimit: 4
+  ttlSecondsAfterFinished: 3600
+  # Keep a completed Job for local inspection. The next declarative sync may
+  # replace it via the BeforeHookCreation hook, while Argo can still health it.
+
+
+  template:
+    metadata:
+      labels:
+        app: kafka-topic-init
+        project: flash-sale
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: init-topics
+          image: apache/kafka:3.8.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              for attempt in $(seq 1 30); do
+                if /opt/kafka/bin/kafka-topics.sh \
+                    --bootstrap-server kafka.flashsale.svc.cluster.local:9092 \
+                    --create --if-not-exists --topic orders.events \
+                    --partitions 3 --replication-factor 1 \
+                  && /opt/kafka/bin/kafka-topics.sh \
+                    --bootstrap-server kafka.flashsale.svc.cluster.local:9092 \
+                    --create --if-not-exists --topic payments.events \
+                    --partitions 3 --replication-factor 1; then
+                  /opt/kafka/bin/kafka-topics.sh \
+                    --bootstrap-server kafka.flashsale.svc.cluster.local:9092 \
+                    --describe --topic orders.events
+                  /opt/kafka/bin/kafka-topics.sh \
+                    --bootstrap-server kafka.flashsale.svc.cluster.local:9092 \
+                    --describe --topic payments.events
+                  exit 0
+                fi
+                sleep 2
+              done
+              echo "Kafka topics were not ready after 60 seconds" >&2
+              exit 1
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

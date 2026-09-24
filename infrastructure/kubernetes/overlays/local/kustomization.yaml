@@ -26,6 +26,7 @@ resources:
   # autoscaling contract outside this portfolio kind overlay.
   - keda/scaledobject.yaml
   - keda/rabbitmq-mgmt.yaml
+  - kafka-topic-init-job.yaml
 
 replicas:
   - name: order-api
@@ -46,6 +47,21 @@ images:
     newTag: local
 
 patches:
+  # Topic creation is an explicit Kubernetes workload. A postStart hook blocks
+  # the broker container while Kafka starts, and every topic CLI call may wait on
+  # its own admin timeout. The Job starts in a later sync wave and has a bounded
+  # per-attempt timeout, so broker readiness is never coupled to topic setup.
+  - target:
+      kind: Job
+      name: kafka-topic-init
+    patch: |-
+      apiVersion: batch/v1
+      kind: Job
+
+      metadata:
+        name: kafka-topic-init
+        annotations:
+          argocd.argoproj.io/sync-wave: "-2"
   # Our own images: loaded into every kind node, so Never is the honest policy.
   - target:
       kind: Deployment
@@ -169,24 +185,6 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/env/3/value
         value: PLAINTEXT://kafka.flashsale.svc.cluster.local:9092
-      - op: add
-        path: /spec/template/spec/containers/0/lifecycle
-        value:
-          postStart:
-            exec:
-              command:
-                - /bin/bash
-                - -ec
-                - |
-                  for attempt in {1..60}; do
-                    if /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic orders.events --partitions 3 --replication-factor 1 \
-                      && /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic payments.events --partitions 3 --replication-factor 1; then
-                      exit 0
-                    fi
-                    sleep 2
-                  done
-                  echo "failed to provision local Kafka topics after 120s" >&2
-                  exit 1
   # ---------------------------------------------------------------------------
   # ORDERING (the reason this overlay is not just an image swap).
   #
