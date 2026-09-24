@@ -41,9 +41,21 @@
     - Status: `AbleToScale=True`, `ScalingActive=True` (ValidMetricFound: external metric `s0-kafka-orders-events`)
     - Target: Average lag threshold monitored live.
 
+## Final re-verification after Kafka topic lifecycle fix
+
+- Argo CD: `flashsale` is `Synced/Healthy` at revision `50291b0`.
+- Kafka recovery: `kafka-0` is `1/1 Running`; `kafka-topic-init` and `order-migrate` are `Complete`.
+- Topic bootstrap is a normal sync-wave Job. The StatefulSet has no blocking `postStart` hook, so the broker can become Ready before topic creation.
+- Fresh Saga run through Envoy: **21 passed, 0 failed** (happy, decline compensation, timeout compensation, inventory rejection, duplicate replay).
+- Fresh Outbox/Kafka run: **14 passed, 0 failed**. Scenario B intentionally let the dispatcher drain the dead-lettered row before the operator requeue; both operations remained safe and the final DB/API state had zero pending, stuck, or dead-lettered rows.
+- Fresh KEDA read: `ScaledObject` `Ready=True/Active=True`; HPA external metric `s0-kafka-orders-events` was live.
+- Fresh Tempo query: trace `a374e4b3054ba1b19970932c648055eb` returned HTTP 200 and contains the current `order-api` → `payment-service` path.
+- Final demo script result: **exit 0** with live Saga success/compensation, clean outbox, and KEDA `Ready=True/Active=True` reading `s0-kafka-orders-events`.
+- The demo validates the current Gateway data-plane Service by owner label and fails if the Gateway health, Saga state, outbox cleanliness, or KEDA metric check does not pass.
+
 ## V2.5 — Master Demo & Verification Scripts — COMPLETE ✅
 - `scripts/saga-orchestration-smoke.sh`: 21 passed, 0 failed across all 5 distributed saga scenarios.
-- `scripts/demo-local-platform-v2.sh`: Runs all 4 validation pillars in under 2 seconds:
+- `scripts/demo-local-platform-v2.sh`: Runs and validates all 4 pillars; its run includes live Saga state transitions, so completion time depends on the local workflows.
   1. Workload status across kind nodes (all Ready).
   2. Saga happy-path (.01) and decline compensation (.02).
   3. Outbox drain verification (0 pending, 0 stuck, 0 dead-lettered).

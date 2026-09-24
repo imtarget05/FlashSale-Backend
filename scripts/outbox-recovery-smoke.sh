@@ -14,6 +14,10 @@
 set -euo pipefail
 
 NS=flashsale
+# The Kafka StatefulSet is in the 'default' namespace (the flashsale/kafka StatefulSet is 0/0).
+# This is a LOCAL v2 deployment topology: Kafka runs as a shared broker in default,
+# exposed via a Service in flashsale namespace (kafka.flashsale.svc.cluster.local).
+KAFKA_NS=default
 GATEWAY="${GATEWAY_URL:-http://127.0.0.1:8088}"
 HOST_HEADER="Host: flashsale.local"
 API="${API_URL:-$GATEWAY}"
@@ -50,6 +54,16 @@ api_post() {
   curl -s --max-time 15 -X POST -H "$HOST_HEADER" -H 'Content-Type: application/json' \
     -d '{}' "$API$1"
 }
+
+# Fail with an actionable message instead of `set -e` aborting inside field()
+# after a stale/missing gateway port-forward.
+if ! curl --fail --silent --show-error --max-time 5 -H "$HOST_HEADER" \
+  "$API/healthz" >/dev/null; then
+  echo "ERROR: API/Gateway is not reachable at $API." >&2
+  echo "Start a loopback port-forward, for example:" >&2
+  echo "  kubectl -n envoy-gateway-system port-forward svc/<envoy-data-plane-service> --address 127.0.0.1 8088:80" >&2
+  exit 2
+fi
 
 # Row-level truth straight from PostgreSQL — the API numbers are the claim,
 # this is the proof.

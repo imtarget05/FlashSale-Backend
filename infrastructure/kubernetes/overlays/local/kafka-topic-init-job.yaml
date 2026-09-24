@@ -13,10 +13,9 @@ metadata:
 spec:
   backoffLimit: 4
   ttlSecondsAfterFinished: 3600
-  # Keep a completed Job for local inspection. The next declarative sync may
-  # replace it via the BeforeHookCreation hook, while Argo can still health it.
-
-
+  # Keep a completed Job for local inspection. The Job is a normal overlay
+  # resource; Argo re-creates it only when the declarative sync requires a new
+  # Job identity. Topic creation itself remains idempotent.
   template:
     metadata:
       labels:
@@ -47,12 +46,6 @@ spec:
                     --bootstrap-server kafka.flashsale.svc.cluster.local:9092 \
                     --create --if-not-exists --topic payments.events \
                     --partitions 3 --replication-factor 1; then
-                  /opt/kafka/bin/kafka-topics.sh \
-                    --bootstrap-server kafka.flashsale.svc.cluster.local:9092 \
-                    --describe --topic orders.events
-                  /opt/kafka/bin/kafka-topics.sh \
-                    --bootstrap-server kafka.flashsale.svc.cluster.local:9092 \
-                    --describe --topic payments.events
                   exit 0
                 fi
                 sleep 2
