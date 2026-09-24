@@ -1,0 +1,28 @@
+runtime=kind/local-platform (zero Azure cost)
+postgres_products:
+  1 |           2823
+  2 |             26
+  3 |             10
+  4 |              5
+  5 |             17
+  6 |              7
+  7 |             16
+  8 |             20
+  9 |            200
+ 10 |            500
+ 11 |             30
+
+inbox_count:
+  4771
+
+outbox_processed:
+    42
+
+kafka_topics:
+__consumer_offsets
+orders.events
+rabbitmq_queues:
+Listing queues for vhost / ...
+name	messages
+automation.events	0
+orders	0

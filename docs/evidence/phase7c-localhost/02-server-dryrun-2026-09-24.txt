@@ -1,0 +1,21 @@
+# Warning: 'commonLabels' is deprecated. Please use 'labels' instead. Run 'kustomize edit fix' to update your Kustomization automatically.
+service/kafka configured (server dry run)
+service/order-api configured (server dry run)
+service/payment-service configured (server dry run)
+service/postgres configured (server dry run)
+service/rabbitmq configured (server dry run)
+service/rabbitmq-mgmt configured (server dry run)
+service/redis configured (server dry run)
+deployment.apps/order-api configured (server dry run)
+deployment.apps/order-worker configured (server dry run)
+deployment.apps/payment-service configured (server dry run)
+deployment.apps/redis configured (server dry run)
+statefulset.apps/kafka configured (server dry run)
+statefulset.apps/postgres configured (server dry run)
+statefulset.apps/rabbitmq configured (server dry run)
+job.batch/kafka-topic-init configured (server dry run)
+job.batch/order-migrate configured (server dry run)
+httproute.gateway.networking.k8s.io/flashsale configured (server dry run)
+Warning: PollingInterval is configured but is not relevant for scaling. It only affects scaling when minReplicaCount = 0, idleReplicaCount is set, or useCachedMetrics is enabled, but it still controls how often KEDA refreshes the ScaledObject status conditions and events
+Warning: CooldownPeriod is configured but is not relevant. CooldownPeriod is only relevant when minReplicaCount = 0 or idleReplicaCount is set
+scaledobject.keda.sh/order-worker configured (server dry run)

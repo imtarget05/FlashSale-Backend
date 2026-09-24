@@ -284,6 +284,35 @@ LIVE GATES STILL PENDING (these block calling Phase 7C "done"):
         issue, NOT code). gitops-update skipped as consequence. Fix belongs to
         Azure tenant/app registration, out of P01 scope per ownership boundary.
       Mutation suite note: now 21/21 (was 19/19) — assertions added since.
+- [x] Phase 7C live gates — LOCALHOST VARIANT (2026-09-24, zero Azure cost per
+      user directive "không được đụng azure tránh mất phí"). All four gates
+      ticked against kind cluster `local-platform`, evidence in
+      `docs/evidence/phase7c-localhost/`:
+      - [x] Server-side dry-run: `kubectl apply --dry-run=server -k
+        infrastructure/kubernetes/overlays/local` → all objects configured
+        server-side (only KEDA PollingInterval/CooldownPeriod irrelevance
+        warnings, cosmetic). File `02-server-dryrun-2026-09-24.txt`.
+      - [x] Pods Ready: API x2 + worker + payment-service + postgres + rabbitmq
+        + redis + kafka 1/1 Running; migration Job Completed. File
+        `01-pods-ready-2026-09-24.txt`.
+      - [x] 202 → Completed E2E via real RabbitMQ + worker: POST /api/orders
+        (key LOCAL7C-1790270400, Idempotency-Key header — NOTE: body field is
+        ignored, header is authoritative) → 202 accepted; poll →
+        completed orderId 1357 (first attempt <6s). Files `00-e2e-order-*`,
+        `03-e2e-202-completed-2026-09-24.json`. The original 7C
+        silent-InMemory bug is gone: Messaging__Provider=RabbitMQ on both
+        API and worker (verified via pod env).
+      - [x] Real PG/RabbitMQ/Redis/Kafka runtime evidence (no mocks): PG
+        Products table live, inbox 4771 rows, outbox 42 processed, Kafka
+        `orders.events` carries the E2E order.created event (grep LOCAL7C key),
+        RabbitMQ queues `orders`/`automation.events` drained to 0. Files
+        `04-kafka-event-*`, `07-runtime-evidence-2026-09-24.txt`.
+      - [x] Bonus observability proof: Tempo has real traces
+        (service.name = order-api, payment-service); Loki + Grafana wired
+        (Loki + Tempo datasources present, trace→log derived field);
+        saga smoke re-run 21/21 green this session via Envoy Gateway.
+      → Phase 7C declared DONE on localhost. AKS re-validation remains an
+      optional future step (needs Azure tenant fix AADSTS700016 + budget).
 - [ ] Server-side dry-run against the real AKS cluster (client render alone
       cannot see admission webhooks / quota). (LOCAL OPTION per user 2026-09-24:
       kind local-platform counts — see Phase 7C localhost variant below.)
