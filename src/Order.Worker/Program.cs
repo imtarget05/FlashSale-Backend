@@ -1,6 +1,5 @@
 using FlashSale.Application.Automation;
 using FlashSale.Application.Events;
-using FlashSale.Application.Automation;
 using FlashSale.Application.Inventory;
 using FlashSale.Application.Messaging;
 using FlashSale.Application.Orders;
@@ -51,6 +50,13 @@ builder.Services.AddHostedService<OrderProcessorHost>();
 // so API and worker stay on one topology; both composition roots must agree.
 builder.Services.AddDomainEventPublisher(builder.Configuration);
 builder.Services.AddAutomationWorkerHost(builder.Configuration);
+
+// Transactional Outbox & Deduplication Inbox (Phase 10/V2.2): the shared
+// AutomationEventProcessor resolves IInboxRepository on EVERY event — without
+// this registration the Kafka consumer throws
+// "No service for type ... IInboxRepository" and the host stops (observed as a
+// 13x CrashLoopBackOff). Same call as the API composition root (Program.cs:75).
+builder.Services.AddTransactionalOutbox();
 
 // Payment automation (spec §4/§5): config-bound options, payment transitions,
 // and the periodic abandoned-payment scan. Provider-independent (DB-backed),
