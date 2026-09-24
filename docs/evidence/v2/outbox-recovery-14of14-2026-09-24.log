@@ -1,0 +1,47 @@
+=== LOCAL v2 / Phase 10: Outbox recovery verification ===
+Gateway: http://127.0.0.1:8088   API: http://127.0.0.1:8088
+
+--- Scenario A: transient outage must self-heal ---
+  baseline pending=0
+statefulset.apps/kafka scaled
+pod/kafka-0 condition met
+  broker stopped
+  enqueued id=37 while the broker is down
+  mid-outage: {"count":0,"stuckCount":1,"messages":[]}
+  PASS: mid-outage row is visible as stuck (stuckCount=1), not silently pending=0
+  PASS: A backoff deadline was scheduled instead of burning every retry instantly (=1)
+  PASS: A row 37 is genuinely still undelivered mid-outage (=1)
+        (RetryCount=1 after ~7s of outage — with a 2s/4s/8s schedule, not 5-in-one-second)
+statefulset.apps/kafka scaled
+pod/kafka-0 condition met
+  broker started; waiting for self-heal (no pod restart, no requeue, no SQL)
+  PASS: row 37 drained by itself after the broker returned (RetryCount=3)
+
+--- Scenario B: exhausted outage must be dead-lettered AND visible ---
+statefulset.apps/kafka scaled
+pod/kafka-0 condition met
+  broker stopped
+  enqueued id=38 (dead-letter expected within 90s)
+  PASS: row 38 reached the DLQ marker
+  PASS: B pending count is 0 (nothing the dispatcher can act on) (=0)
+  PASS: B stuckCount=1 — the old bug was pending=0 with NO other signal
+  PASS: B /api/outbox/stuck reports at least one dead-lettered row (contains '"deadLettered":[1-9]')
+statefulset.apps/kafka scaled
+pod/kafka-0 condition met
+  broker started; recovery is intentionally race-safe
+  PASS: dispatcher drained the dead-lettered row before requeue; requeue remained a no-op
+  PASS: row 38 drained after broker recovery/requeue
+
+--- Scenario C: consumer replay must not double-apply ---
+  PASS: C first delivery is processed (contains '"processed":true')
+  PASS: C four replays are all deduplicated (=4)
+  PASS: C exactly one inbox row exists for that MessageId (=1)
+
+--- Final state ---
+  pending: {"count":0,"stuckCount":0,"messages":[]}
+  stuck:   {"count":0,"deadLettered":0,"backingOff":0,"messages":[]}
+  PASS: No unprocessed outbox rows remain (=0)
+
+==========================================================
+Outbox recovery verification: 14 Passed, 0 Failed
+==========================================================

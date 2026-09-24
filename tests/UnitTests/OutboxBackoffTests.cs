@@ -101,13 +101,28 @@ public class OutboxDispatcherTests
         public Task<IReadOnlyList<OutboxMessage>> GetUnprocessedAsync(int batchSize = 50, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<OutboxMessage>>(messages);
 
-        public Task MarkProcessedAsync(long id, CancellationToken ct = default)
+        public Task<IReadOnlyList<OutboxMessage>> ClaimBatchAsync(
+            Guid claimToken,
+            int batchSize = 50,
+            TimeSpan? leaseDuration = null,
+            CancellationToken ct = default)
+        {
+            foreach (var message in messages)
+            {
+                message.ClaimToken = claimToken;
+                message.ClaimedUntil = DateTimeOffset.UtcNow.Add(leaseDuration ?? TimeSpan.FromSeconds(30));
+            }
+
+            return Task.FromResult<IReadOnlyList<OutboxMessage>>(messages);
+        }
+
+        public Task MarkProcessedAsync(long id, Guid claimToken, CancellationToken ct = default)
         {
             Processed.Add(id);
             return Task.CompletedTask;
         }
 
-        public Task MarkFailedAsync(long id, string error, CancellationToken ct = default)
+        public Task MarkFailedAsync(long id, Guid claimToken, string error, CancellationToken ct = default)
         {
             Failed.Add(id);
             LastError = error;

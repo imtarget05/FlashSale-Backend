@@ -27,18 +27,49 @@ public sealed class OutboxRepository(AppDbContext db) : IOutboxRepository
             .ToListAsync(ct);
     }
 
-    public async Task MarkProcessedAsync(long id, CancellationToken ct = default)
+    public async Task<IReadOnlyList<OutboxMessage>> ClaimBatchAsync(
+        Guid claimToken,
+        int batchSize = 50,
+        TimeSpan? leaseDuration = null,
+        CancellationToken ct = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var leaseUntil = now.Add(leaseDuration ?? TimeSpan.FromSeconds(30));
+        return await db.OutboxMessages
+            .FromSqlInterpolated($"""
+                UPDATE "OutboxMessages"
+                SET "ClaimToken" = {claimToken}, "ClaimedUntil" = {leaseUntil}
+                WHERE "Id" IN (
+                    SELECT "Id"
+                    FROM "OutboxMessages"
+                    WHERE "ProcessedAt" IS NULL
+                      AND "DeadLetteredAt" IS NULL
+                      AND ("NextAttemptAt" IS NULL OR "NextAttemptAt" <= {now})
+                      AND ("ClaimedUntil" IS NULL OR "ClaimedUntil" <= {now})
+                    ORDER BY "Id"
+                    LIMIT {batchSize}
+                    FOR UPDATE SKIP LOCKED
+                )
+                RETURNING *
+                """)
+            .ToListAsync(ct);
+    }
+
+    public async Task MarkProcessedAsync(long id, Guid claimToken, CancellationToken ct = default)
     {
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             UPDATE "OutboxMessages"
             SET    "ProcessedAt"   = now(),
                    "NextAttemptAt" = NULL,
-                   "Error"         = NULL
+                   "ClaimToken"     = NULL,
+                   "ClaimedUntil"   = NULL,
+                   "Error"          = NULL
             WHERE  "Id" = {id}
+              AND  "ClaimToken" = {claimToken}
             """, ct);
     }
 
-    public async Task MarkFailedAsync(long id, string error, CancellationToken ct = default)
+    public async Task MarkFailedAsync(long id, Guid claimToken, string error, CancellationToken ct = default)
     {
         var truncated = error.Length > 500 ? error[..500] : error;
         var backoffSeconds = OutboxMessage.BackoffFor(OutboxMessage.MaxRetryCount).TotalSeconds;
@@ -58,8 +89,11 @@ public sealed class OutboxRepository(AppDbContext db) : IOutboxRepository
                    "DeadLetteredAt" = CASE
                                         WHEN "RetryCount" + 1 >= {OutboxMessage.MaxRetryCount} THEN now()
                                         ELSE "DeadLetteredAt"
-                                      END
+                                      END,
+                   "ClaimToken"     = NULL,
+                   "ClaimedUntil"   = NULL
             WHERE  "Id" = {id}
+              AND  "ClaimToken" = {claimToken}
             """, ct);
     }
 
@@ -91,7 +125,9 @@ public sealed class OutboxRepository(AppDbContext db) : IOutboxRepository
             SET    "RetryCount"     = 0,
                    "NextAttemptAt"  = NULL,
                    "DeadLetteredAt" = NULL,
-                   "Error"          = NULL
+                   "Error"          = NULL,
+                   "ClaimToken"     = NULL,
+                   "ClaimedUntil"   = NULL
             WHERE  "ProcessedAt" IS NULL
               AND  ("DeadLetteredAt" IS NOT NULL OR "NextAttemptAt" > {now})
             """, ct);
