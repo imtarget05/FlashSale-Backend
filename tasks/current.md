@@ -6,8 +6,8 @@
 > Focus: kind + payment-service CrashLoop + saga smoke + Kafka/observability/KEDA.
 
 > Focus plan: `plans/plan-20260923-2349-local-v2-platform.md` (Active). Trước đó: cline-helper plan DONE (3B/3C ticked).
-> V2 scope: Payment.Service + Checkout.Saga (V2.1, code đã có trong tree) → Kafka KRaft + Outbox/Inbox (V2.2) → Tempo+Loki (V2.3) → Envoy + KEDA (V2.4) → demo + evidence (V2.5). Budget: Docker VM 7.75 GiB.
-> Next: V2.1 verify (build/test/saga-smoke) → V2.2 Kafka.
+> V2 scope: Payment.Service + Checkout.Saga (V2.1 DONE) → Kafka KRaft + Outbox/Inbox (V2.2 DONE) → Tempo+Loki (V2.3 DONE) → Envoy + KEDA (V2.4 DONE) → demo + evidence (V2.5 DONE). Budget: Docker VM 7.75 GiB.
+> Status 2026-09-24: V2.1-V2.5 PASS (saga 21/21, Kafka-down no-loss, trace Tempo, KEDA ScalingActive, demo verified). `tasks/current.md` synced với `plans/plan-20260923-2349-local-v2-platform.md`. Không còn Next V2.1→V2.2.
 
 # Prev Goal (2026-09-23, Cline-helper / Antigravity finish — DONE)
 

@@ -79,7 +79,7 @@ row_retries() { psql_row "SELECT \"RetryCount\" FROM \"OutboxMessages\" WHERE \"
 # The trap below makes broker/Argo restoration mandatory even when an assertion fails.
 ORIGINAL_AUTOMATED="$(kubectl get application flashsale -n argocd -o json | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["spec"].get("syncPolicy",{}).get("automated")))')"
 restore_runtime() {
-  kubectl scale statefulset/kafka -n "$NS" --replicas=1 >/dev/null 2>&1 || true
+  kubectl scale statefulset/kafka -n "$KAFKA_NS" --replicas=1 >/dev/null 2>&1 || true
   if [ "$ORIGINAL_AUTOMATED" != "None" ]; then
     kubectl patch application flashsale -n argocd --type merge \
       -p "{\"spec\":{\"syncPolicy\":{\"automated\":$ORIGINAL_AUTOMATED}}}" >/dev/null 2>&1 || true
@@ -92,12 +92,12 @@ pause_autosync() {
 }
 broker_stop() {
   pause_autosync
-  kubectl scale statefulset/kafka -n "$NS" --replicas=0
-  kubectl wait --for=delete pod/kafka-0 -n "$NS" --timeout=60s
+  kubectl scale statefulset/kafka -n "$KAFKA_NS" --replicas=0
+  kubectl wait --for=delete pod/kafka-0 -n "$KAFKA_NS" --timeout=60s
 }
 broker_start() {
-  kubectl scale statefulset/kafka -n "$NS" --replicas=1
-  kubectl wait --for=condition=Ready pod/kafka-0 -n "$NS" --timeout=180s
+  kubectl scale statefulset/kafka -n "$KAFKA_NS" --replicas=1
+  kubectl wait --for=condition=Ready pod/kafka-0 -n "$KAFKA_NS" --timeout=180s
 }
 
 # Poll the DB until the row satisfies the given SQL predicate, or the deadline passes.

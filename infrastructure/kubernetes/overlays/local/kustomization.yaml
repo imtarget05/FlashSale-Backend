@@ -52,9 +52,15 @@ patches:
   - target:
       kind: Job
       name: kafka-topic-init
+    # JSON Patch can only express a patch list; it cannot be mixed with a full
+    # strategic-merge object in the same entry. Splitting keeps this valid.
     patch: |-
       - op: remove
         path: /spec/ttlSecondsAfterFinished
+  - target:
+      kind: Job
+      name: kafka-topic-init
+    patch: |-
       apiVersion: batch/v1
       kind: Job
 
