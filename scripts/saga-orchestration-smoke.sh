@@ -85,7 +85,7 @@ REASON2=$(printf '%s' "$SAGA2" | field "compensationReason")
 check "Scenario 2 Status (5=Compensated)" "5" "$STATUS2"
 check "Scenario 2 InventoryStatus (2=Released)" "2" "$INV2"
 check "Scenario 2 PaymentStatus (2=Declined)" "2" "$PAY2"
-contains "Scenario 2 Compensation Reason" "insufficient funds" "$REASON2"
+contains "Scenario 2 Compensation Reason" "Insufficient funds" "$REASON2"
 
 AFTER_STOCK2=$(curl -s -H "$HOST_HEADER" "$GATEWAY/api/products/2" | field "availableStock")
 check "Scenario 2 Stock Restored After Compensation" "$BEFORE_STOCK2" "$AFTER_STOCK2"

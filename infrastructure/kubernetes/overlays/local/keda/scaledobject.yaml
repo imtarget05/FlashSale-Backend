@@ -1,0 +1,28 @@
+# V2.4 — event-driven autoscaling for the fulfillment worker (KEDA).
+# The legacy RabbitMQ `orders` queue is not a worker-specific signal because
+# Order.Api also consumes it. Scale from Kafka consumer lag for the worker's
+# `flashsale-automation` group instead, so the metric represents work assigned
+# to this deployment. This stays within the laptop budget: idle 1, burst 4.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: order-worker
+  namespace: flashsale
+spec:
+  scaleTargetRef:
+    name: order-worker
+  pollingInterval: 15
+  cooldownPeriod: 60
+  minReplicaCount: 1
+  maxReplicaCount: 4
+  triggers:
+    - type: kafka
+      metadata:
+        consumerGroup: flashsale-automation
+        topic: orders.events
+        # The local single-node broker is intentionally PLAINTEXT and has no
+        # credential material. Its cluster-local Service FQDN is valid from the
+        # KEDA operator namespace as well as the application namespace.
+        bootstrapServers: kafka.flashsale.svc.cluster.local:9092
+        lagThreshold: "10"
+        allowIdleConsumers: "false"

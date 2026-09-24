@@ -14,6 +14,11 @@ namespace FlashSale.Infrastructure.Events;
 /// </summary>
 public sealed class KafkaDomainEventPublisher : IDomainEventPublisher, IDisposable
 {
+    // librdkafka can spend minutes in metadata/retry waits when a broker disappears.
+    // The outbox owns retry/backoff, so one local delivery attempt must be bounded.
+    // Five attempts plus 2/4/8/16 second application backoff still complete in under a minute.
+    private static readonly TimeSpan PublishAttemptTimeout = TimeSpan.FromSeconds(5);
+
     private readonly IProducer<string, string> _producer;
     private readonly string _topic;
     private readonly ILogger<KafkaDomainEventPublisher> _logger;
@@ -55,7 +60,9 @@ public sealed class KafkaDomainEventPublisher : IDomainEventPublisher, IDisposab
                 }
             };
 
-            var deliveryResult = await _producer.ProduceAsync(_topic, message, ct);
+            using var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            attemptCts.CancelAfter(PublishAttemptTimeout);
+            var deliveryResult = await _producer.ProduceAsync(_topic, message, attemptCts.Token);
             _logger.LogInformation(
                 "Produced event {EventType} ({EventId}) to Kafka [{Topic}] partition {Partition} at offset {Offset}.",
                 domainEvent.EventType,
