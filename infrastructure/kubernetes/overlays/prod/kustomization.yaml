@@ -5,30 +5,22 @@ namespace: flash-sale-prod
 
 resources:
   - ../../base
+  - httproute.yaml
 
 replicas:
   - name: order-api
     count: 2
 
 images:
-  # `name` MUST equal the image name declared in base (registry-neutral,
-  # e.g. `order-api:placeholder-set-by-overlay`); Kustomize matches on that
-  # name and silently skips the transform when it does not match. The real
-  # registry host therefore belongs in `newName`, not in `name`.
-  # The previous form (`name: acrflashsalep6.azurecr.io/order-api`) never
-  # matched the base, so the rendered manifest kept a non-existent
-  # placeholder registry + `:latest` → guaranteed ImagePullBackOff.
-  #
-  # newTag is pinned to the released commit SHA by the CI `gitops-update`
-  # job — never hand-edit it, and never use `latest` (ADR-011). Both images
-  # ship from the same commit, so the same SHA is correct for both.
   - name: order-api
     newName: acrflashsalep6.azurecr.io/order-api
     newTag: 308e042b10e1151b58268bb9be7f690e4b0c1bc6
   - name: order-worker
     newName: acrflashsalep6.azurecr.io/order-worker
     newTag: 308e042b10e1151b58268bb9be7f690e4b0c1bc6
+  - name: payment-service
+    newName: acrflashsalep6.azurecr.io/payment-service
+    newTag: 308e042b10e1151b58268bb9be7f690e4b0c1bc6
 
 commonLabels:
   env: prod
-
