@@ -17,8 +17,6 @@ Nâng cấp repo `01-FlashSale-Backend` thành backend production-style phù h�
 - Swagger / OpenAPI
 - async processing
 - third-party integration
-- Ollama + Qwen (local LLM)
-- ElevenLabs
 - reliability
 - observability
 
@@ -99,8 +97,7 @@ Ví dụ:
 - customer chỉ xem order của chính mình;
 - staff xem order;
 - admin quản lý product/inventory;
-- AI endpoints yêu cầu user authenticated;
-- admin-only endpoint xem AI usage.
+- Admin-only endpoints for operational visibility.
 
 ---
 
@@ -153,7 +150,6 @@ Implement tối thiểu:
 2. Product cache.
 3. Rate limiting.
 4. Idempotency key cache.
-5. AI conversation/session cache nếu phù hợp.
 
 Không dùng Redis chỉ để "có Redis".
 
@@ -167,9 +163,6 @@ Queues/exchanges đề xuất:
 order.created
 order.retry
 order.dlq
-
-ai.requested
-ai.failed
 
 tts.requested
 tts.completed
@@ -248,10 +241,6 @@ POST   /orders
 GET    /orders/:id
 GET    /orders/me
 
-POST   /ai/chat
-POST   /ai/content/summarize
-POST   /ai/content/generate-quiz
-
 POST   /ai/tts
 GET    /ai/tts/:jobId
 
@@ -276,7 +265,6 @@ Query:
 - myOrders
 
 Mutation:
-- askProductAssistant
 ```
 
 Mục tiêu là chứng minh hiểu GraphQL schema, resolver, auth context, error handling.
@@ -335,42 +323,6 @@ Rules:
 
 ---
 
-# 11. AI FEATURE B — Educational Content Service
-
-Feature này dùng để sát domain doanh nghiệp xuất bản giáo dục.
-
-Endpoints:
-
-```text
-POST /ai/content/summarize
-POST /ai/content/generate-quiz
-POST /ai/content/explain
-```
-
-Input:
-
-```json
-{
-  "content": "...",
-  "gradeLevel": "university",
-  "language": "vi"
-}
-```
-
-Quiz structured output:
-
-```json
-{
-  "questions": [
-    {
-      "question": "...",
-      "options": ["A", "B", "C", "D"],
-      "answer": "A",
-      "explanation": "..."
-    }
-  ]
-}
-```
 
 ---
 
@@ -421,23 +373,6 @@ Statuses:
 
 ---
 
-# 13. AI Safety / Reliability
-
-Must implement:
-
-- max input length;
-- timeout;
-- retries;
-- model response validation;
-- structured logs;
-- token/cost tracking;
-- no secrets in prompt;
-- no sensitive data logged;
-- fallback message when provider unavailable.
-
-AI provider failure không được làm crash core order system.
-
----
 
 # 14. Observability
 
@@ -446,7 +381,6 @@ Minimum:
 - request log;
 - correlation ID;
 - worker event log;
-- AI latency;
 - RabbitMQ publish/consume error;
 - Redis connection status;
 - DB status.
@@ -458,9 +392,6 @@ http_request_duration
 orders_created_total
 stock_reservation_failed_total
 rabbitmq_consume_failed_total
-ai_requests_total
-ai_request_duration
-ai_tokens_total
 tts_jobs_total
 ```
 
@@ -493,7 +424,6 @@ Login
 Create/Get product
 Create order
 Verify order
-Call AI assistant
 Create TTS job
 Poll TTS status
 ```
@@ -546,11 +476,6 @@ src/
   orders/
   messaging/
   redis/
-  ai/
-    ollama/
-    tts/
-    dto/
-    workers/
   graphql/
   common/
     auth/
@@ -620,21 +545,12 @@ Không code trước audit.
 - OpenAPI;
 - GraphQL minimum scope.
 
-## Phase 6 — Ollama + Qwen (local LLM)
+## Phase 6 — Observability & Testing
 
-- provider abstraction (`IAssistantProvider` port, fake/real/unavailable);
-- local runtime: `ollama pull qwen3:4b`, endpoint `http://localhost:11434/v1`
-  (OpenAI-compatible, no API key, chạy mượt trên máy 8GB RAM);
-- product assistant;
-- structured output;
-- educational content endpoints.
-
-## Phase 7 — ElevenLabs
-
-- async TTS;
-- queue;
-- status API;
-- failure handling.
+- OpenTelemetry instrumentation;
+- distributed tracing;
+- e2e tests;
+- concurrency benchmarks.
 
 ## Phase 8 — Testing + Observability
 
@@ -706,9 +622,6 @@ Project is interview-ready when:
 - RabbitMQ retry/DLQ works;
 - REST + Swagger works;
 - minimum GraphQL works;
-- Ollama integration runs against a local server with `qwen3:4b` (no API key needed);
-- ElevenLabs async integration runs when key supplied;
-- provider unavailable path handled;
 - tests exist and pass;
 - no fake benchmark;
 - README explains architecture and tradeoffs;

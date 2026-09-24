@@ -108,9 +108,5 @@ Complete this inventory before implementation. If any line is unknown, keep the 
 | payment-automation-smoke | ✅ 21/21 sau fix | lần đầu 17-18/21 do dính API stale trên :5099 (kill PID 79155/79166 → xanh) |
 | lowstock-alert-smoke | ✅ 11/11 | |
 | daily-report-smoke | ✅ 12/12 | |
-| content-support-smoke | ⛔ 7/24 → 13/24 → BLOCKED | lần 1: ai đó `compose down` 22:52 (DB refused); restart DB xong lần 2: Ollama lạnh (attempt timeout 120s×2, draft 12 vẫn tạo được 81s); lần 3: tree có WIP Phase 9 (CheckoutSagaState, chưa migration) → API crash PendingModelChangesWarning |
-| ai-assistant-smoke | ⏸ chưa chạy | chờ tree ổn định + migration |
 
-Rerun 23:17–23:26: migration AddCheckoutSagas đã có → build 0 error → content smoke boot OK, generate vẫn 503 (Ollama timeout 2×120s, triage xanh) → rerun tiếp thì API lại crash PendingModelChangesWarning vì Cline thêm tiếp Outbox/Inbox/Payment/Saga sau migration. DỪNG chạy để tránh giẫm chân; chạy full 1 lượt khi Cline xong + migration đủ.
 
-BLOCKER: working tree đang có WIP của Cline (AppDbContext.cs + ModelSnapshot + DomainEvents.cs + Program.cs, binary rebuild 22:59) — không stash/sửa để tránh xung đột. Chạy tiếp khi Cline thêm migration xong.

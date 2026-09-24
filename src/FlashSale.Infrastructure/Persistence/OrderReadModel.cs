@@ -1,4 +1,3 @@
-using FlashSale.Application.Assistant;
 using FlashSale.Application.Persistence;
 using FlashSale.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -33,16 +32,6 @@ public sealed class OrderReadModel(AppDbContext db) : IOrderReadModel
             .Select(o => new OrderSummaryView(o.Id, o.ProductId, o.Quantity, o.CreatedAt))
             .ToListAsync(ct);
 
-    public async Task<IReadOnlyList<ProductCandidate>> GetProductCandidatesAsync(
-        int max, CancellationToken ct = default) =>
-        await db.Products.AsNoTracking()
-            .Where(p => p.AvailableStock > 0)
-            .OrderBy(p => p.Id)
-            .Take(max)
-            .Select(p => new ProductCandidate(
-                p.Id, p.Name, p.Category, p.Description, p.FlashSalePrice, p.AvailableStock))
-            .ToListAsync(ct);
-
     public async Task<IReadOnlyList<PendingPaymentView>> GetPendingPaymentOrdersAsync(
         int take, CancellationToken ct = default) =>
         await db.Orders.AsNoTracking()
@@ -54,11 +43,4 @@ public sealed class OrderReadModel(AppDbContext db) : IOrderReadModel
                 o.CreatedAt, o.PaymentDueAt, o.PaymentReminderCount))
             .ToListAsync(ct);
 
-    public async Task<ProductFactsView?> GetProductFactsAsync(
-        int productId, CancellationToken ct = default) =>
-        await db.Products.AsNoTracking()
-            .Where(p => p.Id == productId)
-            .Select(p => new ProductFactsView(
-                p.Id, p.Name, p.Category, p.Description, p.FlashSalePrice, p.AvailableStock))
-            .FirstOrDefaultAsync(ct);
 }

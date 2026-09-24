@@ -1,7 +1,6 @@
 using FlashSale.Domain;
 using FlashSale.Domain.Automation;
 using FlashSale.Domain.Entities;
-using FlashSale.Domain.Content;
 using FlashSale.Domain.Inventory;
 using FlashSale.Domain.Reporting;
 using FlashSale.Domain.Saga;
@@ -21,7 +20,6 @@ public class AppDbContext : DbContext
     public DbSet<AutomationRun> AutomationRuns { get; set; } = null!;
     public DbSet<StockAlert> StockAlerts { get; set; } = null!;
     public DbSet<DailyReport> DailyReports { get; set; } = null!;
-    public DbSet<ProductContentDraft> ProductContentDrafts { get; set; } = null!;
     public DbSet<CheckoutSagaState> CheckoutSagas { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
     public DbSet<InboxMessage> InboxMessages { get; set; } = null!;
@@ -104,17 +102,6 @@ public class AppDbContext : DbContext
             entity.HasIndex(r => r.ReportDate).IsUnique();
             entity.Property(r => r.Revenue).HasColumnType("decimal(18,2)");
             entity.Property(r => r.AverageOrderValue).HasColumnType("decimal(18,2)");
-        });
-
-        // AI product-content drafts (spec §8): statuses stored as text so the
-        // guarded SQL transitions read exactly like the state machine.
-        modelBuilder.Entity<ProductContentDraft>(entity =>
-        {
-            entity.HasKey(d => d.Id);
-            entity.Property(d => d.Status).HasConversion<string>().HasMaxLength(20);
-            entity.Property(d => d.Model).HasMaxLength(100);
-            entity.HasIndex(d => d.ProductId);
-            entity.HasIndex(d => d.Status);
         });
 
         // Checkout Saga (Phases 9 & 11)

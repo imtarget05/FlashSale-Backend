@@ -7,7 +7,6 @@ public enum AutomationWorkflow
     PaymentTimeout,
     InventoryAutomation,
     DailyReport,
-    AiContentGeneration,
     SupportTriage,
     RiskFraudRuleEngine
 }

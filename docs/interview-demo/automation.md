@@ -1,8 +1,7 @@
 # Interview Demo Runbook — Business Automation (spec §17)
 
 All scripts live in `scripts/` (reproducible, exit non-zero on failure).
-Local prerequisites: Docker (postgres/redis/rabbit), built solution, Ollama
-+ `qwen3:4b` for scenarios touching AI (C-optional, D).
+Local prerequisites: Docker (postgres/redis/rabbit), built solution.
 
 ## A. Payment automation: timeout → reminder → cancellation → stock release → audit
 
@@ -34,18 +33,6 @@ Dashboard numbers for the demo:
 `GET /internal/automation/summary` → `{runsToday, successful, failed,
 retrying, manualReview, averageDurationSeconds, topFailingWorkflow}` and
 `GET /internal/automation/alerts` → open low-stock alerts.
-
-## D. AI product content: create product → AI draft → human approval → publish
-
-```bash
-bash scripts/content-support-smoke.sh   # also covers §9 support triage
-```
-Flow: `POST /api/products/{id}/content/generate` (STAFF only, real qwen3:4b,
-bounded retry §12) → draft `ReviewRequired` in queue → `publish` before approve
-= **409 (AI never auto-publishes §8)** → approve → publish →
-`Products.Description` updated only after human approval (§13).
-Same script proves §9: triage grounded in the real order row (facts echo the
-order key/status from PostgreSQL) + REFUND category → `requiresHumanReview=true`.
 
 ## Test suites
 
