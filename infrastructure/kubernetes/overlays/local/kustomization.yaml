@@ -53,6 +53,8 @@ patches:
       kind: Job
       name: kafka-topic-init
     patch: |-
+      - op: remove
+        path: /spec/ttlSecondsAfterFinished
       apiVersion: batch/v1
       kind: Job
 
