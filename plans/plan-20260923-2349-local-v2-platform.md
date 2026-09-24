@@ -10,8 +10,7 @@
 > **Created**: 20260923-2349
 > **Slug**: local-v2-platform
 > **Artifact Level**: work-package
-> **Goal**: LOCAL v2 — tiến hóa từ v1.1 lên microservices trên kind, zero-cloud-cost, trong budget Docker VM 7.75 GiB. V2.1 Payment.Service + Checkout.Saga → V2.2 Kafka KRaft + Outbox/Inbox → V2.3 Tempo+Loki tracing → V2.4 Envoy rate-limit + KEDA → V2.5 demo + evidence. **Scope LLM/Ollama đã drop khỏi plan** (quyết định 2026-09-24) — tập trung vấn đề hiện tại: kind + saga + payment-service.
-> **Verification Boundary**: build 0 error; dotnet test PASS; saga smoke 5 scenarios; outbox-zero-stuck; Grafana Tempo+Loki healthy; KEDA scale event. Mỗi phase tick chỉ khi có evidence. Không verify AI/LLM endpoints.
+> **Goal**: LOCAL v2 — tiến hóa từ v1.1 lên microservices trên kind, zero-cloud-cost, trong budget Docker VM 7.75 GiB. V2.1 Payment.Service + Checkout.Saga → V2.2 Kafka KRaft + Outbox/Inbox → V2.3 Tempo+Loki tracing → V2.4 Envoy rate-limit + KEDA → V2.5 demo + evidence. > **Verification Boundary**: build 0 error; dotnet test PASS; saga smoke 5 scenarios; outbox-zero-stuck; Grafana Tempo+Loki healthy; KEDA scale event. Mỗi phase tick chỉ khi có evidence. Không verify AI/LLM endpoints.
 > **Rollback Surface**: revert plans/ + tasks/ tracker; code/runtime rollback theo từng phase (git checkout); không đụng cloud (local-only).
 > **Promotion Reason**: unblock Cline — V2.1 code (Payment/Saga/Outbox/Inbox + 2 migrations) đã có trong tree, cần verify rồi đi tiếp Kafka.
 > **Spec**: `docs/spec.md`

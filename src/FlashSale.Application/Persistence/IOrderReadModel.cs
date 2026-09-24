@@ -1,4 +1,3 @@
-using FlashSale.Application.Assistant;
 
 namespace FlashSale.Application.Persistence;
 
@@ -20,15 +19,6 @@ public sealed record OrderSummaryView(
     int Quantity,
     DateTime CreatedAt);
 
-/// <summary>Product facts the AI may use for content generation (spec §8 grounding).</summary>
-public sealed record ProductFactsView(
-    int Id,
-    string Name,
-    string Category,
-    string Description,
-    decimal FlashSalePrice,
-    int AvailableStock);
-
 /// <summary>
 /// Port: query side (CQRS-lite). Keeps presentation handlers free of EF/DB
 /// details — the API depends only on this contract.
@@ -38,11 +28,6 @@ public interface IOrderReadModel
     Task<int?> GetStockAsync(int productId, CancellationToken ct = default);
     Task<ProductView?> GetProductAsync(int productId, CancellationToken ct = default);
 
-    /// <summary>
-    /// Full product facts regardless of stock (spec §8): content generation must
-    /// work for sold-out products too, unlike the assistant's candidate filter.
-    /// </summary>
-    Task<ProductFactsView?> GetProductFactsAsync(int productId, CancellationToken ct = default);
     Task<OrderStatusView?> GetOrderStatusAsync(string idempotencyKey, CancellationToken ct = default);
 
     /// <summary>
@@ -50,13 +35,6 @@ public interface IOrderReadModel
     /// are never returned, so this cannot leak another caller's history.
     /// </summary>
     Task<IReadOnlyList<OrderSummaryView>> GetOrdersByUserAsync(Guid userId, CancellationToken ct = default);
-
-    /// <summary>
-    /// In-stock product candidates for the AI assistant's grounding context
-    /// (spec §10). The model may only recommend from this set; the use case
-    /// validates its output against it.
-    /// </summary>
-    Task<IReadOnlyList<ProductCandidate>> GetProductCandidatesAsync(int max, CancellationToken ct = default);
 
     /// <summary>
     /// Pending-payment orders for the payment-timeout scan (spec §5), oldest

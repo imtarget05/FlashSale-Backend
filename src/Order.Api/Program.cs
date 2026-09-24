@@ -1,11 +1,8 @@
-using FlashSale.Application.Assistant;
 using FlashSale.Application.Auth;
 using FlashSale.Application.Automation;
-using FlashSale.Application.Content;
 using FlashSale.Application.Events;
 using FlashSale.Application.Payment;
 using FlashSale.Application.Saga;
-using FlashSale.Application.Support;
 using FlashSale.Application.Inventory;
 using FlashSale.Application.Messaging;
 using FlashSale.Application.Orders;
@@ -17,7 +14,6 @@ using FlashSale.Domain.Outbox;
 using FlashSale.Domain.Saga;
 using FlashSale.Application.Outbox;
 using FlashSale.Infrastructure.Auth;
-using FlashSale.Infrastructure.Ai;
 using FlashSale.Infrastructure.Events;
 using FlashSale.Infrastructure.Messaging;
 using FlashSale.Infrastructure.Payment;
@@ -92,34 +88,6 @@ builder.Services.AddSingleton(reportingOptions);
 builder.Services.AddScoped<IDailyReportRepository, DailyReportRepository>();
 builder.Services.AddScoped<DailyReportUseCase>();
 
-// AI content + support triage (spec §8/§9): same Ollama client + rate limiter as
-// the product assistant; every AI result is reviewed or grounded by rule.
-builder.Services.AddScoped<IContentRepository, ContentRepository>();
-builder.Services.AddScoped<ProductContentUseCase>();
-builder.Services.AddScoped<ContentReviewUseCase>();
-builder.Services.AddScoped<SupportTriageUseCase>();
-
-// ---------------------------------------------------------------
-// AI assistant (spec §10) — local Ollama through its OpenAI-compatible API.
-// The typed client owns BaseAddress + dummy bearer key (Ollama ignores it;
-// OpenAI-compatible wire format requires one); the use case owns timeout,
-// bounded retry, grounding validation and the per-user rate limit.
-// ---------------------------------------------------------------
-var aiOptions = builder.Configuration.GetSection(OllamaOptions.SectionName).Get<OllamaOptions>()
-    ?? new OllamaOptions();
-builder.Services.AddSingleton(aiOptions);
-builder.Services.AddHttpClient<IAiChatClient, OllamaChatClient>("ollama", (_, client) =>
-{
-    client.BaseAddress = new Uri($"{aiOptions.BaseUrl.TrimEnd('/')}/");
-    client.DefaultRequestHeaders.Authorization =
-        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", aiOptions.ApiKey);
-    // Must exceed the use case's AttemptTimeout (120s) so the use case owns the
-    // timeout/retry budget; the HttpClient default (100s) would otherwise fire
-    // first and burn the retry (2 × 100s → user-visible 503 at ~200s).
-    client.Timeout = TimeSpan.FromSeconds(150);
-});
-builder.Services.AddScoped<IAiRateLimiter, RedisAiRateLimiter>();
-builder.Services.AddScoped<ProductAssistantUseCase>();
 
 // ---------------------------------------------------------------
 // Observability (Phase III).
@@ -515,192 +483,6 @@ app.MapGet("/api/products/{id}", async (int id, IOrderReadModel readModel) =>
     return product is null ? Results.NotFound() : Results.Ok(product);
 });
 
-// AI Feature A — grounded product assistant (spec §10). Authenticated callers
-// only (the rate limit and the answer are per-user); the model may only
-// recommend products that exist in the read model, and its structured output
-// is validated before it ever reaches the response.
-app.MapPost("/api/assistant/product", async (
-    AssistantQuestion request,
-    ClaimsPrincipal user,
-    ProductAssistantUseCase assistant,
-    CancellationToken ct) =>
-{
-    var userId = TryGetUserId(user);
-    if (userId is null) return Results.Unauthorized();
-
-    var result = await assistant.ExecuteAsync(userId.Value, request.Question, ct);
-    ApiMetrics.RecordAiAssistant(result.Outcome.ToString(), result.Model, result.LatencyMs, result.PromptTokens, result.CompletionTokens);
-
-    return result.Outcome switch
-    {
-        AssistantOutcome.InvalidQuestion => Results.BadRequest(new
-        {
-            error = "invalid_question",
-            maxQuestionLength = ProductAssistantUseCase.MaxQuestionLength
-        }),
-        AssistantOutcome.RateLimited => Results.Json(
-            new { error = "rate_limited", retryAfterSeconds = 60 }, statusCode: 429),
-        AssistantOutcome.UpstreamUnavailable => Results.Json(
-            new { error = "assistant_unavailable" }, statusCode: 503),
-        AssistantOutcome.InvalidModelOutput => Results.Json(
-            new { error = "assistant_invalid_output" }, statusCode: 502),
-        _ => Results.Ok(new
-        {
-            answer = result.Answer,
-            recommendedProducts = result.RecommendedProducts,
-            model = result.Model,
-            latencyMs = result.LatencyMs,
-            tokens = new { prompt = result.PromptTokens, completion = result.CompletionTokens }
-        })
-    };
-})
-.RequireAuthorization()
-.WithTags("Assistant")
-.WithName("AskProductAssistant")
-.WithSummary("Grounded AI product assistant (Ollama/Qwen): recommend only from real product data.");
-
-// ---------------------------------------------------------------
-// AI product content (spec §8) — STAFF/ADMIN only. Generation ALWAYS lands in
-// ReviewRequired; publish requires an explicit human approval first (spec §13).
-// ---------------------------------------------------------------
-app.MapPost("/api/products/{id:int}/content/generate", async (
-    int id,
-    ClaimsPrincipal user,
-    ProductContentUseCase useCase,
-    CancellationToken ct) =>
-{
-    var staffId = TryGetUserId(user);
-    if (staffId is null) return Results.Unauthorized();
-
-    var result = await useCase.GenerateAsync(staffId.Value, id, ct);
-    return result.Outcome switch
-    {
-        ContentGenerationOutcome.ProductNotFound => Results.NotFound(new { error = "Product not found" }),
-        ContentGenerationOutcome.RateLimited => Results.Json(
-            new { error = "rate_limited", retryAfterSeconds = 60 }, statusCode: 429),
-        ContentGenerationOutcome.UpstreamUnavailable => Results.Json(
-            new { error = "assistant_unavailable" }, statusCode: 503),
-        ContentGenerationOutcome.InvalidModelOutput => Results.Json(
-            new { error = "assistant_invalid_output" }, statusCode: 502),
-        _ => Results.Ok(new
-        {
-            draftId = result.Draft!.Id,
-            status = result.Draft.Status.ToString(),
-            result.Draft.ShortDescription,
-            result.Draft.SeoDescription,
-            keywords = JsonSerializer.Deserialize<List<string>>(result.Draft.KeywordsJson),
-            result.Draft.SocialCaption,
-            faq = JsonSerializer.Deserialize<JsonElement>(result.Draft.FaqJson),
-            model = result.Model,
-            latencyMs = result.LatencyMs,
-            tokens = new { prompt = result.PromptTokens, completion = result.CompletionTokens }
-        })
-    };
-})
-.RequireAuthorization(AuthPolicies.StaffOrAdmin)
-.WithTags("Content")
-.WithName("GenerateProductContent")
-.WithSummary("Generate AI product content as a draft awaiting human review (never auto-published).");
-
-app.MapGet("/api/content/review-queue", async (ContentReviewUseCase useCase, CancellationToken ct) =>
-{
-    var queue = await useCase.ReviewQueueAsync(ct);
-    return Results.Ok(new { count = queue.Count, drafts = queue });
-})
-.RequireAuthorization(AuthPolicies.StaffOrAdmin)
-.WithTags("Content")
-.WithName("ContentReviewQueue")
-.WithSummary("Drafts waiting for a human decision (spec §13).");
-
-app.MapPost("/api/content/{draftId:int}/approve", async (
-    int draftId, ClaimsPrincipal user, ContentReviewUseCase useCase, CancellationToken ct) =>
-{
-    var reviewerId = TryGetUserId(user);
-    if (reviewerId is null) return Results.Unauthorized();
-
-    var result = await useCase.ApproveAsync(reviewerId.Value, draftId, ct);
-    if (!result.Found) return Results.NotFound(new { error = "Draft not found" });
-    return result.Transitioned
-        ? Results.Ok(new { draftId, status = result.Status.ToString() })
-        : Results.Json(new { error = "Draft is not awaiting review", status = result.Status.ToString() }, statusCode: 409);
-})
-.RequireAuthorization(AuthPolicies.StaffOrAdmin)
-.WithTags("Content")
-.WithName("ApproveContent")
-.WithSummary("Human approval: ReviewRequired → Approved (publishing is a separate call).");
-
-app.MapPost("/api/content/{draftId:int}/reject", async (
-    int draftId, ContentRejectRequest request, ClaimsPrincipal user,
-    ContentReviewUseCase useCase, CancellationToken ct) =>
-{
-    var reviewerId = TryGetUserId(user);
-    if (reviewerId is null) return Results.Unauthorized();
-    if (string.IsNullOrWhiteSpace(request.Reason))
-        return Results.BadRequest(new { error = "reason is required" });
-
-    var result = await useCase.RejectAsync(reviewerId.Value, draftId, request.Reason.Trim(), ct);
-    if (!result.Found) return Results.NotFound(new { error = "Draft not found" });
-    return result.Transitioned
-        ? Results.Ok(new { draftId, status = result.Status.ToString() })
-        : Results.Json(new { error = "Draft cannot be rejected from its state", status = result.Status.ToString() }, statusCode: 409);
-})
-.RequireAuthorization(AuthPolicies.StaffOrAdmin)
-.WithTags("Content")
-.WithName("RejectContent")
-.WithSummary("Human rejection with a reason (regeneration stays possible).");
-
-app.MapPost("/api/content/{draftId:int}/publish", async (
-    int draftId, ContentReviewUseCase useCase, CancellationToken ct) =>
-{
-    var result = await useCase.PublishAsync(draftId, ct);
-    if (!result.Found) return Results.NotFound(new { error = "Draft not found" });
-    return result.Transitioned
-        ? Results.Ok(new { draftId, status = result.Status.ToString() })
-        : Results.Json(new { error = "Draft is not approved — publish requires human approval", status = result.Status.ToString() }, statusCode: 409);
-})
-.RequireAuthorization(AuthPolicies.StaffOrAdmin)
-.WithTags("Content")
-.WithName("PublishContent")
-.WithSummary("Apply approved content to the product (Approved → Published only).");
-
-// Support triage (spec §9) — any authenticated caller; drafts are grounded in
-// real order data and sensitive categories are flagged for human review.
-app.MapPost("/api/support/triage", async (
-    SupportTriageRequest request, ClaimsPrincipal user, SupportTriageUseCase useCase, CancellationToken ct) =>
-{
-    var userId = TryGetUserId(user);
-    if (userId is null) return Results.Unauthorized();
-
-    var result = await useCase.ExecuteAsync(userId.Value, request.Message, request.OrderKey, ct);
-    return result.Outcome switch
-    {
-        SupportTriageOutcome.InvalidMessage => Results.BadRequest(new
-        {
-            error = "message_required",
-            maxMessageLength = SupportTriageUseCase.MaxMessageLength
-        }),
-        SupportTriageOutcome.RateLimited => Results.Json(
-            new { error = "rate_limited", retryAfterSeconds = 60 }, statusCode: 429),
-        SupportTriageOutcome.UpstreamUnavailable => Results.Json(
-            new { error = "assistant_unavailable" }, statusCode: 503),
-        SupportTriageOutcome.InvalidModelOutput => Results.Json(
-            new { error = "assistant_invalid_output" }, statusCode: 502),
-        _ => Results.Ok(new
-        {
-            category = result.Category.ToString().ToUpperInvariant(),
-            draftResponse = result.DraftResponse,
-            requiresHumanReview = result.RequiresHumanReview,
-            groundedFacts = result.GroundedFacts,
-            model = result.Model,
-            latencyMs = result.LatencyMs,
-            tokens = new { prompt = result.PromptTokens, completion = result.CompletionTokens }
-        })
-    };
-})
-.RequireAuthorization()
-.WithTags("Support")
-.WithName("SupportTriage")
-.WithSummary("Classify a support message, ground it in the real order, and draft a reply (sensitive → human review).");
 
 // Ops runbook: rebuild the reservation counter from PostgreSQL truth after drift.
 app.MapPost("/internal/resync-stock/{id}", async (int id, IOrderReadModel readModel, IStockReservationGateway redis) =>
@@ -878,15 +660,6 @@ public record InboxConsumeApiRequest(Guid MessageId, string ConsumerName);
 
 /// <summary>Body for <c>POST /api/orders/{key}/pay</c> (spec §4 simulation).</summary>
 public record PaymentRequest(string? Outcome);
-
-/// <summary>Body for <c>POST /api/content/{id}/reject</c> (spec §8).</summary>
-public record ContentRejectRequest(string? Reason);
-
-/// <summary>Body for <c>POST /api/support/triage</c> (spec §9).</summary>
-public record SupportTriageRequest(string? Message, string? OrderKey);
-
-/// <summary>Request body for <c>POST /api/assistant/product</c> (spec §10).</summary>
-public record AssistantQuestion(string? Question);
 
 /// <summary>
 /// Exposed so <c>WebApplicationFactory&lt;Program&gt;</c> can boot this exact
