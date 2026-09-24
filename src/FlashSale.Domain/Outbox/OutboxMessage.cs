@@ -43,6 +43,18 @@ public class OutboxMessage
     /// </summary>
     public DateTimeOffset? DeadLetteredAt { get; set; }
 
+    /// <summary>
+    /// Identifies the dispatcher that currently owns the next delivery attempt.
+    /// The token is cleared by success, failure, expiry, or operator requeue.
+    /// </summary>
+    public Guid? ClaimToken { get; set; }
+
+    /// <summary>
+    /// Short lease held during a publish attempt. A crashed dispatcher cannot
+    /// strand a row permanently; another replica may claim it after expiry.
+    /// </summary>
+    public DateTimeOffset? ClaimedUntil { get; set; }
+
     /// <summary>True once the row can no longer be picked up by the dispatcher.</summary>
     public bool IsDeadLettered => DeadLetteredAt is not null;
 

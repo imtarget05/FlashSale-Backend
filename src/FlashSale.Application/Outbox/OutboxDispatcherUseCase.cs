@@ -16,7 +16,8 @@ public sealed class OutboxDispatcherUseCase(
 {
     public async Task<int> ExecuteBatchAsync(int batchSize = 50, CancellationToken ct = default)
     {
-        var messages = await outboxRepository.GetUnprocessedAsync(batchSize, ct);
+        var claimToken = Guid.NewGuid();
+        var messages = await outboxRepository.ClaimBatchAsync(claimToken, batchSize, ct: ct);
         if (messages.Count == 0)
         {
             return 0;
@@ -36,13 +37,13 @@ public sealed class OutboxDispatcherUseCase(
                     msg.Payload);
 
                 await publisher.PublishAsync(@event, ct);
-                await outboxRepository.MarkProcessedAsync(msg.Id, ct);
+                await outboxRepository.MarkProcessedAsync(msg.Id, claimToken, ct);
                 dispatched++;
             }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to dispatch outbox message {Id} ({Type}).", msg.Id, msg.EventType);
-                await outboxRepository.MarkFailedAsync(msg.Id, ex.Message, ct);
+                await outboxRepository.MarkFailedAsync(msg.Id, claimToken, ex.Message, ct);
             }
         }
 

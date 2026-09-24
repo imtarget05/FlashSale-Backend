@@ -15,14 +15,24 @@ public interface IOutboxRepository
     /// </summary>
     Task<IReadOnlyList<OutboxMessage>> GetUnprocessedAsync(int batchSize = 50, CancellationToken ct = default);
 
-    Task MarkProcessedAsync(long id, CancellationToken ct = default);
+    /// <summary>
+    /// Atomically leases eligible rows to one dispatcher. Multiple API replicas
+    /// may poll concurrently without publishing the same row at the same time.
+    /// </summary>
+    Task<IReadOnlyList<OutboxMessage>> ClaimBatchAsync(
+        Guid claimToken,
+        int batchSize = 50,
+        TimeSpan? leaseDuration = null,
+        CancellationToken ct = default);
+
+    Task MarkProcessedAsync(long id, Guid claimToken, CancellationToken ct = default);
 
     /// <summary>
     /// Records a failed attempt: increments RetryCount, applies exponential
     /// backoff to NextAttemptAt, and dead-letters the row once
     /// <see cref="FlashSale.Domain.Outbox.OutboxMessage.MaxRetryCount"/> is reached.
     /// </summary>
-    Task MarkFailedAsync(long id, string error, CancellationToken ct = default);
+    Task MarkFailedAsync(long id, Guid claimToken, string error, CancellationToken ct = default);
 
     /// <summary>
     /// Rows that are NOT progressing: dead-lettered, or waiting on a backoff
