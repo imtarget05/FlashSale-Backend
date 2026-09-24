@@ -174,19 +174,19 @@ patches:
         value:
           postStart:
             exec:
-            command:
-              - /bin/bash
-              - -ec
-              - |
-                for attempt in {1..60}; do
-                  if /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic orders.events --partitions 3 --replication-factor 1 \
-                    && /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic payments.events --partitions 3 --replication-factor 1; then
-                    exit 0
-                  fi
-                  sleep 2
-                done
-                echo "failed to provision local Kafka topics after 120s" >&2
-                exit 1
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  for attempt in {1..60}; do
+                    if /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic orders.events --partitions 3 --replication-factor 1 \
+                      && /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic payments.events --partitions 3 --replication-factor 1; then
+                      exit 0
+                    fi
+                    sleep 2
+                  done
+                  echo "failed to provision local Kafka topics after 120s" >&2
+                  exit 1
   # ---------------------------------------------------------------------------
   # ORDERING (the reason this overlay is not just an image swap).
   #
