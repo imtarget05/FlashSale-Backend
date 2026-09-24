@@ -267,8 +267,26 @@ LIVE GATES STILL PENDING (these block calling Phase 7C "done"):
       the gate, not the meta-tests. Rendered SHAs at push:
       order-api + order-worker = 087731cd0ed6d2aeb5892dd3a8fd6f6da7c0339c
       (ACR_LOGIN_SERVER repo var confirmed = acrflashsalep6.azurecr.io).
+- [x] Re-push P01–P04 chunks (3 commits, main 09d4a71→7135619) + security
+      harden (ee8a992). EVIDENCE 2026-09-24:
+      - Run 36031141116: 5/6 gates success, ci-gate FAIL only on security-scan
+        (Trivy KSV-0014 + KSV-0118 HIGH x3 on kafka StatefulSet — no
+        readOnlyRootFilesystem / default security context).
+      - Fix: kafka pod+container securityContext (runAsNonRoot 1001,
+        readOnlyRootFilesystem, drop ALL) + initContainer seeds writable
+        /opt/kafka/config + emptyDir /tmp + /opt/kafka/logs. Broker verified
+        1/1 Running on kind local-platform; local validate-manifests PASS +
+        mutation suite 21/21 caught.
+      - Run 36032375792 (fix on board): ci-gate SUCCESS — all of build-and-unit,
+        integration-tests, concurrency-harness, security-scan, docker-build-scan,
+        manifest-validation green. release-push FAIL (Azure OIDC login:
+        AADSTS700016 — federated app not in tenant; subscription/credential
+        issue, NOT code). gitops-update skipped as consequence. Fix belongs to
+        Azure tenant/app registration, out of P01 scope per ownership boundary.
+      Mutation suite note: now 21/21 (was 19/19) — assertions added since.
 - [ ] Server-side dry-run against the real AKS cluster (client render alone
-      cannot see admission webhooks / quota).
+      cannot see admission webhooks / quota). (LOCAL OPTION per user 2026-09-24:
+      kind local-platform counts — see Phase 7C localhost variant below.)
 - [ ] Pods Ready (API x2 + worker + migration Job Completed).
 - [ ] 202 → Completed E2E: POST /api/orders returns 202 AND the order actually
       completes via RabbitMQ + worker (the original 7C silent-InMemory bug).
