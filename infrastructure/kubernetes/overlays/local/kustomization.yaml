@@ -47,10 +47,8 @@ images:
     newTag: local
 
 patches:
-  # Topic creation is an explicit Kubernetes workload. A postStart hook blocks
-  # the broker container while Kafka starts, and every topic CLI call may wait on
-  # its own admin timeout. The Job starts in a later sync wave and has a bounded
-  # per-attempt timeout, so broker readiness is never coupled to topic setup.
+  # Kafka runs at wave -3. Topic initialization is a normal resource at wave
+  # -2; both topic commands are idempotent and do not run inside broker startup.
   - target:
       kind: Job
       name: kafka-topic-init
