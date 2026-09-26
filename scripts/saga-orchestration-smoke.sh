@@ -5,6 +5,15 @@
 set -euo pipefail
 
 GATEWAY="${GATEWAY_URL:-http://127.0.0.1:8088}"
+# POST /api/saga/checkout needs any authenticated caller, and GET /api/saga/{key}
+# is a STAFF/ADMIN view of the saga machine. Export a STAFF access token (one
+# token satisfies both) before running, e.g.
+#   export OPS_TOKEN=$(curl -s -X POST "$GATEWAY/api/auth/login" \
+#     -H 'Content-Type: application/json' \
+#     -d '{"email":"staff@flashsale.local","password":"<Bootstrap:StaffPassword>"}' \
+#     | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+: "${OPS_TOKEN:?set OPS_TOKEN to a STAFF access token; the saga checkout/read endpoints require a token}"
+OPS_AUTH=(-H "Authorization: Bearer $OPS_TOKEN")
 HOST_HEADER="Host: flashsale.local"
 PASS=0
 FAIL=0
@@ -50,7 +59,7 @@ TS=$(date +%s)
 echo ""
 echo "--- Scenario 1: Happy Path (.01 -> Success -> Confirmed) ---"
 KEY1="saga-live-happy-$TS"
-RESP1=$(curl -s -X POST -H "$HOST_HEADER" -H "Content-Type: application/json" \
+RESP1=$(curl -s -X POST -H "$HOST_HEADER" -H "Content-Type: application/json" "${OPS_AUTH[@]}" \
   -d "{\"productId\":2,\"quantity\":1,\"amount\":5490000.01,\"idempotencyKey\":\"$KEY1\"}" \
   "$GATEWAY/api/saga/checkout")
 
@@ -59,7 +68,7 @@ SUCCESS1=$(printf '%s' "$RESP1" | field "success")
 check "Scenario 1 Success Flag" "true" "$SUCCESS1"
 check "Scenario 1 Status (3=Completed)" "3" "$STATUS1"
 
-SAGA1=$(curl -s -H "$HOST_HEADER" "$GATEWAY/api/saga/$KEY1")
+SAGA1=$(curl -s -H "$HOST_HEADER" "${OPS_AUTH[@]}" "$GATEWAY/api/saga/$KEY1")
 INV1=$(printf '%s' "$SAGA1" | field "inventoryStatus")
 PAY1=$(printf '%s' "$SAGA1" | field "paymentStatus")
 check "Scenario 1 InventoryStatus (1=Reserved)" "1" "$INV1"
@@ -71,12 +80,12 @@ echo "--- Scenario 2: Payment Decline (.02 -> Declined -> Compensated) ---"
 KEY2="saga-live-decline-$TS"
 BEFORE_STOCK2=$(curl -s -H "$HOST_HEADER" "$GATEWAY/api/products/2" | field "availableStock")
 
-HTTP_CODE2=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "$HOST_HEADER" -H "Content-Type: application/json" \
+HTTP_CODE2=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "$HOST_HEADER" -H "Content-Type: application/json" "${OPS_AUTH[@]}" \
   -d "{\"productId\":2,\"quantity\":2,\"amount\":5490000.02,\"idempotencyKey\":\"$KEY2\"}" \
   "$GATEWAY/api/saga/checkout")
 check "Scenario 2 HTTP Status (422 Unprocessable)" "422" "$HTTP_CODE2"
 
-SAGA2=$(curl -s -H "$HOST_HEADER" "$GATEWAY/api/saga/$KEY2")
+SAGA2=$(curl -s -H "$HOST_HEADER" "${OPS_AUTH[@]}" "$GATEWAY/api/saga/$KEY2")
 STATUS2=$(printf '%s' "$SAGA2" | field "status")
 INV2=$(printf '%s' "$SAGA2" | field "inventoryStatus")
 PAY2=$(printf '%s' "$SAGA2" | field "paymentStatus")
@@ -96,12 +105,12 @@ echo "--- Scenario 3: Payment Timeout (.03 -> Retries Exhausted -> Compensated) 
 KEY3="saga-live-timeout-$TS"
 BEFORE_STOCK3=$(curl -s -H "$HOST_HEADER" "$GATEWAY/api/products/2" | field "availableStock")
 
-HTTP_CODE3=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "$HOST_HEADER" -H "Content-Type: application/json" \
+HTTP_CODE3=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "$HOST_HEADER" -H "Content-Type: application/json" "${OPS_AUTH[@]}" \
   -d "{\"productId\":2,\"quantity\":1,\"amount\":5490000.03,\"idempotencyKey\":\"$KEY3\"}" \
   "$GATEWAY/api/saga/checkout")
 check "Scenario 3 HTTP Status (422 Unprocessable)" "422" "$HTTP_CODE3"
 
-SAGA3=$(curl -s -H "$HOST_HEADER" "$GATEWAY/api/saga/$KEY3")
+SAGA3=$(curl -s -H "$HOST_HEADER" "${OPS_AUTH[@]}" "$GATEWAY/api/saga/$KEY3")
 STATUS3=$(printf '%s' "$SAGA3" | field "status")
 INV3=$(printf '%s' "$SAGA3" | field "inventoryStatus")
 PAY3=$(printf '%s' "$SAGA3" | field "paymentStatus")
@@ -116,12 +125,12 @@ check "Scenario 3 Stock Restored After Compensation" "$BEFORE_STOCK3" "$AFTER_ST
 echo ""
 echo "--- Scenario 4: Fast-Fail Inventory SoldOut (No Payment Invocation) ---"
 KEY4="saga-live-soldout-$TS"
-HTTP_CODE4=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "$HOST_HEADER" -H "Content-Type: application/json" \
+HTTP_CODE4=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "$HOST_HEADER" -H "Content-Type: application/json" "${OPS_AUTH[@]}" \
   -d "{\"productId\":1,\"quantity\":99999,\"amount\":49.01,\"idempotencyKey\":\"$KEY4\"}" \
   "$GATEWAY/api/saga/checkout")
 check "Scenario 4 HTTP Status (400 Bad Request)" "400" "$HTTP_CODE4"
 
-SAGA4=$(curl -s -H "$HOST_HEADER" "$GATEWAY/api/saga/$KEY4")
+SAGA4=$(curl -s -H "$HOST_HEADER" "${OPS_AUTH[@]}" "$GATEWAY/api/saga/$KEY4")
 STATUS4=$(printf '%s' "$SAGA4" | field "status")
 INV4=$(printf '%s' "$SAGA4" | field "inventoryStatus")
 check "Scenario 4 Status (6=Failed)" "6" "$STATUS4"
@@ -130,7 +139,7 @@ check "Scenario 4 InventoryStatus (3=Rejected)" "3" "$INV4"
 # --- Scenario 5: Duplicate Idempotent Replay ---
 echo ""
 echo "--- Scenario 5: Duplicate Idempotency Replay Guard ---"
-REPLAY1=$(curl -s -X POST -H "$HOST_HEADER" -H "Content-Type: application/json" \
+REPLAY1=$(curl -s -X POST -H "$HOST_HEADER" -H "Content-Type: application/json" "${OPS_AUTH[@]}" \
   -d "{\"productId\":2,\"quantity\":1,\"amount\":5490000.01,\"idempotencyKey\":\"$KEY1\"}" \
   "$GATEWAY/api/saga/checkout")
 REPLAY_SUCCESS1=$(printf '%s' "$REPLAY1" | field "success")

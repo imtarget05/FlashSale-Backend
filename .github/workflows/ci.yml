@@ -105,6 +105,15 @@ jobs:
         run: dotnet build AzureFlashSale.slnx
       - name: Install psql client (audit tooling for the harness)
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Mint a throwaway ops credential for this run
+        # The harness calls POST /internal/resync-stock, which is STAFF/ADMIN
+        # only. The password is generated per run so nothing reusable is ever
+        # committed, and the API seeds its STAFF account from it.
+        run: |
+          set -euo pipefail
+          python3 -c 'import secrets; print(secrets.token_urlsafe(24))' > ops-password.txt
+          echo "::add-mask::$(cat ops-password.txt)"
+          echo "OPS_STAFF_PASSWORD=$(cat ops-password.txt)" >> "$GITHUB_ENV"
       - name: Start API in background
         run: |
           # ADR-005 as corrected in 7C: nothing configured no longer silently
@@ -119,6 +128,7 @@ jobs:
           # launchSettings being honoured in CI.
           Messaging__Provider=InMemory \
           ASPNETCORE_ENVIRONMENT=Development \
+          Bootstrap__StaffPassword="$OPS_STAFF_PASSWORD" \
           nohup dotnet run --project src/Order.Api --urls http://localhost:5065 > api.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:5065/healthz && break; sleep 1; done
           # Fail HERE if the API never came up, so a startup crash reports as a
@@ -126,10 +136,29 @@ jobs:
           # missing-table error in the harness step.
           curl -sf http://localhost:5065/healthz \
             || { echo "API did not become healthy; api.log:"; tail -40 api.log; exit 1; }
+      - name: Log in as the seeded STAFF account
+        # Without this the harness cannot call the resync runbook, Redis would keep
+        # the pre-test stock counter, and the audit would measure the wrong number
+        # while still reporting PASS.
+        run: |
+          set -euo pipefail
+          login=""
+          for i in $(seq 1 30); do
+            login=$(curl -sf -X POST http://localhost:5065/api/auth/login \
+              -H 'Content-Type: application/json' \
+              -d "{\"email\":\"staff@flashsale.local\",\"password\":\"$OPS_STAFF_PASSWORD\"}" || true)
+            [ -n "$login" ] && break
+            sleep 1
+          done
+          token=$(printf '%s' "$login" | python3 -c 'import json,sys; print(json.load(sys.stdin)["accessToken"])')
+          echo "::add-mask::$token"
+          echo "OPS_TOKEN=$token" >> "$GITHUB_ENV"
       - name: Concurrency harness — inventory must be conserved (no overselling)
         run: |
+          set -euo pipefail
           python3 load-tests/concurrency/oversell_demo.py \
-            --stock 10 --requests 50 --psql-container '' --settle-seconds 3 | tee result.txt
+            --stock 10 --requests 50 --psql-container '' --settle-seconds 3 \
+            --ops-token "$OPS_TOKEN" | tee result.txt
           grep -q "RESULT: PASS" result.txt
       - uses: actions/upload-artifact@v4
         if: always()

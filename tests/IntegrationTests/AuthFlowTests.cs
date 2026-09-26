@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using FlashSale.Application.Auth;
 using FlashSale.Domain;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 
 namespace FlashSale.IntegrationTests;
 
@@ -32,6 +33,11 @@ public sealed class AuthFlowTests : IAsyncLifetime
 
     /// <summary>Must be >= 32 bytes, or JwtOptions refuses to start.</summary>
     private const string SigningKey = "integration-test-signing-key-at-least-32-bytes";
+
+    /// <summary>Seed credential for the STAFF account, supplied as configuration.</summary>
+    private const string StaffPassword = "ops-only-password-from-config";
+
+    private const string StaffEmail = "staff@flashsale.local";
 
     private readonly FlashSaleFixture _fx;
     private readonly Dictionary<string, string?> _previousEnvironment = [];
@@ -76,6 +82,10 @@ public sealed class AuthFlowTests : IAsyncLifetime
             // host, so an accepted order reaches Completed without a second process.
             ["Messaging__Provider"] = "InMemory",
             ["Auth__Jwt__SigningKey"] = SigningKey,
+            // The STAFF account used to be seeded from a password literal in
+            // DatabaseInitializer. It is now opt-in via configuration, which is
+            // why the ops read below authenticates instead of assuming a seed.
+            ["Bootstrap__StaffPassword"] = StaffPassword,
         };
 
         foreach (var (key, value) in values)
@@ -122,14 +132,22 @@ public sealed class AuthFlowTests : IAsyncLifetime
         return (await response.Content.ReadFromJsonAsync<AuthResponse>())!;
     }
 
-    private async Task<string?> WaitForCompletionAsync(string idempotencyKey)
+    /// <summary>
+    /// Poll until the worker has persisted the order.
+    /// </summary>
+    /// <remarks>
+    /// The caller must be the order's OWNER. <c>GET /api/orders/{key}</c> is
+    /// authenticated and ownership-checked (the key is client-supplied, so it was
+    /// never a capability); passing the anonymous client here would now get 401.
+    /// </remarks>
+    private async Task<string?> WaitForCompletionAsync(HttpClient client, string idempotencyKey)
     {
         var deadline = DateTime.UtcNow.AddSeconds(30);
         string? status = null;
 
         while (DateTime.UtcNow < deadline)
         {
-            var view = await _client.GetFromJsonAsync<OrderStatusResponse>($"/api/orders/{idempotencyKey}");
+            var view = await client.GetFromJsonAsync<OrderStatusResponse>($"/api/orders/{idempotencyKey}");
             status = view?.Status;
             if (status == "completed") return status;
             await Task.Delay(250);
@@ -192,7 +210,7 @@ public sealed class AuthFlowTests : IAsyncLifetime
             $"order was not accepted: {(int)orderResponse.StatusCode} {await orderResponse.Content.ReadAsStringAsync()}");
 
         // 6. 202 Accepted is not "done" — wait for the pipeline to persist it
-        Assert.Equal("completed", await WaitForCompletionAsync(idempotencyKey));
+        Assert.Equal("completed", await WaitForCompletionAsync(authed, idempotencyKey));
 
         // 7. the caller's own history contains exactly this order
         var mine = await authed.GetFromJsonAsync<MyOrdersResponse>("/orders/me");
@@ -271,7 +289,7 @@ public sealed class AuthFlowTests : IAsyncLifetime
         };
         orderRequest.Headers.Add("Idempotency-Key", key);
         await aliceClient.SendAsync(orderRequest);
-        Assert.Equal("completed", await WaitForCompletionAsync(key));
+        Assert.Equal("completed", await WaitForCompletionAsync(aliceClient, key));
 
         var aliceOrders = await aliceClient.GetFromJsonAsync<MyOrdersResponse>("/orders/me");
         var bobOrders = await bobClient.GetFromJsonAsync<MyOrdersResponse>("/orders/me");
@@ -308,7 +326,25 @@ public sealed class AuthFlowTests : IAsyncLifetime
             response.StatusCode is HttpStatusCode.Accepted or HttpStatusCode.OK,
             $"anonymous order was rejected: {(int)response.StatusCode}");
 
-        Assert.Equal("completed", await WaitForCompletionAsync(key));
+        // Fulfilment is checked against the database rather than over
+        // GET /api/orders/{key}: that endpoint is now authenticated and
+        // owner-scoped, and an anonymous order has no owner, so only STAFF/ADMIN
+        // can poll it. The invariant under test is the ANONYMOUS PLACEMENT, and
+        // this still proves the order reached the database.
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        int? persistedOrderId = null;
+        while (DateTime.UtcNow < deadline)
+        {
+            await using var db = _fx.CreateDbContext();
+            persistedOrderId = await db.Orders
+                .Where(o => o.IdempotencyKey == key)
+                .Select(o => (int?)o.Id)
+                .FirstOrDefaultAsync();
+            if (persistedOrderId is not null) break;
+            await Task.Delay(250);
+        }
+
+        Assert.True(persistedOrderId is not null, "the anonymous order never reached the database");
     }
 
     [Fact]
@@ -348,10 +384,22 @@ public sealed class AuthFlowTests : IAsyncLifetime
         await authed.GetAsync("/api/auth/me");
         await _client.PostAsJsonAsync("/api/auth/login", new LoginRequest(NewEmail(), "wrong-password-entirely"));
 
-        var metrics = await _client.GetStringAsync("/internal/metrics");
+        // /internal/metrics is an ops read (it counts auth successes and failures),
+        // so it is read as STAFF. Anonymous access here used to be asserted and was
+        // the leak; the assertion that mattered — the counters this flow produced —
+        // is unchanged.
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _client.GetAsync("/internal/metrics")).StatusCode);
 
-        Assert.Contains("flashsale.auth.registrations", metrics);
-        Assert.Contains("reason=invalid_credentials", metrics);
-        Assert.Contains("flashsale.http.request.duration", metrics);
+        var staffLogin = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequest(StaffEmail, StaffPassword));
+        Assert.Equal(HttpStatusCode.OK, staffLogin.StatusCode);
+        var staff = Authorized((await staffLogin.Content.ReadFromJsonAsync<AuthResponse>())!.AccessToken);
+        using (staff)
+        {
+            var metrics = await staff.GetStringAsync("/internal/metrics");
+
+            Assert.Contains("flashsale.auth.registrations", metrics);
+            Assert.Contains("reason=invalid_credentials", metrics);
+            Assert.Contains("flashsale.http.request.duration", metrics);
+        }
     }
 }

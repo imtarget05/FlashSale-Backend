@@ -21,9 +21,16 @@ export Auth__Jwt__SigningKey='dev-only-insecure-local-signing-key-change-me'
 export Messaging__Provider=RabbitMQ
 export Automation__Inventory__DefaultReorderThreshold=5
 
-psql_db() { docker exec flashsale-authclean-postgres-1 psql -U postgres -d FlashSaleDb -tAc "$1"; }
+# The /internal/** and /api/outbox/** runbook endpoints are STAFF/ADMIN only.
+# Export a STAFF access token before running, e.g.:
+#   export OPS_TOKEN=$(curl -s -X POST "$BASE/api/auth/login" \
+#     -H 'Content-Type: application/json' \
+#     -d '{"email":"staff@flashsale.local","password":"<Bootstrap:StaffPassword>"}' \
+#     | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+OPS_TOKEN=${OPS_TOKEN:?set OPS_TOKEN to a STAFF access token; the runbook endpoints require STAFF/ADMIN}
+opsauth=(-H "Authorization: Bearer $OPS_TOKEN")psql_db() { docker exec flashsale-authclean-postgres-1 psql -U postgres -d FlashSaleDb -tAc "$1"; }
 set_stock() { psql_db "UPDATE \"Products\" SET \"AvailableStock\"=$1 WHERE \"Id\"=1" > /dev/null; }
-scan() { curl -s -X POST "$BASE/internal/automation/low-stock-scan"; }
+scan() { curl -s "${opsauth[@]}" -X POST "$BASE/internal/automation/low-stock-scan"; }
 
 rm -f /tmp/lowstockapi.log
 dotnet run --project src/Order.Api/Order.Api.csproj --no-build --no-launch-profile > /tmp/lowstockapi.log 2>&1 &

@@ -76,6 +76,6 @@ public sealed class PaymentRepository(AppDbContext db) : IPaymentRepository
         await db.Orders.AsNoTracking()
             .Where(o => o.IdempotencyKey == idempotencyKey)
             .Select(o => new PaymentOrderView(
-                o.Id, o.ProductId, o.Quantity, o.IdempotencyKey, o.Status))
+                o.Id, o.ProductId, o.Quantity, o.IdempotencyKey, o.Status, o.UserId))
             .FirstOrDefaultAsync(ct);
 }

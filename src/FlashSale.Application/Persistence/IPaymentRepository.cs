@@ -13,12 +13,18 @@ public sealed record PendingPaymentView(
     int PaymentReminderCount);
 
 /// <summary>Order lookup for the payment-recording endpoint (spec §4 paid branch).</summary>
+/// <param name="UserId">
+/// Owner, or <c>null</c> for an anonymous order. The pay endpoint is order-scoped,
+/// so "may this caller drive THIS order to Confirmed" is a resource question
+/// answered by comparing this against the JWT <c>sub</c>.
+/// </param>
 public sealed record PaymentOrderView(
     int OrderId,
     int ProductId,
     int Quantity,
     string IdempotencyKey,
-    OrderStatus Status);
+    OrderStatus Status,
+    Guid? UserId);
 
 /// <summary>
 /// Port: payment/stock lifecycle transitions with STATUS GUARDS, so every

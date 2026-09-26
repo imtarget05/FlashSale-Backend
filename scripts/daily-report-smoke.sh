@@ -21,7 +21,14 @@ export ConnectionStrings__RabbitMQ='amqp://guest:guest@localhost:5672/'
 export Auth__Jwt__SigningKey='dev-only-insecure-local-signing-key-change-me'
 export Messaging__Provider=RabbitMQ
 
-psql_db() { docker exec flashsale-authclean-postgres-1 psql -U postgres -d FlashSaleDb -tAc "$1"; }
+# The /internal/** and /api/outbox/** runbook endpoints are STAFF/ADMIN only.
+# Export a STAFF access token before running, e.g.:
+#   export OPS_TOKEN=$(curl -s -X POST "$BASE/api/auth/login" \
+#     -H 'Content-Type: application/json' \
+#     -d '{"email":"staff@flashsale.local","password":"<Bootstrap:StaffPassword>"}' \
+#     | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+OPS_TOKEN=${OPS_TOKEN:?set OPS_TOKEN to a STAFF access token; the runbook endpoints require STAFF/ADMIN}
+opsauth=(-H "Authorization: Bearer $OPS_TOKEN")psql_db() { docker exec flashsale-authclean-postgres-1 psql -U postgres -d FlashSaleDb -tAc "$1"; }
 
 rm -f /tmp/reportapi.log
 dotnet run --project src/Order.Api/Order.Api.csproj --no-build --no-launch-profile > /tmp/reportapi.log 2>&1 &
@@ -37,7 +44,7 @@ echo "API ready"
 psql_db "DELETE FROM \"DailyReports\"" > /dev/null
 
 echo "--- (1) trigger the daily report ---"
-R1=$(curl -s -X POST "$BASE/internal/automation/daily-report")
+R1=$(curl -s "${opsauth[@]}" -X POST "$BASE/internal/automation/daily-report")
 echo "$R1" | head -c 400; echo
 contains "report has reportDate" '"reportDate"' "$R1"
 contains "report has totalOrders" '"totalOrders"' "$R1"
@@ -52,13 +59,13 @@ check "one row persisted for today" "1" "$(psql_db "SELECT count(*) FROM \"Daily
 
 echo "--- (2) rerun same day -> upsert (same row id) ---"
 ID1=$(printf '%s' "$R1" | numfield id)
-R2=$(curl -s -X POST "$BASE/internal/automation/daily-report")
+R2=$(curl -s "${opsauth[@]}" -X POST "$BASE/internal/automation/daily-report")
 ID2=$(printf '%s' "$R2" | numfield id)
 check "rerun upserts the same report row" "$ID1" "$ID2"
 check "still exactly one row for today" "1" "$(psql_db "SELECT count(*) FROM \"DailyReports\" WHERE \"ReportDate\"='$TODAY'")"
 
 echo "--- (3) GET latest ---"
-CODE=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/internal/automation/daily-report/latest")
+CODE=$(curl -s "${opsauth[@]}" -o /dev/null -w '%{http_code}' "$BASE/internal/automation/daily-report/latest")
 check "GET latest -> 200" "200" "$CODE"
 
 echo "--- (4) audit trail (spec §11) ---"

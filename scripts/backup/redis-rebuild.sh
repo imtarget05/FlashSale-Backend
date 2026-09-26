@@ -11,6 +11,11 @@ COMPOSE_PROJECT="${COMPOSE_PROJECT:-flashsale-backend}"
 REDIS_CONTAINER="${REDIS_CONTAINER:-${COMPOSE_PROJECT}-redis-1}"
 API="${API_BASE:-http://localhost:5199}"
 : "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD before the drill.}"
+# The resync runbook endpoint is STAFF/ADMIN only. Export a STAFF access token
+# before running: OPS_TOKEN=$(curl -s -X POST "$API/api/auth/login" -H
+# 'Content-Type: application/json' -d '{"email":"staff@flashsale.local",
+# "password":"<Bootstrap:StaffPassword>"}' | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+: "${OPS_TOKEN:?Set OPS_TOKEN to a STAFF access token; the resync runbook requires STAFF/ADMIN}"
 
 echo "==> DB-side truth before drill"
 docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" "$COMPOSE_PROJECT-postgres-1" \
@@ -22,7 +27,7 @@ BEFORE="$(docker exec "$REDIS_CONTAINER" redis-cli DBSIZE)"
 echo "keys after wipe: $BEFORE"
 
 echo "==> reseeding via /internal/resync-stock/1"
-curl -s -X POST "$API/internal/resync-stock/1"; echo
+curl -s -X POST -H "Authorization: Bearer $OPS_TOKEN" "$API/internal/resync-stock/1"; echo
 
 echo "==> validating rebuilt mirror"
 PRODUCT="$(curl -s "$API/api/products/1")"

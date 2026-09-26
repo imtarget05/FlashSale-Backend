@@ -5,12 +5,18 @@ namespace FlashSale.Application.Persistence;
 public sealed record ProductView(int Id, string Name, int AvailableStock, decimal FlashSalePrice, string Description);
 
 /// <summary>Read model for order status polling (202-accepted -> completed).</summary>
+/// <param name="UserId">
+/// Owner, or <c>null</c> for an anonymous order. Carried here so the endpoint can
+/// authorize the READ against the JWT <c>sub</c> instead of treating a
+/// high-entropy idempotency key as a capability.
+/// </param>
 public sealed record OrderStatusView(
     string IdempotencyKey,
     int OrderId,
     int ProductId,
     int Quantity,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    Guid? UserId);
 
 /// <summary>One row of a user's own order history (<c>GET /orders/me</c>).</summary>
 public sealed record OrderSummaryView(
