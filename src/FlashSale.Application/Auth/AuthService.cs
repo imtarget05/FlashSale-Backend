@@ -17,7 +17,33 @@ public sealed class AuthService(
     ITokenIssuer tokens,
     ILogger<AuthService> logger)
 {
-    public async Task<AuthResult> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
+    /// <summary>
+    /// Public self-service registration. The role is a hard-coded
+    /// <see cref="AuthRoles.Customer"/> and is deliberately NOT read from the
+    /// request: a role the caller gets to choose is not an authorization control,
+    /// so <c>{"role":"ADMIN"}</c> in the body would be a privilege escalation
+    /// rather than a feature. Elevation happens only through
+    /// <see cref="BootstrapAdminAsync"/>, behind the operator-held secret.
+    /// </summary>
+    public Task<AuthResult> RegisterAsync(RegisterRequest request, CancellationToken ct = default) =>
+        CreateAsync(request, AuthRoles.Customer, ct);
+
+    /// <summary>
+    /// First-admin bootstrap: create the initial <see cref="AuthRoles.Admin"/>
+    /// account. The caller is an operator holding the configured bootstrap
+    /// secret, not an end user — that gate is a transport concern and lives in
+    /// <c>BootstrapOptions</c>, so it is deliberately not re-implemented here.
+    /// </summary>
+    /// <remarks>
+    /// This CREATES and never PROMOTES. Promoting an existing account would hand
+    /// it to whoever had already registered that email the moment an operator ran
+    /// the bootstrap, so an already-registered email is a conflict here and the
+    /// operator picks a fresh one.
+    /// </remarks>
+    public Task<AuthResult> BootstrapAdminAsync(RegisterRequest request, CancellationToken ct = default) =>
+        CreateAsync(request, AuthRoles.Admin, ct);
+
+    private async Task<AuthResult> CreateAsync(RegisterRequest request, string role, CancellationToken ct)
     {
         if (!AuthValidation.IsValidEmail(request.Email))
             return AuthResult.Failure(AuthError.Validation, "A valid email address is required.");
@@ -32,7 +58,7 @@ public sealed class AuthService(
             Id = Guid.NewGuid(),
             Email = AuthValidation.NormalizeEmail(request.Email),
             PasswordHash = hasher.Hash(request.Password),
-            Role = AuthRoles.Customer,
+            Role = role,
             TokenVersion = 0,
             CreatedAt = DateTime.UtcNow,
         };

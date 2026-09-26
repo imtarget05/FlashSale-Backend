@@ -1,3 +1,4 @@
+using FlashSale.Application.Auth;
 using FlashSale.Application.Automation;
 using FlashSale.Application.Events;
 using FlashSale.Application.Messaging;
@@ -180,8 +181,12 @@ public sealed class PaymentAutomationTests(FlashSaleFixture fx)
             new AutomationRunRepository(db), publisher,
             NullLogger<RecordPaymentUseCase>.Instance);
 
-        var first = await useCase.ExecuteAsync(key, PaymentOutcome.Completed, CancellationToken.None);
-        var second = await useCase.ExecuteAsync(key, PaymentOutcome.Completed, CancellationToken.None);
+        // These are use-case tests, not HTTP tests: the caller is the platform
+        // itself (an operator runbook / the timer), so the identity is explicit
+        // rather than implied. The HTTP ownership path is covered in
+        // EndpointAuthorizationTests.
+        var first = await useCase.ExecuteAsync(key, PaymentOutcome.Completed, CallerIdentity.Operator, CancellationToken.None);
+        var second = await useCase.ExecuteAsync(key, PaymentOutcome.Completed, CallerIdentity.Operator, CancellationToken.None);
 
         Assert.True(first.Found);
         Assert.True(first.Transitioned);
@@ -213,7 +218,7 @@ public sealed class PaymentAutomationTests(FlashSaleFixture fx)
             new AutomationRunRepository(db), publisher,
             NullLogger<RecordPaymentUseCase>.Instance);
 
-        var result = await useCase.ExecuteAsync(key, PaymentOutcome.Failed, CancellationToken.None);
+        var result = await useCase.ExecuteAsync(key, PaymentOutcome.Failed, CallerIdentity.Operator, CancellationToken.None);
 
         Assert.True(result.Transitioned);
         var order = await db.Orders.SingleAsync(o => o.Id == orderId);

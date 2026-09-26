@@ -21,6 +21,14 @@ KAFKA_NS=default
 GATEWAY="${GATEWAY_URL:-http://127.0.0.1:8088}"
 HOST_HEADER="Host: flashsale.local"
 API="${API_URL:-$GATEWAY}"
+# /api/outbox/** and /api/inbox/consume are STAFF/ADMIN runbook endpoints. Export
+# a STAFF access token before running, e.g.
+#   export OPS_TOKEN=$(curl -s -X POST "$API/api/auth/login" \
+#     -H 'Content-Type: application/json' \
+#     -d '{"email":"staff@flashsale.local","password":"<Bootstrap:StaffPassword>"}' \
+#     | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+: "${OPS_TOKEN:?set OPS_TOKEN to a STAFF access token; the outbox/inbox runbook requires STAFF/ADMIN}"
+OPS_AUTH=(-H "Authorization: Bearer $OPS_TOKEN")
 PASS=0
 FAIL=0
 
@@ -52,7 +60,7 @@ api() { curl -s --max-time 15 -H "$HOST_HEADER" "$API$1"; }
 # rejected with 400 before it ever reaches the repository — always send `{}`.
 api_post() {
   curl -s --max-time 15 -X POST -H "$HOST_HEADER" -H 'Content-Type: application/json' \
-    -d '{}' "$API$1"
+    "${OPS_AUTH[@]}" -d '{}' "$API$1"
 }
 
 # Fail with an actionable message instead of `set -e` aborting inside field()
@@ -218,10 +226,12 @@ echo ""
 echo "--- Scenario C: consumer replay must not double-apply ---"
 MID=$(python3 -c "import uuid;print(uuid.uuid4())")
 FIRST=$(curl -s --max-time 10 -X POST -H "$HOST_HEADER" -H 'Content-Type: application/json' \
+  "${OPS_AUTH[@]}" \
   -d "{\"messageId\":\"$MID\",\"consumerName\":\"recovery-smoke\"}" "$API/api/inbox/consume")
 DUPES=0
 for _ in 1 2 3 4; do
   R=$(curl -s --max-time 10 -X POST -H "$HOST_HEADER" -H 'Content-Type: application/json' \
+    "${OPS_AUTH[@]}" \
     -d "{\"messageId\":\"$MID\",\"consumerName\":\"recovery-smoke\"}" "$API/api/inbox/consume")
   printf '%s' "$R" | grep -q '"deduplicated"' && DUPES=$((DUPES + 1))
 done

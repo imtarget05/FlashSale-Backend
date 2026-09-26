@@ -10,6 +10,16 @@ GATEWAY="${GATEWAY_URL:-http://127.0.0.1:8088}"
 H="Host: flashsale.local"
 TS=$(date +%s)
 
+# POST /api/saga/checkout needs an authenticated caller and GET /api/saga/{key} is
+# a STAFF/ADMIN view of the saga machine, so one STAFF token covers both. Export
+# it before running, e.g.
+#   export OPS_TOKEN=$(curl -s -X POST "$GATEWAY/api/auth/login" -H "$H" \
+#     -H 'Content-Type: application/json' \
+#     -d '{"email":"staff@flashsale.local","password":"<Bootstrap:StaffPassword>"}' \
+#     | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+OPS_TOKEN=${OPS_TOKEN:?set OPS_TOKEN to a STAFF access token; the saga checkout/read endpoints require a token}
+A="Authorization: Bearer $OPS_TOKEN"
+
 fail() {
   echo "ERROR: $*" >&2
   exit 1
@@ -33,16 +43,16 @@ kubectl --context kind-local-platform -n flashsale get jobs \
 echo ""
 echo "=== 2/4 saga happy-path + decline compensation ==="
 KEY1="demo-happy-$TS"
-RESP1=$(curl -sS -H "$H" -X POST "$GATEWAY/api/saga/checkout" -H 'Content-Type: application/json' \
+RESP1=$(curl -sS -H "$H" -H "$A" -X POST "$GATEWAY/api/saga/checkout" -H 'Content-Type: application/json' \
   -d "{\"idempotencyKey\":\"$KEY1\",\"productId\":2,\"quantity\":1,\"amount\":5490000.01}" --max-time 60)
 json_contains "$RESP1" '"success":true' || fail "Happy-path Saga response did not report success: $RESP1"
 json_contains "$RESP1" '"status":3' || fail "Happy-path Saga did not complete: $RESP1"
 printf '%s\n' "$RESP1"
 KEY2="demo-decline-$TS"
-HTTP2=$(curl -sS -o /tmp/demo-saga-decline.json -w '%{http_code}' -H "$H" -X POST "$GATEWAY/api/saga/checkout" -H 'Content-Type: application/json' \
+HTTP2=$(curl -sS -o /tmp/demo-saga-decline.json -w '%{http_code}' -H "$H" -H "$A" -X POST "$GATEWAY/api/saga/checkout" -H 'Content-Type: application/json' \
   -d "{\"idempotencyKey\":\"$KEY2\",\"productId\":2,\"quantity\":2,\"amount\":5490000.02}" --max-time 60)
 [ "$HTTP2" = "422" ] || fail "Decline compensation expected HTTP 422, got $HTTP2"
-SAGA2=$(curl -sS -H "$H" "$GATEWAY/api/saga/$KEY2" --max-time 15)
+SAGA2=$(curl -sS -H "$H" -H "$A" "$GATEWAY/api/saga/$KEY2" --max-time 15)
 json_contains "$SAGA2" '"status":5' || fail "Decline Saga was not compensated: $SAGA2"
 json_contains "$SAGA2" '"inventoryStatus":2' || fail "Inventory was not released: $SAGA2"
 printf 'compensation: %s\n' "$SAGA2"

@@ -1,3 +1,4 @@
+using FlashSale.Application.Auth;
 using FlashSale.Application.Events;
 using FlashSale.Application.Persistence;
 using FlashSale.Domain.Automation;
@@ -13,7 +14,15 @@ public enum PaymentOutcome
     Failed
 }
 
-public sealed record RecordPaymentResult(bool Found, bool Transitioned);
+public sealed record RecordPaymentResult(bool Found, bool Transitioned)
+{
+    /// <summary>
+    /// The order exists, but the caller is neither its owner nor Staff/Admin.
+    /// A third state rather than folding it into "not found", so the endpoint can
+    /// answer 403 honestly instead of pretending the order does not exist.
+    /// </summary>
+    public bool Forbidden { get; init; }
+}
 
 /// <summary>
 /// Records a payment attempt against a PENDING_PAYMENT order (spec §4):
@@ -30,12 +39,34 @@ public sealed class RecordPaymentUseCase(
     IDomainEventPublisher publisher,
     ILogger<RecordPaymentUseCase> logger)
 {
+    /// <summary>
+    /// Recording a payment drives an order to
+    /// <c>Confirmed</c> and releases revenue-side events, so it is a
+    /// STATE-MUTATING, order-scoped action: the caller must own the order (or be
+    /// Staff/Admin) or nothing is written — not even the audit row.
+    /// </summary>
+    /// <remarks>
+    /// An anonymous order (UserId = null) is owned by nobody, so only Staff/Admin
+    /// can settle it. A caller whose <c>sub</c> does not parse is treated as
+    /// owning nothing rather than owning every anonymous order.
+    /// </remarks>
     public async Task<RecordPaymentResult> ExecuteAsync(
-        string idempotencyKey, PaymentOutcome outcome, CancellationToken ct = default)
+        string idempotencyKey,
+        PaymentOutcome outcome,
+        CallerIdentity caller,
+        CancellationToken ct = default)
     {
         var order = await payments.GetByKeyAsync(idempotencyKey, ct);
         if (order is null)
             return new RecordPaymentResult(Found: false, Transitioned: false);
+
+        if (!caller.IsStaffOrAdmin && (caller.UserId is null || order.UserId != caller.UserId))
+        {
+            logger.LogWarning(
+                "Payment refused for order {OrderId}: caller {CallerId} is not the owner.",
+                order.OrderId, caller.UserId);
+            return new RecordPaymentResult(Found: true, Transitioned: false) { Forbidden = true };
+        }
 
         var run = new AutomationRun
         {

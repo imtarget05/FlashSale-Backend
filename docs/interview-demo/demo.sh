@@ -223,11 +223,14 @@ step "6. Poll until Completed (202 is a promise, not a fact)"
 # ---------------------------------------------------------------------------
 FINAL="processing"
 for i in $(seq 1 40); do
-  S=$(curl -s "$BASE/api/orders/$KEY")
+  # The order was placed AS this customer, so the poll presents the same token:
+# GET /api/orders/{key} is authenticated and owner-scoped (the key is
+# client-supplied, so it was never a capability).
+S=$(curl -s "$BASE/api/orders/$KEY" -H "Authorization: Bearer $ACCESS")
   if printf '%s' "$S" | grep -q '"status":"completed"'; then FINAL="completed"; break; fi
   sleep 1
 done
-info "final status payload: $(curl -s "$BASE/api/orders/$KEY")"
+info "final status payload: $(curl -s "$BASE/api/orders/$KEY" -H "Authorization: Bearer $ACCESS")"
 expect "order reached Completed" "completed" "$FINAL"
 
 # ---------------------------------------------------------------------------
@@ -281,9 +284,17 @@ expect "access token survives logout until it expires" "200" \
 # ---------------------------------------------------------------------------
 step "10. Metrics (Phase III) — real Meter instruments, JSON snapshot"
 # ---------------------------------------------------------------------------
-BODY=$(curl -s -w '\n%{http_code}' "$BASE/internal/metrics")
+# /internal/metrics is an ops read (it counts auth successes and failures), so it
+# is read as STAFF. The API seeds that account from Bootstrap:StaffPassword.
+STAFF_JSON=$(curl -s -X POST "$BASE/api/auth/login" -H 'Content-Type: application/json' \
+  -d "$(printf '{"email":"%s","password":"%s"}' "${DEMO_STAFF_EMAIL:-staff@flashsale.local}" "${DEMO_STAFF_PASSWORD:?set DEMO_STAFF_PASSWORD to the Bootstrap:StaffPassword value}")")
+STAFF_ACCESS=$(field "$STAFF_JSON" accessToken)
+expect_contains "STAFF login returns a token pair" '"accessToken"' "$STAFF_JSON"
+BODY=$(curl -s -w '\n%{http_code}' "$BASE/internal/metrics" -H "Authorization: Bearer $STAFF_ACCESS")
 CODE=$(printf '%s' "$BODY" | tail -1); METRICS=$(printf '%s' "$BODY" | sed '$d')
-expect "GET /internal/metrics -> 200" "200" "$CODE"
+expect "GET /internal/metrics as STAFF -> 200" "200" "$CODE"
+expect "GET /internal/metrics anonymously -> 401" "401" \\
+  "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/internal/metrics")"
 printf '%s' "$METRICS" | pretty | head -40
 expect_contains "counts registrations"        'flashsale.auth.registrations' "$METRICS"
 expect_contains "counts auth failures"        'reason=invalid_credentials'   "$METRICS"

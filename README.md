@@ -8,7 +8,7 @@
 A portfolio-grade, event-driven backend built to handle high-concurrency "flash sale" scenarios. The core engineering challenge is processing thousands of simultaneous purchase attempts for limited inventory without overselling, while keeping latency low and the database healthy.
 
 > **Role:** Backend Engineer (C# / .NET 10, PostgreSQL, Redis, RabbitMQ).
-> **One-liner for HR:** I built an order system where 50 buyers race for 10 items — exactly 10 sales succeed, 40 get honest fast-fails, p95 29ms. All numbers from real Testcontainers + k6 runs, not slides.
+> **One-liner for HR:** I built an order system where 50 buyers race for 10 items — exactly 10 sales succeed, 40 get honest fast-fails. That invariant is re-checked on every CI run (the `concurrency-harness` job fails the build unless the harness prints `RESULT: PASS`); the latency figures quoted below are single local runs, not a CI gate.
 > **For Tech Lead:** Clean Architecture (Domain <- Application <- Infrastructure <- Api/Worker) with dependency-direction guards in `tests/UnitTests/ArchitectureTests.cs`. Evidence in `docs/benchmarks/` + `docs/adr/001-005`.
 
 ## 🧠 Skills Demonstrated (scan in 30s)
@@ -18,13 +18,14 @@ A portfolio-grade, event-driven backend built to handle high-concurrency "flash 
 | Concurrency control | Redis Lua CAS gatekeeper + PG atomic conditional `UPDATE` | `docs/adr/002-003-*`, `docs/benchmarks/phase2-005-*` |
 | Async / resilience | RabbitMQ at-least-once, ack-after-persist, DLQ, idempotency keys | `docs/adr/004-005-*`, `src/Order.Worker/` |
 | Data integrity | Zero-oversell invariant: 50 req / stock 10 → 10 sales, stock 0 | `docs/benchmarks/phase2-oversell-experiment.md` |
-| Performance | p95 29ms tiered vs 574ms naive sync; pool cap 80/100 to keep operator headroom | `docs/benchmarks/phase4-highload-experiment.md`, `phase5-tiered-experiment.md` |
+| Performance | Local single run: p95 29ms tiered vs 574ms naive sync; pool cap 80/100 to keep operator headroom. Not a CI gate — re-measure before quoting | `docs/benchmarks/phase4-highload-experiment.md`, `phase5-tiered-experiment.md` |
+| Authorization | `StaffOrAdmin` closed every ops endpoint; a source-level guard fails the build if a route is mapped without a policy | `tests/UnitTests/EndpointAuthorizationGuardTests.cs`, `tests/IntegrationTests/EndpointAuthorizationTests.cs` |
 | Operability | pg_dump -Fc backup + SHA-256 + restore smoke test | `docs/adr/008-009-*` |
 | Architecture discipline | Port + adapter for every infra addition; thin `Program.cs` | `src/FlashSale.Application/`, `tests/UnitTests/ArchitectureTests.cs` |
 
 ## 🔍 Problem → Decision → Tradeoff (how I think)
 
-1. **Naive sync oversells under race** → reproduced first (`docs/benchmarks/phase2-*`), then fixed with atomic conditional UPDATE. Tradeoff: hot-row lock queues (p95 574ms at 200 conc.) — accepted as correctness baseline.
+1. **Naive sync oversells under race** → reproduced first (`docs/benchmarks/phase2-*`), then fixed with atomic conditional UPDATE. Tradeoff: hot-row lock queues (p95 574ms at 200 conc. in one local run) — accepted as correctness baseline.
 2. **90% wasted DB round-trips just to say "no"** → Redis Lua CAS pre-filter (single RTT, atomic). Tradeoff: cache/DB divergence risk — mitigated by PG as authoritative truth + Redis mirror on cancel path.
 3. **Traffic spikes kill DB** → RabbitMQ buffer + worker persist + ack-after-persist. Tradeoff: at-least-once duplicates — mitigated by idempotency keys + guarded UPDATEs.
 4. **Pool saturation locks out operators** → cap API pool 80 < server 100. Small fix, big SRE lesson: always leave headroom.
@@ -39,12 +40,81 @@ During a flash sale, inventory is strictly limited (e.g., 10 items). A naive syn
 - **PostgreSQL (Authoritative Truth):** Handles the final atomic conditional `UPDATE`, ensuring absolute data consistency.
 
 ## 🚀 Key Achievements & Evidence
-*These metrics were validated using real `Testcontainers` infrastructure and `k6` load testing, not fabricated.*
 
-- **Zero Overselling Invariant:** 50 concurrent purchase attempts against a stock of 10 produced exactly 10 persisted sales and a final stock of 0.
-- **High Performance:** Achieved a **p95 latency of 29ms** during peak flash-sale concurrency (compared to 574ms in the naive synchronous iteration).
+**The claim CI actually enforces: the zero-oversell invariant.** Every push runs
+`.github/workflows/ci.yml` → job `concurrency-harness`, which fires 50 concurrent
+purchase attempts at a stock of 10 through
+`load-tests/concurrency/oversell_demo.py` and then **fails the job unless the
+output contains `RESULT: PASS`**. `RESULT: PASS` means the database audit agrees
+exactly: 10 sales persisted, final stock 0, and `accepted + rejected == 50` with no
+lost responses. Reproduce it locally with the same command the job runs.
+
+Everything below that is a latency number is a **local single-run observation** from
+the `docs/benchmarks/` experiments, not a CI gate and not a promise. Re-measure
+before quoting one.
+
+- **Zero Overselling Invariant (CI-enforced):** 50 concurrent purchase attempts
+  against a stock of 10 → exactly 10 persisted sales, final stock 0. Checked on
+  every CI run; see above.
+- **Latency (local single run, not reproducible in CI):** p95 **29 ms** for the
+  tiered path versus **574 ms** for the naive synchronous iteration. Host- and
+  load-dependent; the numbers of record live in `docs/benchmarks/`.
 - **Idempotency & Resiliency:** Verified Redis failure fallbacks, RabbitMQ `ack-after-persist` behaviors, and safe retry mechanisms for duplicate/failed requests.
 - **Disaster Recovery:** Automated PostgreSQL backup and clean-restore procedures using `pg_dump -Fc` with SHA-256 verification and application smoke testing against the recovered DB.
+
+### Test suite (verified locally, `-c Release`)
+
+| Suite | Count | Command |
+|---|---|---|
+| Unit (use cases, architecture + authorization guards) | **148** | `dotnet test tests/UnitTests/FlashSale.UnitTests.csproj -c Release` |
+| Integration (Testcontainers: real Postgres + Redis + RabbitMQ) | **60** | `dotnet test tests/IntegrationTests/FlashSale.IntegrationTests.csproj -c Release` |
+
+### 🔐 Authorization model (ADR-013 §5)
+
+Roles are a closed set — `CUSTOMER`, `STAFF`, `ADMIN` — and they are **never chosen
+by the caller**:
+
+- `POST /api/auth/register` always creates a `CUSTOMER`. A `{"role":"ADMIN"}` in the
+  body is ignored, and `RegisterRequest` has no role member for it to bind to.
+- `/internal/**`, `/api/outbox/**` and `POST /api/inbox/consume` require
+  `StaffOrAdmin`. `POST /api/inbox/consume` is deliberately staff-only rather than
+  merely authenticated: it writes the deduplication ledger the real consumers read,
+  so an ordinary caller could make a genuine delivery be silently skipped.
+- `POST /api/orders/{key}/pay` and `GET /api/orders/{key}` require an authenticated
+  caller **and** ownership: the order's `UserId` must equal the token's `sub`, or
+  the caller must be Staff/Admin. An anonymous order is owned by nobody, so only
+  Staff/Admin can poll or settle it.
+- `POST /api/saga/checkout` requires any authenticated caller — it is the customer
+  checkout path and it already attributes the saga to the caller's `sub`.
+- `POST /api/orders` is **intentionally anonymous** (ADR-013 §6) — the zero-oversell
+  evidence above depends on unauthenticated buyers. `/api/products/{id}` and the
+  `/health*` probes are intentionally public too.
+
+`tests/UnitTests/EndpointAuthorizationGuardTests.cs` enforces this from the source: a
+route that is mapped without `RequireAuthorization()` and is not on the
+documented public allowlist fails the build, so the hole cannot silently reopen.
+
+#### Bootstrap: how the first ADMIN and STAFF accounts come into existence
+
+There is no self-service promotion, and no credential in the repository. Two
+opt-in environment variables (never committed — supply them from a secret store):
+
+| Variable | Effect when set | When unset |
+|---|---|---|
+| `Bootstrap:AdminToken` (env `Bootstrap__AdminToken`) | Enables `POST /api/auth/bootstrap`. Present the secret in the `X-Bootstrap-Token` header to create the initial `ADMIN` (403 on a wrong secret). | The endpoint does not exist (**404**) and no ADMIN can be created. A warning is logged at startup either way. |
+| `Bootstrap:StaffPassword` (env `Bootstrap__StaffPassword`) | Seeds the `STAFF` account (`staff@flashsale.local`) on first boot **only**. An existing account is left untouched — no re-hash, no role reset. | No STAFF account is created; the `/internal/**` runbook endpoints are unreachable without a bootstrap admin. |
+
+Run the bootstrap once, then unset `Bootstrap:AdminToken`:
+
+```bash
+curl -X POST localhost:5099/api/auth/bootstrap \
+  -H 'X-Bootstrap-Token: <Bootstrap:AdminToken>' -H 'Content-Type: application/json' \
+  -d '{"email":"ops-admin@example.com","password":"<at least 10 characters>"}'
+```
+
+The bootstrap **creates and never promotes**: if the email is already registered it
+returns 409 and the existing account keeps its role, so it cannot be used to seize
+an address somebody else signed up with.
 
 ## 🏗️ Architecture
 
@@ -108,16 +178,28 @@ flowchart TD
 ### Demo — scenario A (timeout → remind → cancel → release → audit)
 
 ```bash
+# 0) get a caller token. The pay endpoint is owner-scoped, and the ops scans are
+#    Staff/Admin, so the demo uses two identities.
+CUSTOMER=$(curl -s -X POST localhost:5099/api/auth/register -H 'Content-Type: application/json' \
+  -d '{"email":"demo-customer@example.com","password":"<at least 10 characters>"}' \
+  | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+STAFF=$(curl -s -X POST localhost:5099/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"staff@flashsale.local","password":"<Bootstrap:StaffPassword>"}' \
+  | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+
 # 1) place an order, then walk it through the payment lifecycle
 curl -X POST localhost:5099/api/orders -H 'Idempotency-Key: demo-1' \
      -H 'Content-Type: application/json' -d '{"productId":1,"quantity":1}'
 curl -X POST localhost:5099/api/orders/demo-1/pay \
+     -H "Authorization: Bearer $CUSTOMER" \
      -H 'Content-Type: application/json' -d '{"outcome":"completed"}'   # → confirmed
 curl -X POST localhost:5099/api/orders/demo-1/pay \
+     -H "Authorization: Bearer $CUSTOMER" \
      -H 'Content-Type: application/json' -d '{"outcome":"completed"}'   # → 409 (guarded)
 
-# 2) run the abandoned-payment scan (same use case the timer runs)
-curl -X POST localhost:5099/internal/automation/payment-timeout-scan
+# 2) run the abandoned-payment scan (same use case the timer runs) — Staff/Admin
+curl -X POST localhost:5099/internal/automation/payment-timeout-scan \
+     -H "Authorization: Bearer $STAFF"
 #    grace elapsed ⇒ {"scanned":N,"reminded":0,"cancelled":N}, stock restored
 
 # 3) audit trail
@@ -125,10 +207,10 @@ docker exec <postgres> psql -U postgres -d FlashSaleDb -c \
   'SELECT "WorkflowName","TriggerType","Status","ResultSummary" FROM "AutomationRuns" ORDER BY "Id" DESC LIMIT 5;'
 ```
 
-*Verified locally: 21/21 live smoke checks (`/tmp`-style script), 82 unit +
-24 integration tests green, and the v1.0 auth/order smoke (48 checks) still
-passes — the legacy `GET /api/orders/{key}` wording (`processing|completed`)
-was deliberately left untouched.*
+*Verified locally: 148 unit + 60 integration tests green, and the live smoke
+scripts still pass. The legacy `GET /api/orders/{key}` wording
+(`processing|completed`) was deliberately left untouched — only its authorization
+changed (authenticated + owner-scoped).*
 
 ## 📂 Project Structure (Clean Architecture)
 ```text

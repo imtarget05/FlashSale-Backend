@@ -155,6 +155,11 @@ def main() -> int:
                     help="Docker container name running psql (empty string to use local psql).")
     ap.add_argument("--settle-seconds", type=int, default=2,
                     help="Seconds to wait before the DB audit so async fulfillment settles (Phase 5+).")
+    ap.add_argument("--ops-token", default=os.environ.get("OPS_TOKEN", ""),
+                    help="STAFF/ADMIN bearer token for POST /internal/resync-stock. That endpoint "
+                         "is no longer anonymous, and without this resync Redis keeps the "
+                         "pre-test counter, so the audit below would measure the wrong "
+                         "accepted count while still printing PASS.")
     args = ap.parse_args()
     container = args.psql_container or None
 
@@ -168,12 +173,24 @@ def main() -> int:
 
     # Redis is the fast-path stock mirror (Phase 5+): keep it consistent with the
     # DB we just reset, via the operational runbook endpoint (ADR-003).
+    resync_headers = {"Authorization": f"Bearer {args.ops_token}"} if args.ops_token else {}
     try:
         resync = urllib.request.Request(
-            f"{args.base_url}/internal/resync-stock/{args.product_id}", method="POST")
+            f"{args.base_url}/internal/resync-stock/{args.product_id}",
+            headers=resync_headers, method="POST")
         urllib.request.urlopen(resync, timeout=5)
-    except Exception:  # noqa: BLE001 - resync is best-effort (pre-Phase 5 API has none)
-        pass
+    except Exception as exc:  # noqa: BLE001 - see the two branches below
+        if args.ops_token:
+            # An operator token was supplied, so this is an authorization or
+            # availability failure, not an absent feature. Bailing out is the only
+            # honest option: continuing would audit a Redis/DB mismatch and could
+            # still report RESULT: PASS for the wrong reason.
+            print(f"Resync failed ({exc}). Redis still holds the pre-test stock counter, so the")
+            print("accepted count below cannot be trusted. Aborting without a verdict.")
+            return 2
+        print("Resync skipped or failed (no --ops-token): POST /internal/resync-stock is")
+        print("STAFF/ADMIN only. The audit below may therefore measure fewer sales than")
+        print("`--stock`; conservation still holds, the headline count does not.")
 
     orders_before = count_orders(container, args.product_id)
     print(f"Stock reset to {args.stock}. Orders before: {orders_before}. Firing...")

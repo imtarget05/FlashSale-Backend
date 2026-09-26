@@ -1,7 +1,12 @@
+using FlashSale.Application.Auth;
 using FlashSale.Application.Inventory;
 using FlashSale.Domain.Entities;
+using FlashSale.Infrastructure.Auth;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace FlashSale.Infrastructure.Persistence;
 
@@ -54,31 +59,80 @@ public static class DatabaseInitializer
             await gateway.SetStockAsync(product.Id, product.AvailableStock);
         }
 
-        // Seed a STAFF account for smoke/ops (spec §8: content generation is
-        // STAFF/ADMIN only). Upsert: ensures the seeded credential always matches
-        // the smoke-script password even if prior runs left stale/incorrect hashes.
-        var staffEmail = "staff@flashsale.local";
-        var hasher = scope.ServiceProvider.GetRequiredService<FlashSale.Application.Auth.IPasswordHasher>();
-        var staffUser = await db.Users.FirstOrDefaultAsync(u => u.Email == staffEmail, ct);
-        if (staffUser is null)
+        await SeedStaffAsync(scope.ServiceProvider, db, ct);
+    }
+
+    /// <summary>
+    /// Create the STAFF account that ops/smoke runbooks authenticate as
+    /// (spec §8: content generation is STAFF/ADMIN only).
+    /// </summary>
+    /// <remarks>
+    /// This used to be an unconditional upsert that re-hashed a hard-coded
+    /// password on EVERY boot. Two defects came with that: the credential lived
+    /// in git forever, and re-hashing on boot silently restored it after an
+    /// operator rotated it — a permanent backdoor dressed up as a seed.
+    /// <para>
+    /// The rules now: the password comes from configuration
+    /// (<c>Bootstrap:StaffPassword</c>) and there is no default; an account that
+    /// already exists is left completely untouched (no re-hash, no role reset, no
+    /// TokenVersion reset — the latter would also kick out live refresh tokens on
+    /// every redeploy); and in Production nothing is created unless the password
+    /// was explicitly configured.
+    /// </para>
+    /// </remarks>
+    private static async Task SeedStaffAsync(IServiceProvider services, AppDbContext db, CancellationToken ct)
+    {
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseInitializer");
+        var bootstrap = BootstrapOptions.FromConfiguration(
+            services.GetService<IConfiguration>() ?? new ConfigurationBuilder().Build());
+        var isProduction = services.GetService<IHostEnvironment>()?.IsProduction() ?? false;
+
+        if (!bootstrap.StaffPasswordConfigured)
         {
-            db.Users.Add(new User
-            {
-                Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                Email = staffEmail,
-                PasswordHash = hasher.Hash("correct-horse-battery-staple"),
-                Role = FlashSale.Domain.AuthRoles.Staff,
-                TokenVersion = 0,
-                CreatedAt = DateTime.UtcNow,
-            });
+            // Not an error: a deployment that does not need the ops account must not
+            // grow one. The Production case is spelled out because that is where it
+            // matters — there is no fallback password, so an unset variable means the
+            // /internal/** runbook endpoints have no caller at all until an operator
+            // bootstraps an admin.
+            logger.LogWarning(
+                isProduction
+                    ? "Production: Bootstrap:StaffPassword is not configured — no STAFF account ({Email}) was seeded, "
+                      + "so the /internal/** runbook endpoints are reachable only through a bootstrapped ADMIN. "
+                      + "Set it from a secret store; never commit it."
+                    : "Bootstrap:StaffPassword is not configured — the STAFF account ({Email}) was not seeded. "
+                      + "Set it from a secret store to use the /internal/** runbook endpoints; never commit it.",
+                bootstrap.StaffEmail);
+            return;
         }
-        else
+
+        var email = AuthValidation.NormalizeEmail(bootstrap.StaffEmail);
+        var existing = await db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
+        if (existing is not null)
         {
-            staffUser.PasswordHash = hasher.Hash("correct-horse-battery-staple");
-            staffUser.Role = FlashSale.Domain.AuthRoles.Staff;
-            staffUser.TokenVersion = 0;
+            // Idempotent in the safe direction: absent means "already seeded",
+            // never "re-assert the configured password".
+            logger.LogInformation(
+                "STAFF account {Email} already exists; its password, role and token generation are left untouched.",
+                email);
+            return;
         }
+
+        var hasher = services.GetRequiredService<IPasswordHasher>();
+        db.Users.Add(new User
+        {
+            Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+            Email = email,
+            PasswordHash = hasher.Hash(bootstrap.StaffPassword!),
+            Role = FlashSale.Domain.AuthRoles.Staff,
+            TokenVersion = 0,
+            CreatedAt = DateTime.UtcNow,
+        });
         await db.SaveChangesAsync(ct);
+
+        logger.LogWarning(
+            "Seeded the STAFF account {Email} from Bootstrap:StaffPassword ({Environment}). " +
+            "Unset that variable once the account is no longer needed.",
+            email, isProduction ? "Production" : "non-production");
     }
 
     /// <summary>Test/ops helper: apply schema only, without demo seeding.</summary>

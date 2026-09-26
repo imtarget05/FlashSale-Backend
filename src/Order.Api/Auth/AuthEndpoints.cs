@@ -1,5 +1,6 @@
 using FlashSale.Application.Auth;
 using FlashSale.Domain;
+using FlashSale.Infrastructure.Auth;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -18,6 +19,39 @@ public static class AuthEndpoints
     {
         var group = app.MapGroup("/api/auth").WithTags("Auth");
 
+        // First-admin bootstrap (ADR-013 §5). Anonymous by necessity — there is no
+        // admin yet — and gated by an operator-held secret instead:
+        //   * Bootstrap:AdminToken unset  -> 404. The endpoint does not exist, so
+        //     a deployment that never configures it has no admin-creation path.
+        //   * token presented but wrong  -> 403, compared in constant time.
+        //   * token correct               -> creates ONE admin, then the operator
+        //     unsets the variable (the startup warning says so).
+        // It CREATES and never promotes an existing account, so it cannot be used
+        // to seize an email somebody else already registered.
+        group.MapPost("/bootstrap", async (
+            BootstrapAdminRequest request,
+            HttpRequest http,
+            BootstrapOptions bootstrap,
+            AuthService auth,
+            CancellationToken ct) =>
+        {
+            if (!bootstrap.AdminTokenConfigured)
+                return Results.NotFound(new { error = "Not found." });
+
+            var presented = http.Headers["X-Bootstrap-Token"].ToString();
+            if (!bootstrap.AcceptsAdminToken(presented))
+                return Results.Json(new { error = "Invalid bootstrap token." }, statusCode: StatusCodes.Status403Forbidden);
+
+            var result = await auth.BootstrapAdminAsync(new RegisterRequest(request.Email, request.Password), ct);
+            Record(result, ApiMetrics.AuthRegistrations);
+            return result.Succeeded
+                ? Results.Created("/api/auth/me", result.Tokens)
+                : ToProblem(result);
+        })
+        .AllowAnonymous()
+        .WithName("BootstrapAdmin")
+        .WithSummary("Create the initial ADMIN account. Requires X-Bootstrap-Token == Bootstrap:AdminToken; 404 when that variable is unset.");
+
         group.MapPost("/register", async (RegisterRequest request, AuthService auth, CancellationToken ct) =>
         {
             var result = await auth.RegisterAsync(request, ct);
@@ -28,7 +62,7 @@ public static class AuthEndpoints
         })
         .AllowAnonymous()
         .WithName("Register")
-        .WithSummary("Create a CUSTOMER account and return a token pair.");
+        .WithSummary("Create a CUSTOMER account and return a token pair. The role is always CUSTOMER — it is never read from the request body.");
 
         group.MapPost("/login", async (LoginRequest request, AuthService auth, CancellationToken ct) =>
         {
@@ -123,3 +157,6 @@ public static class AuthEndpoints
         _ => Results.Problem(result.Message),
     };
 }
+
+/// <summary>Body for <c>POST /api/auth/bootstrap</c>.</summary>
+public sealed record BootstrapAdminRequest(string Email, string Password);

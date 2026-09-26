@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import threading
@@ -66,11 +67,22 @@ def main() -> int:
     ap.add_argument("--stock", type=int, default=10)
     ap.add_argument("--requests", type=int, default=15)
     ap.add_argument("--settle-seconds", type=int, default=120)
+    ap.add_argument("--ops-token", default=os.environ.get("OPS_TOKEN", ""),
+                    help="STAFF/ADMIN bearer token for POST /internal/resync-stock, which is "
+                         "no longer anonymous. Required, not optional: without the resync, "
+                         "Redis keeps the pre-test counter and the proof below measures the "
+                         "wrong number.")
     args = ap.parse_args()
+    if not args.ops_token:
+        print("RESULT: ABORTED - --ops-token (or OPS_TOKEN) is required; /internal/resync-stock "
+              "is STAFF/ADMIN only and the oversell proof depends on the resync.")
+        return 2
 
     psql(f'UPDATE "Products" SET "AvailableStock" = {args.stock} WHERE "Id" = {args.product_id};')
     urllib.request.urlopen(f"{args.base_url}/internal/resync-stock/{args.product_id}",
-                           data=b"{}", timeout=10)
+                           data=b"{}",
+                           headers={"Authorization": f"Bearer {args.ops_token}"},
+                           timeout=10)
     orders_before = int(psql(f'SELECT COUNT(*) FROM "Orders" WHERE "ProductId" = {args.product_id};'))
     print(f"initial stock={args.stock} attempts={args.requests} product=#{args.product_id} "
           f"orders_before={orders_before}")

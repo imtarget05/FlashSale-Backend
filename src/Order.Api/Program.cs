@@ -166,6 +166,25 @@ if (args.Contains("--migrate"))
 // ---------------------------------------------------------------
 var jwtOptions = JwtOptions.FromConfiguration(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddSingleton(jwtOptions);
+
+// Operator bootstrap configuration (ADR-013 §5). Registered as a singleton so
+// the auth gate and the startup log below read exactly the same values.
+var bootstrapOptions = BootstrapOptions.FromConfiguration(builder.Configuration);
+builder.Services.AddSingleton(bootstrapOptions);
+if (bootstrapOptions.AdminTokenConfigured)
+{
+    // Not an error, but a standing footgun: while this variable is set, anyone
+    // holding it can mint an ADMIN account. Remove it after the first bootstrap.
+    Console.Error.WriteLine(
+        "WARNING: Bootstrap:AdminToken is configured — POST /api/auth/bootstrap is live. " +
+        "Unset it once the initial ADMIN account exists.");
+}
+else
+{
+    Console.Error.WriteLine(
+        "WARNING: Bootstrap:AdminToken is not configured — POST /api/auth/bootstrap is disabled (404) " +
+        "and no ADMIN account can be created. Set it for the first run, then unset it.");
+}
 builder.Services.AddSingleton<ITokenIssuer>(new JwtTokenIssuer(jwtOptions));
 builder.Services.AddSingleton<IPasswordHasher>(new Pbkdf2PasswordHasher());
 builder.Services.AddScoped<IUserStore, UserStore>();
@@ -240,7 +259,10 @@ app.UseSwaggerUI(options =>
 // Prometheus exporter: the interview surface needs a dependency-free view of
 // what THIS process observed, and the instruments behind it are real Meter
 // instruments, so an OTel exporter can be attached later without a rewrite.
+// STAFF/ADMIN: the snapshot includes the auth success/failure counters, so an
+// anonymous reader learns which logins are failing and how many accounts exist.
 app.MapGet("/internal/metrics", (ApiMetrics metrics) => Results.Ok(metrics.Snapshot()))
+    .RequireAuthorization(AuthPolicies.StaffOrAdmin)
     .WithTags("Ops")
     .WithName("MetricsSnapshot")
     .WithSummary("In-process metrics snapshot as JSON (counters + duration histograms).");
@@ -254,6 +276,7 @@ app.MapGet("/internal/automation/summary", async (IAutomationRunRepository runs)
     var summary = await runs.GetSummaryAsync();
     return Results.Ok(summary);
 })
+    .RequireAuthorization(AuthPolicies.StaffOrAdmin)
     .WithTags("Ops")
     .WithName("AutomationSummary")
     .WithSummary("Today's automation dashboard roll-up (runs by status, avg duration, top failing workflow).");
@@ -263,6 +286,7 @@ app.MapGet("/internal/automation/alerts", async (IStockAlertRepository alerts) =
     var open = await alerts.ListOpenAsync(50);
     return Results.Ok(open);
 })
+    .RequireAuthorization(AuthPolicies.StaffOrAdmin)
     .WithTags("Ops")
     .WithName("OpenAlerts")
     .WithSummary("Open low-stock alerts (spec §6), newest first.");
@@ -353,21 +377,39 @@ app.MapPost("/api/orders", async (
 // Status polling: did my (idempotent) order actually persist?
 // NOTE (spec §4): this legacy view answers the FULFILLMENT question from row
 // existence alone; the payment lifecycle lives in Order.Status and is exposed
-// by the automation endpoints below — deliberately not changed here, because
-// the v1.0 smoke contract depends on processing|completed wording.
-app.MapGet("/api/orders/{idempotencyKey}", async (string idempotencyKey, IOrderReadModel readModel) =>
+// by the automation endpoints below — the processing|completed wording is
+// unchanged, because the v1.0 smoke contract depends on it.
+//
+// Authorization (ADR-013 §5): authenticated, and then OWNERSHIP. The key is
+// client-supplied, so treating it as a capability meant anyone who learned a key
+// could read someone else's order. Staff/Admin keep the runbook view; everyone
+// else sees only orders whose UserId is their own `sub`. An anonymous order
+// (UserId = null) is owned by nobody, so only Staff/Admin can poll it.
+// The not-yet-persisted case still answers "processing" — that response body
+// carries no order data, so it leaks nothing and keeps the polling client working.
+app.MapGet("/api/orders/{idempotencyKey}", async (
+    string idempotencyKey,
+    ClaimsPrincipal user,
+    IOrderReadModel readModel) =>
 {
     var order = await readModel.GetOrderStatusAsync(idempotencyKey);
-    return order is null
-        ? Results.Json(new { idempotencyKey, status = "processing" })
-        : Results.Json(new { order.IdempotencyKey, status = "completed", order.OrderId, order.ProductId, order.Quantity });
-});
+    if (order is null)
+        return Results.Json(new { idempotencyKey, status = "processing" });
+
+    var caller = CallerIdentity.From(user);
+    if (!caller.IsStaffOrAdmin && (caller.UserId is null || order.UserId != caller.UserId))
+        return Results.Forbid();
+
+    return Results.Json(new { order.IdempotencyKey, status = "completed", order.OrderId, order.ProductId, order.Quantity });
+})
+.RequireAuthorization();
 
 // Simulated payment gateway (spec §4 paid? branch). outcome: completed|failed.
 // Guarded transitions make duplicate calls idempotent (second → 409).
 app.MapPost("/api/orders/{idempotencyKey}/pay", async (
     string idempotencyKey,
     PaymentRequest request,
+    ClaimsPrincipal user,
     RecordPaymentUseCase useCase,
     CancellationToken ct) =>
 {
@@ -380,8 +422,12 @@ app.MapPost("/api/orders/{idempotencyKey}/pay", async (
     if (outcome is null)
         return Results.BadRequest(new { error = "outcome must be 'completed' or 'failed'" });
 
-    var result = await useCase.ExecuteAsync(idempotencyKey, outcome.Value, ct);
+    // The caller identity is REQUIRED, not optional: this drives the order to
+    // Confirmed and publishes revenue-side events, so the use case refuses any
+    // caller who does not own the order and is not Staff/Admin.
+    var result = await useCase.ExecuteAsync(idempotencyKey, outcome.Value, CallerIdentity.From(user), ct);
     if (!result.Found) return Results.NotFound(new { error = "Order not found" });
+    if (result.Forbidden) return Results.Forbid();
 
     return outcome == PaymentOutcome.Completed
         ? (result.Transitioned
@@ -391,9 +437,10 @@ app.MapPost("/api/orders/{idempotencyKey}/pay", async (
             ? Results.Ok(new { idempotencyKey, status = "payment_failed_recorded" })
             : Results.Json(new { error = "Order is not pending payment" }, statusCode: 409));
 })
+.RequireAuthorization()
 .WithTags("Automation")
 .WithName("RecordPayment")
-.WithSummary("Simulated payment gateway: completed → Confirmed, failed → stays PendingPayment (spec §4).");
+.WithSummary("Simulated payment gateway: completed → Confirmed, failed → stays PendingPayment (spec §4). Requires the caller's own order (or STAFF/ADMIN).");
 
 // Manual payment-timeout scan (spec §5/§17-A): same use case as the timer,
 // different trigger_type in the audit record — demo-friendly determinism.
@@ -404,6 +451,7 @@ app.MapPost("/internal/automation/payment-timeout-scan", async (
     var result = await useCase.ExecuteAsync("manual", ct);
     return Results.Ok(new { trigger = "manual", result.Scanned, result.Reminded, result.Cancelled });
 })
+.RequireAuthorization(AuthPolicies.StaffOrAdmin)
 .WithTags("Ops")
 .WithName("PaymentTimeoutScan")
 .WithSummary("Run the abandoned-payment scan now: reminders + cancel/stock-release (writes an AutomationRun row).");
@@ -423,6 +471,7 @@ app.MapPost("/internal/automation/low-stock-scan", async (
         result.ProductIds
     });
 })
+.RequireAuthorization(AuthPolicies.StaffOrAdmin)
 .WithTags("Ops")
 .WithName("LowStockScan")
 .WithSummary("Evaluate the low-stock rule for every product and raise deduplicated LOW_STOCK alerts.");
@@ -445,6 +494,7 @@ app.MapPost("/internal/automation/daily-report", async (
     var report = await useCase.ExecuteAsync(day, "manual", ct);
     return Results.Ok(report);
 })
+.RequireAuthorization(AuthPolicies.StaffOrAdmin)
 .WithTags("Ops")
 .WithName("RunDailyReport")
 .WithSummary("Generate (or refresh) the daily business report from database aggregates.");
@@ -456,6 +506,7 @@ app.MapGet("/internal/automation/daily-report/latest", async (
     var report = await reports.GetLatestAsync(ct);
     return report is null ? Results.NotFound(new { error = "no report yet" }) : Results.Ok(report);
 })
+.RequireAuthorization(AuthPolicies.StaffOrAdmin)
 .WithTags("Ops")
 .WithName("LatestDailyReport")
 .WithSummary("Most recent persisted daily business report.");
@@ -485,13 +536,16 @@ app.MapGet("/api/products/{id}", async (int id, IOrderReadModel readModel) =>
 
 
 // Ops runbook: rebuild the reservation counter from PostgreSQL truth after drift.
+// STAFF/ADMIN: it overwrites the reservation counter for a product, so an
+// anonymous caller could zero or inflate live stock during a sale.
 app.MapPost("/internal/resync-stock/{id}", async (int id, IOrderReadModel readModel, IStockReservationGateway redis) =>
 {
     var product = await readModel.GetProductAsync(id);
     if (product is null) return Results.NotFound();
     await redis.SetStockAsync(id, product.AvailableStock);
     return Results.Ok(new { id, resyncedTo = product.AvailableStock });
-});
+})
+.RequireAuthorization(AuthPolicies.StaffOrAdmin);
 
 // ---------------------------------------------------------------
 // Checkout Distributed Saga (Phases 9 & 11)
@@ -530,7 +584,11 @@ app.MapPost("/api/saga/checkout", async (
     }
 
     return Results.BadRequest(result);
-});
+})
+// Authenticated, not STAFF/ADMIN: this is the customer-facing checkout path and
+// it already attributes the saga to the caller's `sub`, so there is nothing for
+// an anonymous caller to gain here that a registered customer does not have.
+.RequireAuthorization();
 
 app.MapGet("/api/saga/{idempotencyKey}", async (
     string idempotencyKey,
@@ -539,7 +597,10 @@ app.MapGet("/api/saga/{idempotencyKey}", async (
 {
     var saga = await repo.GetByIdempotencyKeyAsync(idempotencyKey, ct);
     return saga is not null ? Results.Ok(saga) : Results.NotFound(new { error = $"Saga '{idempotencyKey}' not found." });
-});
+})
+// STAFF/ADMIN: this is the saga MACHINE's state (order id, amounts, correlation
+// ids, compensation steps) keyed by a client-supplied string, not a per-caller view.
+.RequireAuthorization(AuthPolicies.StaffOrAdmin);
 
 // ---------------------------------------------------------------
 // Transactional Outbox & Deduplication Inbox (Phase 10)
@@ -559,7 +620,10 @@ app.MapPost("/api/outbox/enqueue", async (
 
     await outboxRepo.EnqueueAsync(msg, ct);
     return Results.Ok(new { status = "enqueued", messageId = msg.MessageId, id = msg.Id });
-});
+})
+// STAFF/ADMIN: this injects arbitrary events into the bus that real consumers
+// will act on. It is a producer-side runbook, not a customer operation.
+.RequireAuthorization(AuthPolicies.StaffOrAdmin);
 
 // Honest view: `pending` is only what the dispatcher can act on RIGHT NOW.
 // Rows dead-lettered or waiting out a backoff are reported separately — the
@@ -571,7 +635,8 @@ app.MapGet("/api/outbox/pending", async (
     var pending = await outboxRepo.GetUnprocessedAsync(50, ct);
     var stuckCount = await outboxRepo.CountStuckAsync(ct);
     return Results.Ok(new { count = pending.Count, stuckCount, messages = pending });
-});
+})
+.RequireAuthorization(AuthPolicies.StaffOrAdmin);
 
 app.MapGet("/api/outbox/stuck", async (
     IOutboxRepository outboxRepo,
@@ -585,7 +650,8 @@ app.MapGet("/api/outbox/stuck", async (
         backingOff = stuck.Count(m => m.DeadLetteredAt is null),
         messages = stuck
     });
-});
+})
+.RequireAuthorization(AuthPolicies.StaffOrAdmin);
 
 // Operator recovery path for rows that exhausted their retries (or are stuck in
 // a long backoff). Clears retry/backoff/dead-letter state so the dispatcher
@@ -596,7 +662,8 @@ app.MapPost("/api/outbox/requeue", async (
 {
     var revived = await outboxRepo.RequeueStuckAsync(ct);
     return Results.Ok(new { status = "requeued", revived });
-});
+})
+.RequireAuthorization(AuthPolicies.StaffOrAdmin);
 
 app.MapPost("/api/inbox/consume", async (
     InboxConsumeApiRequest request,
@@ -611,7 +678,13 @@ app.MapPost("/api/inbox/consume", async (
 
     await inboxRepo.MarkProcessedAsync(request.MessageId, request.ConsumerName, ct);
     return Results.Ok(new { status = "processed", messageId = request.MessageId, processed = true });
-});
+})
+// STAFF/ADMIN, deliberately stricter than "any authenticated user": this writes to
+// the DEDUPLICATION LEDGER the real consumers read. An unauthenticated caller
+// could mark a messageId+consumerName as already processed and the genuine
+// consumer would then silently skip a real delivery — an integrity/DoS primitive,
+// not a customer-facing feature. Only the consumer side (or an operator) may call it.
+.RequireAuthorization(AuthPolicies.StaffOrAdmin);
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "healthy" }));
 

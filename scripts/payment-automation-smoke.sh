@@ -8,6 +8,17 @@ cd /Users/mainguyenbinhtan/Downloads/FlashSale-Backend
 BASE=http://127.0.0.1:5099
 PASS=0; FAIL=0
 
+# The payment-timeout scan and the order status view are both STAFF-gated now.
+# The orders this script places are ANONYMOUS (UserId = null), so an anonymous
+# caller owns nothing and only STAFF/ADMIN can read their status: export a STAFF
+# access token before running, e.g.
+#   export OPS_TOKEN=$(curl -s -X POST "$BASE/api/auth/login" \
+#     -H 'Content-Type: application/json' \
+#     -d '{"email":"staff@flashsale.local","password":"<Bootstrap:StaffPassword>"}' \
+#     | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+OPS_TOKEN=${OPS_TOKEN:?set OPS_TOKEN to a STAFF access token; the scan and status endpoints require STAFF/ADMIN}
+opsauth=(-H "Authorization: Bearer $OPS_TOKEN")
+
 check() { if [ "$2" = "$3" ]; then echo "PASS  $1 (=$3)"; PASS=$((PASS+1));
   else echo "FAIL  $1 (expected $2, got $3)"; FAIL=$((FAIL+1)); fi; }
 contains() { if printf '%s' "$3" | grep -q -- "$2"; then echo "PASS  $1"; PASS=$((PASS+1));
@@ -49,13 +60,13 @@ place_order() { # place_order <key>
 }
 wait_row() { # wait_row <key> — legacy endpoint flips processing -> completed
   for i in $(seq 1 20); do
-    s=$(curl -s "$BASE/api/orders/$1" | field status)
+    s=$(curl -s "${opsauth[@]}" "$BASE/api/orders/$1" | field status)
     [ "$s" = "completed" ] && return 0
     sleep 1
   done
   return 1
 }
-scan() { curl -s -X POST "$BASE/internal/automation/payment-timeout-scan"; }
+scan() { curl -s "${opsauth[@]}" -X POST "$BASE/internal/automation/payment-timeout-scan"; }
 
 TS=$(date +%s)
 KEY_A="payA$TS"; KEY_B="payB$TS"; KEY_C="payC$TS"
