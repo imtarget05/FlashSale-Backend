@@ -224,6 +224,7 @@ builder.Services.AddOrderQueue(builder.Configuration, builder.Environment.Enviro
 
 builder.Services.AddScoped<OrderProcessor>();
 builder.Services.AddScoped<SubmitOrderUseCase>();
+builder.Services.AddScoped<StockResyncUseCase>();
 builder.Services.AddHostedService<OrderProcessorHost>();
 
 var app = builder.Build();
@@ -266,6 +267,71 @@ app.MapGet("/internal/metrics", (ApiMetrics metrics) => Results.Ok(metrics.Snaps
     .WithTags("Ops")
     .WithName("MetricsSnapshot")
     .WithSummary("In-process metrics snapshot as JSON (counters + duration histograms).");
+
+// Prometheus text exposition for observability/prometheus. UNAUTHENTICATED by
+// design (scrapers do not carry cookies), so it deliberately EXCLUDES the auth.*
+// counters that /internal/metrics exposes to staff — an anonymous reader must not
+// learn login/registration activity. Only business counters + latency histograms.
+app.MapGet("/metrics", (ApiMetrics metrics) =>
+{
+    var snap = metrics.Snapshot();
+    var sb = new System.Text.StringBuilder();
+    foreach (var (key, value) in snap.Counters)
+    {
+        if (key.Contains(".auth.", StringComparison.OrdinalIgnoreCase)) continue;
+        AppendSeries(sb, key, "counter", value.ToString());
+    }
+    foreach (var (key, hist) in snap.Histograms)
+    {
+        AppendSeries(sb, key + ".count", "summary", hist.Count.ToString());
+        AppendSeries(sb, key + ".sum", "summary", hist.Sum.ToString("F3", System.Globalization.CultureInfo.InvariantCulture));
+    }
+    return Results.Text(sb.ToString(), "text/plain; version=0.0.4; charset=utf-8");
+})
+.WithTags("Ops")
+.WithName("PrometheusMetrics")
+.WithSummary("Prometheus text metrics (no auth counters, no auth required).");
+
+// Series keys arrive as "flashsale.orders.accepted" or
+// "flashsale.http.request.duration{method=GET,route=/api/orders}". Dots become
+// underscores; the tag block is preserved as real Prometheus labels.
+static void AppendSeries(System.Text.StringBuilder sb, string key, string type, string value)
+{
+    var name = key;
+    var labels = "";
+    var brace = key.IndexOf('{');
+    if (brace >= 0)
+    {
+        labels = key[brace..].Replace("\"", "");
+        name = key[..brace];
+    }
+    var metric = SanitizeMetricName(name);
+    if (string.IsNullOrEmpty(labels))
+    {
+        sb.AppendLine($"# TYPE {metric} {type}");
+        sb.AppendLine($"{metric} {value}");
+    }
+    else
+    {
+        // Re-quote each tag value: {method=GET} -> {method="GET"}
+        var inner = labels.Trim('{', '}');
+        var quoted = string.Join(",", inner.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(t =>
+            {
+                var eq = t.IndexOf('=');
+                return eq < 0 ? t : $"{t[..eq]}=\"{t[(eq + 1)..]}\"";
+            }));
+        sb.AppendLine($"{metric}{{{quoted}}} {value}");
+    }
+}
+
+static string SanitizeMetricName(string raw)
+{
+    var chars = raw.Select(c => char.IsLetterOrDigit(c) || c == '_' ? c : '_').ToArray();
+    var name = new string(chars);
+    return char.IsLetter(name[0]) ? name : "_" + name;
+}
+
 
 // Automation dashboard (spec §14). DB-only roll-up of today's audit rows, so
 // this endpoint stays read-only and dependency-free: no Redis, no queue, no
@@ -535,17 +601,27 @@ app.MapGet("/api/products/{id}", async (int id, IOrderReadModel readModel) =>
 });
 
 
-// Ops runbook: rebuild the reservation counter from PostgreSQL truth after drift.
+// Ops runbook: reconcile the Redis reservation mirror with PostgreSQL truth
+// after drift (ADR-003). ?dryRun=true (default) only REPORTS
+// {productId, redis, postgres, drift, fixed:false}; ?dryRun=false overwrites
+// the Redis counter with the Postgres value and reports fixed:true.
 // STAFF/ADMIN: it overwrites the reservation counter for a product, so an
 // anonymous caller could zero or inflate live stock during a sale.
-app.MapPost("/internal/resync-stock/{id}", async (int id, IOrderReadModel readModel, IStockReservationGateway redis) =>
+app.MapPost("/internal/resync-stock/{productId}", async (
+    int productId,
+    StockResyncUseCase resync,
+    CancellationToken ct,
+    bool dryRun = true) =>
 {
-    var product = await readModel.GetProductAsync(id);
-    if (product is null) return Results.NotFound();
-    await redis.SetStockAsync(id, product.AvailableStock);
-    return Results.Ok(new { id, resyncedTo = product.AvailableStock });
+    var result = await resync.ExecuteAsync(productId, dryRun, ct);
+    return result is null
+        ? Results.NotFound(new { error = $"Product {productId} not found." })
+        : Results.Ok(result);
 })
-.RequireAuthorization(AuthPolicies.StaffOrAdmin);
+.RequireAuthorization(AuthPolicies.StaffOrAdmin)
+.WithTags("Ops")
+.WithName("ResyncStock")
+.WithSummary("Reconcile the Redis stock mirror with PostgreSQL truth (dryRun=true reports only).");
 
 // ---------------------------------------------------------------
 // Checkout Distributed Saga (Phases 9 & 11)

@@ -1,0 +1,7 @@
+# Session log 2026-09-27 — FlashSale unit (observed output, key lines)
+
+Command: `dotnet test tests/UnitTests/FlashSale.UnitTests.csproj -c Release --nologo -v q`
+in `FlashSale-Backend/` (.NET 10.0.401)
+Observed tail:
+  `Passed!  - Failed: 0, Passed: 167, Skipped: 0, Total: 167, Duration: 23 s - FlashSale.UnitTests.dll (net10.0)`
+Verdict: 167/167 VERIFIED (HARD_TEST_REPORT.md says 162 — suite grew by 5, 0 failures).

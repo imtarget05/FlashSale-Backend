@@ -66,7 +66,7 @@ before quoting one.
 
 | Suite | Count | Command |
 |---|---|---|
-| Unit (use cases, architecture + authorization guards) | **148** | `dotnet test tests/UnitTests/FlashSale.UnitTests.csproj -c Release` |
+| Unit (use cases, architecture + authorization guards) | **167** | `dotnet test tests/UnitTests/FlashSale.UnitTests.csproj -c Release` |
 | Integration (Testcontainers: real Postgres + Redis + RabbitMQ) | **60** | `dotnet test tests/IntegrationTests/FlashSale.IntegrationTests.csproj -c Release` |
 
 ### 🔐 Authorization model (ADR-013 §5)
@@ -207,7 +207,7 @@ docker exec <postgres> psql -U postgres -d FlashSaleDb -c \
   'SELECT "WorkflowName","TriggerType","Status","ResultSummary" FROM "AutomationRuns" ORDER BY "Id" DESC LIMIT 5;'
 ```
 
-*Verified locally: 148 unit + 60 integration tests green, and the live smoke
+*Verified locally: 167 unit + 60 integration tests green, and the live smoke
 scripts still pass. The legacy `GET /api/orders/{key}` wording
 (`processing|completed`) was deliberately left untouched — only its authorization
 changed (authenticated + owner-scoped).*

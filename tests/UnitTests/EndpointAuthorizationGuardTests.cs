@@ -77,6 +77,12 @@ public partial class EndpointAuthorizationGuardTests
         // FlashSale.IntegrationTests.EndpointAuthorizationTests.
         ["POST /api/auth/bootstrap"] =
             "Secret-gated first-admin bootstrap; disabled (404) unless Bootstrap:AdminToken is configured.",
+
+        // Prometheus scrape endpoint. Unauthenticated by design per the Prometheus
+        // scrape convention (scrapers carry no credentials), and it deliberately
+        // excludes the auth.* counters that /internal/metrics exposes to staff.
+        ["GET /metrics"] =
+            "Public Prometheus text exposition; carries no auth counters and requires no credentials (Prometheus scrape convention).",
     };
 
     /// <summary>HTTP verbs that can change state.</summary>
@@ -137,7 +143,7 @@ public partial class EndpointAuthorizationGuardTests
     [InlineData("POST /internal/automation/payment-timeout-scan")]
     [InlineData("POST /internal/automation/low-stock-scan")]
     [InlineData("POST /internal/automation/daily-report")]
-    [InlineData("POST /internal/resync-stock/{id}")]
+    [InlineData("POST /internal/resync-stock/{productId}")]
     [InlineData("POST /api/saga/checkout")]
     [InlineData("POST /api/outbox/enqueue")]
     [InlineData("POST /api/outbox/requeue")]

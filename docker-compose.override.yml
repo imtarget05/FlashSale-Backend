@@ -1,0 +1,19 @@
+services:
+  order-api:
+    ports: !override
+      - "5001:8080"
+
+  # Localhost note (2026-09-28): RabbitMQ đánh system_memory_high_watermark
+  # alarm liên tục trên Docker Desktop (BEAM+management vượt 40% của limit
+  # 1G khi máy chật) → healthcheck đỏ → order-api/worker không bao giờ start.
+  # Nâng limit 2G + watermark tuyệt đối 1GB cho localhost. CI/free-tier giữ
+  # giá trị lean trong compose gốc. Không commit key/secret ở đây.
+  rabbitmq:
+    mem_limit: 2G
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+    environment:
+      - RABBITMQ_VM_MEMORY_HIGH_WATERMARK_ABSOLUTE=1GB

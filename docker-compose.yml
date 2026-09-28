@@ -1,5 +1,13 @@
+# Cluster: flashsale-backend — Flash-Sale Order Reliability Platform.
+# Quản trị theo cụm: xem scripts/docker-clusters.sh + docs/docker-clusters.md
+#   docker compose -p flashsale-backend up -d
+# Shared infra: network portfolio-net (external) dùng chung cross-cluster khi cần.
+
+name: flashsale-backend
+
 services:
   order-api:
+    container_name: flashsale-order-api
     build:
       context: .
       dockerfile: Dockerfile
@@ -41,8 +49,12 @@ services:
         max-file: "3"
     volumes:
       - dlq-data:/app/logs
+    networks:
+      - default
+      - portfolio-net
 
   order-worker:
+    container_name: flashsale-order-worker
     build:
       context: .
       dockerfile: Dockerfile.worker
@@ -66,8 +78,12 @@ services:
         max-file: "3"
     volumes:
       - dlq-data:/app/logs
+    networks:
+      - default
+      - portfolio-net
 
   postgres:
+    container_name: flashsale-postgres
     image: postgres:15-alpine
     command: postgres -c 'max_connections=200'
     environment:
@@ -93,8 +109,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - default
+      - portfolio-net
 
   redis:
+    container_name: flashsale-redis
     image: redis:7-alpine
     ports:
       - "6379:6379"
@@ -114,8 +134,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - default
+      - portfolio-net
 
   rabbitmq:
+    container_name: flashsale-rabbitmq
     image: rabbitmq:3-management-alpine
     ports:
       - "5672:5672"
@@ -131,13 +155,21 @@ services:
     deploy:
       resources:
         limits:
+          # Localhost note (2026-09-27): 512M trips RabbitMQ's
+          # system_memory_high_watermark on BEAM+management+prometheus, which
+          # flow-controls all connections (mgmt UI dead, healthcheck red).
+          # 1G is localhost-only headroom; CI/free-tier keeps the lean value
+          # via override. See HARD_TEST_REPORT §localhost.
           cpus: "0.5"
-          memory: 512M
+          memory: 1G
     restart: unless-stopped
     logging:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - default
+      - portfolio-net
 
   # Kafka is UNUSED by the app (KafkaActivityTracker is dead code, ADR-007).
   # Opt-in only: `docker compose --profile experimental up kafka`.
@@ -160,8 +192,16 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+    networks:
+      - default
+      - portfolio-net
 
 volumes:
   postgres-data:
   rabbitmq-data:
   dlq-data:
+
+networks:
+  portfolio-net:
+    external: true
+    name: portfolio-net
