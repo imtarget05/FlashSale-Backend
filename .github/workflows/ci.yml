@@ -41,6 +41,23 @@ jobs:
         run: >
           dotnet test tests/UnitTests/FlashSale.UnitTests.csproj
           --no-build -v normal --logger trx --results-directory ./test-results
+          --collect:"XPlat Code Coverage"
+      # Coverage is measurable locally (cobertura.xml produced offline on
+      # SDK 10.0.401, 2026-09-27) but the suite is NOT green locally (161/162:
+      # EndpointAuthorizationGuardTests.EveryMappedRoute fails on GET /metrics
+      # missing RequireAuthorization), so NO fail-under threshold is set here.
+      # The report is published as an artifact for trend inspection only.
+      - name: Coverage report (artifact only, no threshold — suite red locally)
+        if: always()
+        run: |
+          echo "Coverage files (if any):"
+          find tests/UnitTests/TestResults -name 'coverage.cobertura.xml' 2>/dev/null || echo "(none — test run failed before collect)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-cobertura
+          path: tests/UnitTests/TestResults/**/coverage.cobertura.xml
+          if-no-files-found: warn
       - name: NuGet audit (no vulnerable packages, transitive included)
         run: |
           set -o pipefail
@@ -56,6 +73,26 @@ jobs:
           name: unit-test-results
           path: test-results/
           if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # ADDITIVE hardening (2026-09-27): dotnet format gate.
+  # ADVISORY ONLY (continue-on-error: true, NOT in ci-gate needs, never blocks).
+  # Local verification on SDK 10.0.401: DIRTY — 1/171 files would be formatted
+  # (tests/UnitTests/EndpointAuthorizationGuardTests.cs, xUnit2031 analyzer:
+  # "Do not use a Where clause to filter before calling Assert.Single").
+  # New property-test files belong to Phase 2, so CI must not auto-fix and
+  # must not block on formatting drift. This job reports only.
+  # ---------------------------------------------------------------------------
+  format-check:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: dotnet format --verify-no-changes (advisory, see comment above)
+        run: dotnet format AzureFlashSale.slnx --verify-no-changes --verbosity minimal
 
   integration-tests:
     runs-on: ubuntu-latest

@@ -1,0 +1,34 @@
+# Service-Level Objectives for this repo.
+#
+# Every SLO carries: name, sli (PromQL or gate), target, window, error_budget, alert.
+# `sli: gate` means the objective is enforced by a test/load harness, not by a metric.
+# Ports match prometheus/prometheus.yml; see that file for the scrape list.
+version: "1.0"
+
+constants:
+  P95_LATENCY_SECONDS: 2
+
+targets:
+  - job: flashsale
+    port: 5000
+    metrics_path: /metrics
+    source: FlashSale-Backend service (see prometheus/prometheus.yml)
+    uncertain: false
+
+slos:
+
+  - name: zero-oversell
+    sli: gate
+    target: 0
+    window: 30d
+    error_budget: 0
+    alert: ServiceDown
+    note: "Zero-tolerance invariant (oversell == 0), enforced by the concurrency harness in load-tests/ rather than by a metric. flashsale_orders_stock_drift is the leading indicator: every increment is a conditional UPDATE that matched zero rows, i.e. the guard did its job."
+
+  - name: in-flight-saturation
+    sli: flashsale_http_in_flight
+    target: 50
+    window: 30d
+    error_budget: 20%
+    alert: ServiceDown
+    note: "Saturation signal during a sale; a sustained climb means the connection pool is the bottleneck."
