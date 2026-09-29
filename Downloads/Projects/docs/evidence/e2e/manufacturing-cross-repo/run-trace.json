@@ -1,0 +1,61 @@
+{
+  "run_id": "e2e-20260930005122",
+  "correlation_id": "CORR-MFG-e2e-20260930005122-001",
+  "stage_trace": [
+    {
+      "stage": "factory.consumer",
+      "correlation_id": "CORR-MFG-e2e-20260930005122-001",
+      "ref": "EVT-e2e-20260930005026-001"
+    },
+    {
+      "stage": "factory.mart",
+      "correlation_id": "CORR-MFG-e2e-20260930005122-001",
+      "ref": "quality_daily"
+    },
+    {
+      "stage": "minierp.quality_context",
+      "correlation_id": "CORR-MFG-e2e-20260930005122-001",
+      "ref": "EVT-e2e-20260930005026-001"
+    },
+    {
+      "stage": "helpdesk.incident",
+      "correlation_id": "CORR-MFG-e2e-20260930005122-001",
+      "ref": "EVT-e2e-20260930005026-001"
+    }
+  ],
+  "gold": {
+    "records": [
+      {
+        "lot_code": "LOT-E2E-001",
+        "line_id": "LINE-A",
+        "verdict": "FAIL",
+        "defect_code": "SURFACE_SCRATCH",
+        "occurred_at": "2026-09-29T17:50:26Z"
+      }
+    ],
+    "mart": {
+      "quality_daily": {
+        "LOT-E2E-001": 1
+      },
+      "source_correlation_id": "CORR-MFG-e2e-20260930005122-001"
+    }
+  },
+  "rejected_cases": {
+    "missing required field": {
+      "accepted_by_contract": false,
+      "error": "<root>: 'inspection' is a required property"
+    },
+    "unknown enum value": {
+      "accepted_by_contract": false,
+      "error": "inspection/verdict: 'MAYBE' is not one of ['PASS', 'FAIL', 'REVIEW']"
+    },
+    "wrong schema version": {
+      "accepted_by_contract": false,
+      "error": "schema_version: '1.0.0' was expected"
+    },
+    "unexpected extra field": {
+      "accepted_by_contract": false,
+      "error": "<root>: Additional properties are not allowed ('correlation_id' was unexpected)"
+    }
+  }
+}

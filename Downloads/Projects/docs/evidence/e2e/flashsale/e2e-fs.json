@@ -1,0 +1,99 @@
+{
+  "evidence_version": "3.0",
+  "scenario_id": "E2E-FS",
+  "execution_location": "LOCAL",
+  "command": "dotnet test tests/IntegrationTests/FlashSale.IntegrationTests.csproj",
+  "started_at": "2026-09-29T17:39:23Z",
+  "duration_s": 0.0,
+  "status": "VERIFIED",
+  "repos": [
+    {
+      "path": "FlashSale-Backend",
+      "commit": "9454e73742d62d67cbcf48463ec492496bacf902",
+      "worktree": "DIRTY_WORKTREE_SNAPSHOT",
+      "dirty_files": [
+        "?? tests/IntegrationTests/AsyncFlowE2ETests.cs"
+      ]
+    }
+  ],
+  "boundaries": {
+    "postgres": "REAL (Testcontainers postgres:15-alpine)",
+    "redis": "REAL (Testcontainers redis:7-alpine)",
+    "rabbitmq": "REAL (Testcontainers rabbitmq:3-management-alpine)",
+    "payment-gateway": "NOT_RUN (no external payment provider in scope)"
+  },
+  "checks": [
+    {
+      "invariant": "unit suite green",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "0 failed",
+      "actual": "0 failed",
+      "detail": "167/167 passed"
+    },
+    {
+      "invariant": "integration suite green",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "0 failed",
+      "actual": "0 failed: []",
+      "detail": "62/62 passed"
+    },
+    {
+      "invariant": "E2E-FS-01 inventory conservation under 50 concurrent attempts",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "sold == 10, stock == 0, never negative",
+      "actual": "see ConcurrentPurchases_ConserveInventory",
+      "detail": "MaxDegreeOfParallelism equals the attempt count, so the requests genuinely race instead of being serialised"
+    },
+    {
+      "invariant": "E2E-FS-02 one order per idempotency key",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "5 deliveries -> 1 order",
+      "actual": "see DuplicateDelivery_PersistsExactlyOnce",
+      "detail": ""
+    },
+    {
+      "invariant": "E2E-FS-03 reserve -> queue -> consume converges to one order",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "stock 9, orders 1, stock + qty == 10",
+      "actual": "see AsyncFlowE2ETests",
+      "detail": ""
+    },
+    {
+      "invariant": "E2E-FS-04 consumer dies mid-flight, then recovers",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "zero orders while unprocessed, then exactly one order",
+      "actual": "see AsyncFlowE2ETests",
+      "detail": "asserts the intermediate state: a killed consumer must leave zero orders, not a compensating fake one"
+    },
+    {
+      "invariant": "E2E-FS-05 backup -> corrupt -> restore recovers the invariant",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "PASS before, FAIL after corruption, PASS after restore",
+      "actual": "before= PASS after_mutation= FAIL after_restore= PASS",
+      "detail": "pg_dump -Fc plus pg_restore --clean --if-exists against a real postgres:15-alpine whose schema came from the repository's own EF migrations. Plain 'pg_dump | psql' was tried first and silently failed to recover, because every CREATE INDEX hit 'already exists'."
+    }
+  ],
+  "checks_passed": 7,
+  "checks_total": 7,
+  "artifacts": [
+    "docs/evidence/e2e/flashsale/artifacts/integration.trx",
+    "docs/evidence/e2e/flashsale/artifacts/unit.trx"
+  ],
+  "sha256": {
+    "docs/evidence/e2e/flashsale/artifacts/integration.trx": "5810329c5e7ffd405b95328ebce549ade948f436e10ccef28a07e2ea3a6538b6",
+    "docs/evidence/e2e/flashsale/artifacts/unit.trx": "00ad020a2eaec86e7a5d1cf528b6ef1e44e2a013b1e7f90a00924948178f02d7"
+  },
+  "environment": {
+    "python": "3.14.7",
+    "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+    "hostname": "MacBook-Pro-cua-Tan.local"
+  },
+  "notes": "Zero oversell, idempotency, async queue flow and consumer recovery, all against real infrastructure. Payment gateway and Azure Service Bus remain unexercised."
+}

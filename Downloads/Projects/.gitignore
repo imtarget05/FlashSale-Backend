@@ -1,0 +1,33 @@
+# runtime / airflow
+.airflow/
+.airflow/logs/
+
+# venvs (local only — mỗi dự án 1 venv riêng, nằm TRONG repo của nó)
+.venv-*/
+venv/
+.env
+
+# python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# local data / secrets - KHÔNG commit
+*.db-shm
+*.db-wal
+maia_auth.db
+.env.local
+*-secret*
+*credential*
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+.venv-local/
+.e2e-envs/
+*.sqlite
