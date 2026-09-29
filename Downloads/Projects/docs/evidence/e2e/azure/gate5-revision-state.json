@@ -1,0 +1,13 @@
+{
+  "app": "ca-creditflow-api",
+  "resource_group": "rg-portfolio-evidence",
+  "starting_revision": "ca-creditflow-api--0000005",
+  "broken_revision": "ca-creditflow-api--0000006",
+  "broken_revision_state": "Failed",
+  "health_before": 200,
+  "health_while_broken_revision_exists": 200,
+  "health_after_reactivation": 200,
+  "decision_after_reactivation": "APPROVE",
+  "finding": "Container Apps single-revision mode keeps routing to the last healthy revision. A revision that fails to provision never receives traffic, so a bad config deploy degrades to 'no rollout' rather than an outage.",
+  "fault": "CREDITFLOW_API_KEY_ROLE=analyst (not in the authority matrix: RISK_COMMITTEE_L2, SYSTEM_STP, UNDERWRITER_L1)"
+}

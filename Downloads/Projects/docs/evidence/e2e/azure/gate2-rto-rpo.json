@@ -1,0 +1,19 @@
+{
+  "scenario": "GATE2-RTO-RPO",
+  "database": "postgres:15-alpine real container, repository EF migrations",
+  "backup_seconds": 0.23,
+  "restore_seconds": 0.2,
+  "rpo_window_seconds": 1,
+  "rpo_explanation": "orders written after the last successful backup; this is the data a restore would lose",
+  "destroyed_units": 5,
+  "sold_after_restore": 2,
+  "stock_after_restore": 7,
+  "data_loss_units": 3,
+  "state_at_backup_sold": 2,
+  "state_at_backup_stock": 7,
+  "pre_damage_sold": 5,
+  "pre_damage_stock": 7,
+  "invariant_after_restore": "RESTORED_TO_BACKUP_POINT_IN_TIME",
+  "dump_bytes": 22653,
+  "caveat": "Single local postgres restore, not a production cluster failover. It bounds the restore mechanism, not regional recovery."
+}

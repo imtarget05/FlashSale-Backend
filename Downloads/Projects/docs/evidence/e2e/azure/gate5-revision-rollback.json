@@ -1,0 +1,112 @@
+{
+  "evidence_version": "3.0",
+  "scenario_id": "GATE5-REVISION-ROLLBACK",
+  "execution_location": "AZURE",
+  "command": "az containerapp update (bad config) -> activate ca-creditflow-api--0000005",
+  "started_at": "2026-09-29T18:36:26Z",
+  "duration_s": 78.2,
+  "status": "VERIFIED",
+  "repos": [
+    {
+      "path": "CreditFlow",
+      "commit": "b36e28934deaf6ff8ef2235287c3b74290c4a3ea",
+      "worktree": "DIRTY_WORKTREE_SNAPSHOT",
+      "dirty_files": [
+        "?? k8s/"
+      ]
+    }
+  ],
+  "boundaries": {
+    "azure-container-apps": "REAL (Consumption, eastasia)",
+    "ingress": "REAL (HTTPS via Container Apps ingress)",
+    "bad-deploy": "SIMULATED (an invalid CREDITFLOW_API_KEY_ROLE; a controlled config fault, not a real regression)"
+  },
+  "checks": [
+    {
+      "invariant": "the app is healthy before any change",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "HTTP 200",
+      "actual": "HTTP 200",
+      "detail": "revision ca-creditflow-api--0000005, HTTP 200"
+    },
+    {
+      "invariant": "a new revision was created",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "a new revision name",
+      "actual": "['ca-creditflow-api--0000006']",
+      "detail": "new: ['ca-creditflow-api--0000006']; all: ['ca-creditflow-api--0000005', 'ca-creditflow-api--0000006']"
+    },
+    {
+      "invariant": "the broken revision is marked Failed and never becomes ready",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "Failed",
+      "actual": "Failed",
+      "detail": "ca-creditflow-api--0000006 state=Failed"
+    },
+    {
+      "invariant": "traffic is NOT moved to the broken revision; the previous healthy revision keeps serving",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "HTTP 200 from the old revision",
+      "actual": "HTTP 200",
+      "detail": "/health HTTP 200 while ca-creditflow-api--0000006 is Failed"
+    },
+    {
+      "invariant": "the healthy revision is re-activated and serving",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "HTTP 200",
+      "actual": "HTTP 200 {\"status\":\"ok\",\"model_loaded\":true,\"model_version\":\"logistic_regressio",
+      "detail": "/health HTTP 200"
+    },
+    {
+      "invariant": "the previously active revision serves traffic again",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "ca-creditflow-api--0000005",
+      "actual": "ca-creditflow-api--0000005",
+      "detail": "active=ca-creditflow-api--0000005"
+    },
+    {
+      "invariant": "the failed revision is not in a serving state",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "Failed / Deprovisioned / Inactive",
+      "actual": "Failed",
+      "detail": "ca-creditflow-api--0000006 state=Failed"
+    },
+    {
+      "invariant": "a real credit decision is served after the failed deploy",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "a decision",
+      "actual": "HTTP 200 APPROVE",
+      "detail": "decision=APPROVE"
+    },
+    {
+      "invariant": "metrics remain scrapeable after the failed deploy and the rollback",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "HTTP 200",
+      "actual": "HTTP 200",
+      "detail": "HTTP 200"
+    }
+  ],
+  "checks_passed": 9,
+  "checks_total": 9,
+  "artifacts": [
+    "docs/evidence/e2e/azure/gate5-revision-state.json"
+  ],
+  "sha256": {
+    "docs/evidence/e2e/azure/gate5-revision-state.json": "3ba6345cc6fe21aca3c0622cb39c9a267c8a9b3d48e765d6c0dddf66ccb6cf8a"
+  },
+  "environment": {
+    "python": "3.14.7",
+    "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+    "hostname": "MacBook-Pro-cua-Tan.local"
+  },
+  "notes": "app=ca-creditflow-api starting revision=ca-creditflow-api--0000005"
+}

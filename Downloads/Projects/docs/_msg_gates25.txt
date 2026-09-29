@@ -1,0 +1,48 @@
+feat(evidence): measured RTO/RPO and a real Azure revision rollback
+
+GATE 2, RTO/RPO restore drill
+------------------------------
+Backup succeeding is not RPO, it is a boolean. This drill produces the two
+numbers: writes an order before the backup and another after it, times the
+dump, destroys the data, times the restore, and reports what actually came
+back. Measured RTO 0.17s on a real postgres:15-alpine whose schema came from
+the repository's own EF migrations; the three units written after the backup
+are gone, which is precisely what RPO means.
+
+Three of my own mistakes, all of the same shape: reporting a problem when the
+system was correct.
+
+  - I compared the restored state against the constant 10 and called it
+    BROKEN. I had seeded that constant myself, and inserting orders with raw
+    SQL never decrements stock, so 10 was never a consistent state.
+  - I then compared against the pre-damage state and called it MISMATCH. A
+    backup restores the system to the point in time it was taken, not to the
+    moment before the failure; the gap between those two is exactly the data
+    loss the exercise is measuring. Restore was right both times.
+  - The "orders lost" counter ran after the DELETE, so it always read 0. A
+    metric that can never fire is worse than no metric, because it looks
+    like a passing one.
+
+Each of those invites the same wrong repair: adjust the data until the test
+goes green.
+
+GATE 5, revision rollback on Azure
+----------------------------------
+Deployed a revision with an invalid CREDITFLOW_API_KEY_ROLE. The app
+refuses to start rather than come up holding an identity it cannot rank,
+which is the control working. Then the result contradicted my expectation in
+a way worth recording: Container Apps single-revision mode keeps routing to
+the last healthy revision, so the failed revision never received traffic at
+all. /health stayed 200 and a real APPROVE decision kept being served while
+the broken revision existed.
+
+I had written the assertion as "health must fail" and it went red. The app
+was not broken. Relaxing that expectation to make it pass would have
+discarded the single most valuable property of the platform, so the
+assertion was rewritten to measure traffic, not the health of a revision
+nobody was routed to.
+
+Two more runner bugs: /predict was called with GET and no body, so a broken
+probe looked like a broken app; and re-running left the bad value in the
+template, so `az containerapp update` saw no change, created no revision,
+and the run recorded an empty piece of evidence while appearing to succeed.
