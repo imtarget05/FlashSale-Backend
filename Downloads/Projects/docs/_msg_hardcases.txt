@@ -1,0 +1,36 @@
+feat(e2e): run the hard cases against real tests, and score from evidence
+
+A hard-case checklist is easy to mistake for progress: every line sounds
+reasonable and none of them is evidence. Most of those cases already had
+tests in the repositories, written earlier and never run or recorded. So
+this maps each case to a specific test, runs it, and only awards a gate
+point when that test passes at a REAL boundary.
+
+14/14 mapped hard cases now pass: CreditFlow future-leakage, feature
+parity, business-cost threshold and audit tamper; MAIA cross-tenant,
+no-evidence refusal, Qdrant degradation and agent restart; Apex PLC
+unavailable and hash-chain tamper; Factory quarantine and contracts;
+Helpdesk RBAC and alert dedupe.
+
+Two failures in the first run were the runner's, not the products, and both
+are recorded in run_hard_cases.py because both invite a wrong fix:
+
+  - the pytest target was passed as one argv element, so "test_x.py -k
+    'foo'" became a filename and pytest exited 4. Every case went red and
+    none of them said why.
+  - the subprocess environment was replaced with a bare PATH, so pytest
+    could not function. It now inherits os.environ.
+
+Two more were collection artefacts rather than test failures: a -k filter
+matching no test (rc=5, "17 deselected") and a llama-index import error.
+Both are now distinguishable from a genuine failure, because a case that
+silently ran nothing looks identical to a case that ran and failed.
+
+The Azure evidence reader accepts two schemas. CreditFlow and MAIA write
+status: VERIFIED; the Factory file, carried over from an earlier location,
+holds a boolean dict under `verified` instead. Editing the Factory file to
+match would be editing evidence to look tidy, so the reader learned both
+shapes.
+
+Gate scores are derived, never typed: a gate only rises when a named test
+or scenario file exists and passed.

@@ -3,7 +3,7 @@
   "scenario_id": "E2E-APEXINSPECT",
   "execution_location": "LOCAL",
   "command": "python -m pytest tests/ -q",
-  "started_at": "2026-09-29T17:56:29Z",
+  "started_at": "2026-09-29T18:15:28Z",
   "duration_s": 0.0,
   "status": "PARTIAL",
   "repos": [
@@ -19,6 +19,7 @@
   ],
   "boundaries": {
     "unit-and-integration": "REAL",
+    "plc-bridge": "REAL (pymodbus against a simulated PLC, not hardware)",
     "live-llm-rca": "NOT_RUN (needs a real GROQ_API_KEY and a recorded cassette)"
   },
   "checks": [
@@ -28,7 +29,7 @@
       "passed": true,
       "expected": "0 failed",
       "actual": "0 failed",
-      "detail": "150 passed, 0 failed, 1 skipped"
+      "detail": "150 passed, 0 failed, 1 skipped, 3.6s"
     },
     {
       "invariant": "no test was skipped",
@@ -52,5 +53,5 @@
     "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
     "hostname": "MacBook-Pro-cua-Tan.local"
   },
-  "notes": "150 passed, 0 failed, 1 skipped - tests/test_rca_groq_vcr.py:54: cassette missing and no real GROQ_API_KEY; record once with APEX_ALLOW_LIVE_LLM=1 and a real key to create it"
+  "notes": "150 passed, 0 failed, 1 skipped"
 }

@@ -1,0 +1,60 @@
+{
+  "evidence_version": "3.0",
+  "scenario_id": "E2E-FACTORY",
+  "execution_location": "LOCAL",
+  "command": "python -m pytest tests/ -q",
+  "started_at": "2026-09-29T18:15:28Z",
+  "duration_s": 0.0,
+  "status": "FAILED",
+  "repos": [
+    {
+      "path": "Factory-Data-Automation-v-AI-Reporting-Platform",
+      "commit": "20e422a92883a08b9ab6b27dd199f74a8e4593f0",
+      "worktree": "DIRTY_WORKTREE_SNAPSHOT",
+      "dirty_files": [
+        "M .gitignore",
+        "?? docker/Dockerfile.factory",
+        "?? docker/requirements.factory.txt",
+        "?? k8s/"
+      ]
+    }
+  ],
+  "boundaries": {
+    "pipeline-contracts-catalog": "REAL",
+    "scale-10x": "REAL but UNSATISFIED: test_scale_and_perf.py requires data/raw/production.csv with >1000 rows; the committed fixture has 30, so the test fails on its own precondition, not on pipeline behaviour",
+    "parquet-smaller-than-csv": "REAL but UNSATISFIED: at 30 rows the parquet footer overhead exceeds the CSV, so the size assertion inverts",
+    "llm-sql-tool": "NOT_RUN (needs LAN vLLM)"
+  },
+  "checks": [
+    {
+      "invariant": "the full suite has no failures",
+      "boundary": "REAL",
+      "passed": false,
+      "expected": "0 failed",
+      "actual": "2 failed",
+      "detail": "213 passed, 2 failed, 5 skipped, 7.6s"
+    },
+    {
+      "invariant": "no test was skipped",
+      "boundary": "NOT_RUN",
+      "passed": false,
+      "expected": "0 skipped",
+      "actual": "5 skipped",
+      "detail": "tests/test_oee_parity.py:132: duckdb not installed (optional leg); tests/test_silver_parquet.py:97: parquet available; fallback not needed; tests/test_sql_tool.py:219: needs LAN vLLM (FACTORY_LLM_LIVE=1)"
+    }
+  ],
+  "checks_passed": 0,
+  "checks_total": 2,
+  "artifacts": [
+    "docs/evidence/e2e/factory/factory-test-output.txt"
+  ],
+  "sha256": {
+    "docs/evidence/e2e/factory/factory-test-output.txt": "389bed991c66a1b379d05faef173a9dd4bf824200ed4d073511fc12786c70e58"
+  },
+  "environment": {
+    "python": "3.14.7",
+    "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+    "hostname": "MacBook-Pro-cua-Tan.local"
+  },
+  "notes": "213 passed, 2 failed, 5 skipped"
+}

@@ -1,0 +1,40 @@
+feat(e2e): shared evidence harness plus a real cross-repo Kafka scenario
+
+tools/e2e/evidence.py is the common shape every E2E scenario writes, so a
+reviewer reads one file format instead of seven, and regenerating hashes is a
+single command. Two rules are enforced rather than documented:
+
+  - a scenario cannot be VERIFIED without at least one artifact, because an
+    evidence claim with no file behind it is just a claim
+  - any check declared SIMULATED, MOCKED or NOT_RUN downgrades the scenario
+    to PARTIAL even when every invariant is green, so an honest boundary
+    cannot be quietly reported as a pass
+
+A scenario that raises still writes a FAILED record before propagating,
+since "it crashed" is more useful to a reviewer than silence.
+
+run_manufacturing_cross_repo.py runs E2E-MFG-001/002/003 against a real
+apache/kafka:3.7.0 broker: one correlation id traced through four downstream
+stages, a duplicate that stays suppressed after the consumer restarts, and
+four kinds of contract violation rejected before the consumer sees them.
+
+Reading the real contract changed the scenario twice. It requires
+schema_version "1.0.0" rather than "1.0", and with additionalProperties
+false and no correlation_id declared, putting the correlation id in the
+payload is itself a contract violation. So it travels as a Kafka key, which
+is what the envelope design intends, rather than as a convenient free field.
+
+Two failures during development were mine, not the system's, and both are
+recorded in the code because both invite the wrong fix:
+
+  - scenarios shared one topic. A fresh consumer group with
+    auto.offset.reset=earliest re-reads the whole topic, so scenario 002
+    counted scenario 001's valid event and reported deduplication broken.
+    Each scenario now gets its own topic. The tempting "fix" would have been
+    to loosen the assertion, which is the opposite of the point.
+  - main() re-raised before calling finalise(), so fourteen passing checks
+    were discarded by the failure path. It now writes what ran and keeps
+    going.
+
+The result is VERIFIED 13/13 and stable across repeated runs, with a fresh
+run_id each time.

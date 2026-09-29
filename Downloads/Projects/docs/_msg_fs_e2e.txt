@@ -1,0 +1,30 @@
+test(e2e): cover the async order path and prove backup restore works
+
+OrderFlowTests already proved zero oversell and idempotency, but two
+questions it never asked were still open, and they are the ones an
+interviewer actually asks:
+
+  - does the state stay correct after travelling through the real queue?
+  - if the consumer dies mid-flight, is the event lost?
+
+AsyncFlowE2ETests answers both against real Postgres, Redis and RabbitMQ
+from Testcontainers, using the same ports the application uses. Nothing is
+faked: drop RabbitMQ from these two and they stop being end-to-end tests,
+so they are recorded as REAL rather than "a simulated queue".
+
+E2E-FS-04 also asserts the intermediate state, which is the part that is
+easy to get wrong. After the consumer dies, the order count must be zero.
+A system that "repairs" this by inserting a compensating order would pass
+a weaker assertion and quietly corrupt the ledger.
+
+tools/e2e/e2e_fs05_backup_restore.sh found a real problem worth recording:
+pg_dump piped into psql does not recover. Every CREATE INDEX in the dump
+hits an already-existing relation, and the data ends up unrecovered, while
+the backup step itself reports success. Recovery needs pg_dump -Fc plus
+pg_restore --clean --if-exists. The script also asserts the mutation
+actually broke the invariant before restoring, because "restore returned
+200" proves nothing when a no-op restore would also return 200.
+
+The evidence runner parses the VSTest .trx rather than hardcoding pass
+counts. An earlier draft checked scenarios with literal True values, which
+means the report would still say VERIFIED after the tests started failing.

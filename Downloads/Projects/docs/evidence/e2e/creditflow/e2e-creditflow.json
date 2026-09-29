@@ -1,0 +1,57 @@
+{
+  "evidence_version": "3.0",
+  "scenario_id": "E2E-CREDITFLOW",
+  "execution_location": "LOCAL",
+  "command": "python -m pytest tests/ -q",
+  "started_at": "2026-09-29T18:15:28Z",
+  "duration_s": 0.0,
+  "status": "PARTIAL",
+  "repos": [
+    {
+      "path": "CreditFlow",
+      "commit": "b36e28934deaf6ff8ef2235287c3b74290c4a3ea",
+      "worktree": "DIRTY_WORKTREE_SNAPSHOT",
+      "dirty_files": [
+        "?? k8s/"
+      ]
+    }
+  ],
+  "boundaries": {
+    "feature-store-point-in-time": "REAL (sqlite-backed, in-process)",
+    "postgres-checkpoint": "NOT_RUN (no Postgres in this environment)",
+    "llm-provider-vcr": "NOT_RUN (cassette not recorded)",
+    "frontend-build": "NOT_RUN (node_modules absent)"
+  },
+  "checks": [
+    {
+      "invariant": "the full suite has no failures",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "0 failed",
+      "actual": "0 failed",
+      "detail": "412 passed, 0 failed, 3 skipped, 72.2s"
+    },
+    {
+      "invariant": "no test was skipped",
+      "boundary": "NOT_RUN",
+      "passed": false,
+      "expected": "0 skipped",
+      "actual": "3 skipped",
+      "detail": "tests/test_deploy_pages.py:73: npm run build failed (e.g. node_modules absent): Command '['npm', 'run', 'build']' returned non-zero exit status 127.; tests/test_llm_provider.py:376: vcrpy not installed (see requirements-dev.txt)"
+    }
+  ],
+  "checks_passed": 1,
+  "checks_total": 2,
+  "artifacts": [
+    "docs/evidence/e2e/creditflow/creditflow-test-output.txt"
+  ],
+  "sha256": {
+    "docs/evidence/e2e/creditflow/creditflow-test-output.txt": "55b517be61a06e177020848353a085286a7bea999b6e408a7d36749f337c327e"
+  },
+  "environment": {
+    "python": "3.14.7",
+    "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+    "hostname": "MacBook-Pro-cua-Tan.local"
+  },
+  "notes": "412 passed, 0 failed, 3 skipped"
+}

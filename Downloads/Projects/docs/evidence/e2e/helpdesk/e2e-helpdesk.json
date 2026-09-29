@@ -3,7 +3,7 @@
   "scenario_id": "E2E-HELPDESK",
   "execution_location": "LOCAL",
   "command": "cd internal-portal && npm test",
-  "started_at": "2026-09-29T17:56:29Z",
+  "started_at": "2026-09-29T18:15:28Z",
   "duration_s": 0.0,
   "status": "PARTIAL",
   "repos": [
@@ -17,8 +17,7 @@
     }
   ],
   "boundaries": {
-    "unit-and-integration": "REAL",
-    "live-llm-rca": "N/A"
+    "unit-and-integration": "REAL (JSON file persistence)"
   },
   "checks": [
     {
@@ -27,7 +26,7 @@
       "passed": true,
       "expected": "0 failed",
       "actual": "0 failed",
-      "detail": "336 passed, 0 failed, 1 skipped"
+      "detail": "336 passed, 0 failed, 1 skipped, 13.5s"
     },
     {
       "invariant": "no test was skipped",
@@ -35,7 +34,7 @@
       "passed": false,
       "expected": "0 skipped",
       "actual": "1 skipped",
-      "detail": ""
+      "detail": "see artifact"
     }
   ],
   "checks_passed": 1,

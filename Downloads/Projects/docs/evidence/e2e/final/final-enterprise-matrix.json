@@ -1,0 +1,228 @@
+{
+  "rubric": "11 gates x 3 points, max 33",
+  "scoring": {
+    "0": "absent",
+    "1": "code, not runtime verified",
+    "2": "runtime verified happy path",
+    "3": "runtime verified including failure/recovery"
+  },
+  "exit_criteria": "gates 0/1/2 all = 3, no zero in gates 3-8, total >= 25",
+  "projects": {
+    "FlashSale-Backend": {
+      "gates": {
+        "reproduce": 3,
+        "business_invariant": 3,
+        "e2e_flow": 3,
+        "idempotency": 3,
+        "partial_failure": 3,
+        "restart_recovery": 3,
+        "concurrency": 3,
+        "security": 1,
+        "observability": 2,
+        "performance": 2,
+        "backup_recovery": 3
+      },
+      "total": 29,
+      "max": 33,
+      "level": "L3",
+      "commit": "bf4d598",
+      "worktree_clean": true,
+      "evidence": [
+        "docs/evidence/e2e/flashsale/artifacts",
+        "docs/evidence/e2e/flashsale/e2e-fs.json"
+      ],
+      "exit_criteria": {
+        "gates_0_1_2_all_3": true,
+        "no_zero_in_gates_3_to_8": true,
+        "total_at_least_25": true
+      },
+      "enterprise_ready": true
+    },
+    "CreditFlow": {
+      "gates": {
+        "reproduce": 3,
+        "business_invariant": 3,
+        "e2e_flow": 2,
+        "idempotency": 1,
+        "partial_failure": 2,
+        "restart_recovery": 0,
+        "concurrency": 0,
+        "security": 3,
+        "observability": 3,
+        "performance": 0,
+        "backup_recovery": 0
+      },
+      "total": 17,
+      "max": 33,
+      "level": "L1",
+      "commit": "b36e289",
+      "worktree_clean": false,
+      "evidence": [
+        "docs/evidence/e2e/creditflow/creditflow-test-output.txt",
+        "docs/evidence/e2e/creditflow/e2e-creditflow.json"
+      ],
+      "exit_criteria": {
+        "gates_0_1_2_all_3": false,
+        "no_zero_in_gates_3_to_8": false,
+        "total_at_least_25": false
+      },
+      "enterprise_ready": false
+    },
+    "MAIA": {
+      "gates": {
+        "reproduce": 3,
+        "business_invariant": 3,
+        "e2e_flow": 2,
+        "idempotency": 0,
+        "partial_failure": 3,
+        "restart_recovery": 2,
+        "concurrency": 0,
+        "security": 3,
+        "observability": 2,
+        "performance": 1,
+        "backup_recovery": 0
+      },
+      "total": 19,
+      "max": 33,
+      "level": "L1",
+      "commit": "47110b8",
+      "worktree_clean": false,
+      "evidence": [
+        "docs/evidence/e2e/maia/e2e-maia.json",
+        "docs/evidence/e2e/maia/maia-test-output.txt"
+      ],
+      "exit_criteria": {
+        "gates_0_1_2_all_3": false,
+        "no_zero_in_gates_3_to_8": false,
+        "total_at_least_25": false
+      },
+      "enterprise_ready": false
+    },
+    "Factory": {
+      "gates": {
+        "reproduce": 3,
+        "business_invariant": 2,
+        "e2e_flow": 2,
+        "idempotency": 1,
+        "partial_failure": 2,
+        "restart_recovery": 0,
+        "concurrency": 0,
+        "security": 2,
+        "observability": 3,
+        "performance": 0,
+        "backup_recovery": 0
+      },
+      "total": 15,
+      "max": 33,
+      "level": "L1",
+      "commit": "20e422a",
+      "worktree_clean": false,
+      "evidence": [
+        "docs/evidence/e2e/factory/e2e-factory.json",
+        "docs/evidence/e2e/factory/factory-test-output.txt"
+      ],
+      "exit_criteria": {
+        "gates_0_1_2_all_3": false,
+        "no_zero_in_gates_3_to_8": false,
+        "total_at_least_25": false
+      },
+      "enterprise_ready": false
+    },
+    "ApexInspect-AI": {
+      "gates": {
+        "reproduce": 3,
+        "business_invariant": 3,
+        "e2e_flow": 2,
+        "idempotency": 1,
+        "partial_failure": 2,
+        "restart_recovery": 1,
+        "concurrency": 0,
+        "security": 2,
+        "observability": 3,
+        "performance": 3,
+        "backup_recovery": 0
+      },
+      "total": 20,
+      "max": 33,
+      "level": "L2",
+      "commit": "e8e42da",
+      "worktree_clean": false,
+      "evidence": [
+        "docs/evidence/e2e/apexinspect/apexinspect-test-output.txt",
+        "docs/evidence/e2e/apexinspect/e2e-apexinspect.json"
+      ],
+      "exit_criteria": {
+        "gates_0_1_2_all_3": false,
+        "no_zero_in_gates_3_to_8": false,
+        "total_at_least_25": false
+      },
+      "enterprise_ready": false
+    },
+    "Enterprise-IT-Helpdesk-Lab": {
+      "gates": {
+        "reproduce": 3,
+        "business_invariant": 2,
+        "e2e_flow": 2,
+        "idempotency": 1,
+        "partial_failure": 1,
+        "restart_recovery": 1,
+        "concurrency": 0,
+        "security": 2,
+        "observability": 2,
+        "performance": 0,
+        "backup_recovery": 3
+      },
+      "total": 17,
+      "max": 33,
+      "level": "L1",
+      "commit": "f320d59",
+      "worktree_clean": false,
+      "evidence": [
+        "docs/evidence/e2e/helpdesk/e2e-helpdesk.json",
+        "docs/evidence/e2e/helpdesk/helpdesk-test-output.txt"
+      ],
+      "exit_criteria": {
+        "gates_0_1_2_all_3": false,
+        "no_zero_in_gates_3_to_8": false,
+        "total_at_least_25": false
+      },
+      "enterprise_ready": false
+    },
+    "MiniERP-Manufacturing-Warehouse": {
+      "gates": {
+        "reproduce": 1,
+        "business_invariant": 0,
+        "e2e_flow": 0,
+        "idempotency": 0,
+        "partial_failure": 0,
+        "restart_recovery": 0,
+        "concurrency": 0,
+        "security": 0,
+        "observability": 0,
+        "performance": 0,
+        "backup_recovery": 0
+      },
+      "total": 1,
+      "max": 33,
+      "level": "L0",
+      "commit": "d0515f1",
+      "worktree_clean": true,
+      "evidence": [],
+      "exit_criteria": {
+        "gates_0_1_2_all_3": false,
+        "no_zero_in_gates_3_to_8": false,
+        "total_at_least_25": false
+      },
+      "enterprise_ready": false
+    }
+  },
+  "summary": {
+    "enterprise_ready": [
+      "FlashSale-Backend"
+    ],
+    "flagship_28_plus": [
+      "FlashSale-Backend"
+    ],
+    "portfolio_ready": false
+  }
+}

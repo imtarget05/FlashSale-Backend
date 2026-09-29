@@ -1,0 +1,49 @@
+........................................................................ [  8%]
+........................................................................ [ 16%]
+....................s................................................... [ 25%]
+........................................................................ [ 33%]
+........................................................................ [ 42%]
+......................................ss................................ [ 50%]
+........................................................................ [ 59%]
+........................................................................ [ 67%]
+........................................................................ [ 76%]
+........................sss............................................. [ 84%]
+........................................................................ [ 93%]
+........................................................                 [100%]
+=============================== warnings summary ===============================
+../.e2e-envs/maia/lib/python3.11/site-packages/passlib/utils/__init__.py:854
+  /Users/mainguyenbinhtan/Downloads/Projects/.e2e-envs/maia/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+src/maia/config.py:322
+src/maia/config.py:322
+  /Users/mainguyenbinhtan/Downloads/Projects/MAIA-clean/src/maia/config.py:322: RuntimeWarning: JWT_SECRET_KEY is not set — using an ephemeral random key. All tokens/sessions will be invalidated on restart. Set JWT_SECRET_KEY in .env for production.
+    warnings.warn(
+
+src/maia/api.py:224
+  /Users/mainguyenbinhtan/Downloads/Projects/MAIA-clean/src/maia/api.py:224: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class UserResponse(BaseModel):
+
+../.e2e-envs/maia/lib/python3.11/site-packages/pydantic/_internal/_config.py:386
+  /Users/mainguyenbinhtan/Downloads/Projects/.e2e-envs/maia/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:
+  * 'orm_mode' has been renamed to 'from_attributes'
+    warnings.warn(message, UserWarning)
+
+tests/test_authorization.py::test_request_models_ignore_extra_tenant_id[UrlIngestReq]
+tests/test_authorization.py::test_request_models_ignore_extra_tenant_id[MemoryStoreReq]
+  /Users/mainguyenbinhtan/Downloads/Projects/MAIA-clean/tests/test_authorization.py:37: PydanticDeprecatedSince211: Accessing the 'model_fields' attribute on the instance is deprecated. Instead, you should access this attribute from the model class. Deprecated in Pydantic V2.11 to be removed in V3.0.
+    assert "tenant_id" not in m.model_fields
+
+tests/test_document_lifecycle.py::test_upload_creates_v1_manifest
+  /Users/mainguyenbinhtan/Downloads/Projects/.e2e-envs/maia/lib/python3.11/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_document_lifecycle.py::test_upload_creates_v1_manifest returned <class 'str'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/live_infra.py:42: Skipping live LLM test: LIVE_TESTS!=1
+SKIPPED [1] tests/test_persistence.py:112: can MAIA_POSTGRES_DSN troi toi Postgres de test runtime
+SKIPPED [1] tests/test_persistence.py:120: can MAIA_POSTGRES_DSN troi toi Postgres de test runtime
+SKIPPED [3] tests/test_tracing.py:177: could not import 'opentelemetry.sdk': No module named 'opentelemetry.sdk'
+842 passed, 6 skipped, 8 warnings in 208.00s (0:03:28)

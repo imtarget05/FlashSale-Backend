@@ -1,0 +1,142 @@
+{
+  "CF-01 future leakage": {
+    "project": "CreditFlow",
+    "command": "pytest: tests/test_feature_store.py -k 'future or as_of or no_future'",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "an event after as_of never appears in materialised history",
+    "error": "",
+    "output_tail": "...........                                                              [100%]\n11 passed, 25 deselected in 0.02s\n"
+  },
+  "CF-02 train/serve parity": {
+    "project": "CreditFlow",
+    "command": "pytest: tests/test_features.py",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "offline and online feature computation agree",
+    "error": "",
+    "output_tail": "...................                                                      [100%]\n19 passed in 0.87s\n"
+  },
+  "CF-03 threshold by business cost": {
+    "project": "CreditFlow",
+    "command": "pytest: tests/ -k 'threshold or cost'",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "decision threshold follows business cost, not a fixed 0.5",
+    "error": "",
+    "output_tail": "shold_and_test_metrics_reproduce\n  /Users/mainguyenbinhtan/Downloads/Projects/.e2e-envs/creditflow/lib/python3.11/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator Pipeline from version 1.9.0 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:\n  https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n22 passed, 393 deselected, 12 warnings in 2.63s\n"
+  },
+  "CF-06 audit tamper": {
+    "project": "CreditFlow",
+    "command": "pytest: tests/ -k 'audit or tamper or chain'",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "a modified audit record is detected",
+    "error": "",
+    "output_tail": "/site-packages/sklearn/base.py:525\n  /Users/mainguyenbinhtan/Downloads/Projects/.e2e-envs/creditflow/lib/python3.11/site-packages/sklearn/base.py:525: InconsistentVersionWarning: Trying to unpickle estimator Pipeline from version 1.9.0 when using version 1.9.1. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:\n  https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n5 passed, 410 deselected, 8 warnings in 6.80s\n"
+  },
+  "MAIA-04 cross-tenant": {
+    "project": "MAIA",
+    "command": "pytest: tests/test_tenant_authorization.py",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "a tenant-A actor cannot act for tenant B, and writes nothing",
+    "error": "",
+    "output_tail": "..........                                                               [100%]\n10 passed in 0.33s\n"
+  },
+  "MAIA-01 no-evidence refusal": {
+    "project": "MAIA",
+    "command": "pytest: tests/test_loops.py -k 'no_evidence or invalid_cite' --ignore=tests/test_llama_index_dataplane.py",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "no supporting evidence yields refusal, not an answer",
+    "error": "",
+    "output_tail": "..                                                                       [100%]\n2 passed, 12 deselected in 0.11s\n"
+  },
+  "MAIA-08 qdrant unavailable": {
+    "project": "MAIA",
+    "command": "pytest: tests/test_tracing.py -k 'refusal or fallback or offline' --ignore=tests/test_llama_index_dataplane.py",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "missing Qdrant degrades explicitly instead of fabricating",
+    "error": "",
+    "output_tail": ".                                                                        [100%]\n1 passed, 16 deselected in 0.84s\n"
+  },
+  "MAIA-05 agent restart": {
+    "project": "MAIA",
+    "command": "pytest: tests/test_langgraph_agent.py -k 'resume or checkpoint or insufficient' --ignore=tests/test_llama_index_dataplane.py",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "agent state survives an interrupt and resumes",
+    "error": "",
+    "output_tail": ".....                                                                    [100%]\n5 passed, 13 deselected in 0.29s\n"
+  },
+  "APEX-03 PLC unavailable": {
+    "project": "ApexInspect",
+    "command": "pytest: tests/test_plc_bridge.py -k 'unavailable or hardware'",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "SIMULATED",
+    "invariant": "an unreachable PLC is refused, not faked",
+    "error": "",
+    "output_tail": "....                                                                     [100%]\n4 passed, 3 deselected in 0.05s\n"
+  },
+  "APEX-04 audit tamper": {
+    "project": "ApexInspect",
+    "command": "pytest: tests/test_audit_chain.py",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "one-byte tamper and truncation are both detected",
+    "error": "",
+    "output_tail": "....                                                                     [100%]\n4 passed in 0.28s\n"
+  },
+  "FAC-01 quarantine": {
+    "project": "Factory",
+    "command": "pytest: tests/test_quarantine.py",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "invalid rows are quarantined and counted, never silently dropped",
+    "error": "",
+    "output_tail": "...................................                                      [100%]\n35 passed in 1.06s\n"
+  },
+  "FAC-03 contracts": {
+    "project": "Factory",
+    "command": "pytest: tests/test_contracts.py",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "a schema break fails loudly instead of corrupting",
+    "error": "",
+    "output_tail": "......................                                                   [100%]\n22 passed in 0.06s\n"
+  },
+  "HD-04 RBAC": {
+    "project": "Helpdesk",
+    "command": "node: test/auth-boundary.test.js",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "an unauthorised role cannot mutate protected state",
+    "error": "",
+    "output_tail": "\u2714 anonymous request toi protected GET tra 401 (khong handler nao chay truoc auth) (86.018917ms)\n\u2714 public probes: health 200, bad login 401, MiniERP incident thieu key 401 (34.77ms)\n\u2714 VIEWER doc read endpoint duoc phep (200) nhung bi chan /api/audit (403) (99.481791ms)\n\u2714 VIEWER mutation bi 403; admin mutation khong con 401/403 (55.897583ms)\n\u2139 tests 4\n\u2139 suites 0\n\u2139 pass 4\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 455.007791\n"
+  },
+  "HD-03 alert dedupe": {
+    "project": "Helpdesk",
+    "command": "node: test/ticket-alert.test.js",
+    "returncode": 0,
+    "passed": true,
+    "boundary": "REAL",
+    "invariant": "a repeated alert updates one incident instead of creating many",
+    "error": "",
+    "output_tail": "\u2714 POST /api/tickets alerted=false khi notifier cho nguong duoi (Low) (87.256166ms)\n\u2714 POST /api/tickets alerted=true khi notifier bao da gui (High) (44.472834ms)\n\u2714 POST /api/tickets khong duoc 500 khi notifier nem loi (van 201, alerted=false) (41.451417ms)\n\u2139 tests 3\n\u2139 suites 0\n\u2139 pass 3\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 289.171875\n"
+  }
+}

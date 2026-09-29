@@ -1,0 +1,159 @@
+{
+  "evidence_version": "3.0",
+  "scenario_id": "E2E-HARDCASES",
+  "execution_location": "LOCAL",
+  "command": "python tools/e2e/run_hard_cases.py",
+  "started_at": "2026-09-29T18:20:55Z",
+  "duration_s": 0.0,
+  "status": "PARTIAL",
+  "repos": [
+    {
+      "path": ".",
+      "commit": "bcd2013133367b8fd631425b6c78b73014592584",
+      "worktree": "DIRTY_WORKTREE_SNAPSHOT",
+      "dirty_files": [
+        "M Downloads/Projects/docs/evidence/e2e/apexinspect/e2e-apexinspect.json",
+        " M Downloads/Projects/docs/evidence/e2e/final/matrix.json",
+        " M Downloads/Projects/docs/evidence/e2e/hashes.sha256",
+        " M Downloads/Projects/docs/evidence/e2e/helpdesk/e2e-helpdesk.json",
+        " M Downloads/Projects/tools/e2e/record_test_evidence.py",
+        " D README.md",
+        "?? .9router/",
+        "?? .CFUserTextEncoding",
+        "?? .DS_Store",
+        "?? .agents/"
+      ]
+    }
+  ],
+  "boundaries": {
+    "note": "each case names the exact test it exercises; the gate score derives from these results, not from prose"
+  },
+  "checks": [
+    {
+      "invariant": "CF-01 future leakage",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "an event after as_of never appears in materialised history"
+    },
+    {
+      "invariant": "CF-02 train/serve parity",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "offline and online feature computation agree"
+    },
+    {
+      "invariant": "CF-03 threshold by business cost",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "decision threshold follows business cost, not a fixed 0.5"
+    },
+    {
+      "invariant": "CF-06 audit tamper",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "a modified audit record is detected"
+    },
+    {
+      "invariant": "MAIA-04 cross-tenant",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "a tenant-A actor cannot act for tenant B, and writes nothing"
+    },
+    {
+      "invariant": "MAIA-01 no-evidence refusal",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "no supporting evidence yields refusal, not an answer"
+    },
+    {
+      "invariant": "MAIA-08 qdrant unavailable",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "missing Qdrant degrades explicitly instead of fabricating"
+    },
+    {
+      "invariant": "MAIA-05 agent restart",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "agent state survives an interrupt and resumes"
+    },
+    {
+      "invariant": "APEX-03 PLC unavailable",
+      "boundary": "SIMULATED",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "an unreachable PLC is refused, not faked"
+    },
+    {
+      "invariant": "APEX-04 audit tamper",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "one-byte tamper and truncation are both detected"
+    },
+    {
+      "invariant": "FAC-01 quarantine",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "invalid rows are quarantined and counted, never silently dropped"
+    },
+    {
+      "invariant": "FAC-03 contracts",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "a schema break fails loudly instead of corrupting"
+    },
+    {
+      "invariant": "HD-04 RBAC",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "an unauthorised role cannot mutate protected state"
+    },
+    {
+      "invariant": "HD-03 alert dedupe",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "exit 0",
+      "actual": "rc=0 ",
+      "detail": "a repeated alert updates one incident instead of creating many"
+    }
+  ],
+  "checks_passed": 14,
+  "checks_total": 14,
+  "artifacts": [
+    "docs/evidence/e2e/final/hard-case-results.json"
+  ],
+  "sha256": {
+    "docs/evidence/e2e/final/hard-case-results.json": "baee025c56c7912f1dc71a253b4b0e5c52b254b98d6f90afed77e7c2792bf71e"
+  },
+  "environment": {
+    "python": "3.14.7",
+    "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+    "hostname": "MacBook-Pro-cua-Tan.local"
+  },
+  "notes": "14/14 hard cases passed"
+}

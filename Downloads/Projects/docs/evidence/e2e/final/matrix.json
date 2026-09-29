@@ -5,7 +5,7 @@
     "CreditFlow": {
       "unit": "NO EVIDENCE",
       "integration": "NO EVIDENCE",
-      "e2e": "NO EVIDENCE",
+      "e2e": "PARTIAL",
       "azure": "PASS"
     },
     "Factory": {
@@ -29,7 +29,7 @@
     "MAIA": {
       "unit": "NO EVIDENCE",
       "integration": "NO EVIDENCE",
-      "e2e": "NO EVIDENCE",
+      "e2e": "PARTIAL",
       "azure": "PASS"
     },
     "MiniERP": {

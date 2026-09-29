@@ -1,0 +1,65 @@
+{
+  "evidence_version": "3.0",
+  "scenario_id": "E2E-MAIA",
+  "execution_location": "LOCAL",
+  "command": "QDRANT_URL=http://localhost:6333 python -m pytest tests/ -q --ignore=tests/test_llama_index_dataplane.py",
+  "started_at": "2026-09-29T18:15:28Z",
+  "duration_s": 0.0,
+  "status": "PARTIAL",
+  "repos": [
+    {
+      "path": "MAIA",
+      "commit": "47110b8013ca222aa30533b76b08423e0b1b1356",
+      "worktree": "DIRTY_WORKTREE_SNAPSHOT",
+      "dirty_files": [
+        "M src/maia/agent/mcp_dispatch.py",
+        " M src/maia/api.py",
+        " M src/maia/config.py",
+        " M src/maia/mcp/client.py",
+        " M src/maia/mcp/protocol.py",
+        " M src/maia/mcp/server.py",
+        " M src/maia/mcp/servers/__init__.py",
+        " M tests/test_agent_chat_api.py",
+        " M tests/test_mcp_client.py",
+        "?? src/maia/agent/session_registry.py"
+      ]
+    }
+  ],
+  "boundaries": {
+    "qdrant-vector-store": "REAL (qdrant container; retrieval and tenant isolation tests actually ran)",
+    "llama-index-dataplane": "NOT_RUN (llama-index not installed; one test file excluded explicitly)",
+    "opentelemetry": "NOT_RUN (sdk not installed)"
+  },
+  "checks": [
+    {
+      "invariant": "the full suite has no failures",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "0 failed",
+      "actual": "0 failed",
+      "detail": "842 passed, 0 failed, 6 skipped, 208.0s"
+    },
+    {
+      "invariant": "no test was skipped",
+      "boundary": "NOT_RUN",
+      "passed": false,
+      "expected": "0 skipped",
+      "actual": "6 skipped",
+      "detail": "tests/live_infra.py:42: Skipping live LLM test: LIVE_TESTS!=1; tests/test_persistence.py:112: can MAIA_POSTGRES_DSN troi toi Postgres de test runtime; tests/test_persistence.py:120: can MAIA_POSTGRES_DSN troi toi Postgres de test runtime"
+    }
+  ],
+  "checks_passed": 1,
+  "checks_total": 2,
+  "artifacts": [
+    "docs/evidence/e2e/maia/maia-test-output.txt"
+  ],
+  "sha256": {
+    "docs/evidence/e2e/maia/maia-test-output.txt": "e028b5a68c8d1832ae86dbfa2aadcfb21ac75bd06619abc9567d2af4c2ae4015"
+  },
+  "environment": {
+    "python": "3.14.7",
+    "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+    "hostname": "MacBook-Pro-cua-Tan.local"
+  },
+  "notes": "842 passed, 0 failed, 6 skipped"
+}
