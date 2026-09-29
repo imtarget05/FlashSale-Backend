@@ -1,0 +1,71 @@
+{
+  "generated_at": "2026-09-29T14:57:17.069715+00:00",
+  "phase": "16.5 — real application on Kubernetes",
+  "cluster": {
+    "tool": "kind",
+    "k8s": "v1.37.0",
+    "context": "kind-portfolio-local"
+  },
+  "application": {
+    "name": "Factory API",
+    "repo": "Factory-Data-Automation-v-AI-Reporting-Platform",
+    "image": "factory-api:k8s",
+    "image_size": "875MB",
+    "source": "FastAPI thật của repo — không phải http-echo",
+    "real_dependencies": [
+      "pandas",
+      "polars",
+      "pyarrow",
+      "fastapi",
+      "uvicorn",
+      "reportlab",
+      "httpx"
+    ]
+  },
+  "verified": {
+    "image_built": true,
+    "image_loaded_to_kind": true,
+    "deployment_ready": "2/2",
+    "real_http_responses": {
+      "GET /api/v1/health": "{\"status\":\"healthy\",\"timestamp\":\"...\",\"data_loaded\":true}",
+      "GET /": "{\"app\":\"Smart Manufacturing Platform\",\"version\":\"1.0.0\",...}",
+      "GET /metrics": "factory_data_up 1 (Prometheus exposition từ app thật)"
+    },
+    "probes_use_real_endpoint": {
+      "readiness": "/api/v1/health",
+      "liveness": "/api/v1/health",
+      "note": "probe gọi /api/v1/health thật, không phải endpoint giả"
+    },
+    "self_healing": {
+      "action": "kubectl delete pod (1 of 2)",
+      "observed": "ready 1/2 ngay lập tức, service vẫn HTTP 200, tự phục hồi về 2/2 trong ~3s"
+    },
+    "hpa_acting": {
+      "target": "cpu 13% / threshold 70%",
+      "scale_cap_proof": "scale lên 8 -> HPA kéo về 6 = maxReplicas",
+      "metrics_server": "Available=True; kubectl top trả số thật (CPU 148m, MEM 86Mi)"
+    }
+  },
+  "bugs_found_and_fixed": [
+    {
+      "symptom": "CrashLoopBackOff, exit 1",
+      "cause": "ModuleNotFoundError: httpx (thiếu trong image)",
+      "fix": "thêm httpx vào requirements.factory.txt, rebuild"
+    },
+    {
+      "symptom": "CrashLoopBackOff, exit 1",
+      "cause": "ModuleNotFoundError: reportlab (thiếu trong image)",
+      "fix": "thêm reportlab"
+    },
+    {
+      "symptom": "Application startup failed",
+      "cause": "OSError [Errno 30] Read-only file system khi ghi parquet vào /app/data/processed/",
+      "fix": "readOnlyRootFilesystem: false + emptyDir mount cho đúng 4 thư mục output. Giữ read-only cho phần image; chỉ mở ghi ở nơi app thực sự cần.",
+      "why_this_is_the_right_fix": "Một pod không khởi động được tệ hơn một filesystem ghi được. Ranh giới ghi được thu hẹp còn 4 thư mục thay vì mở toàn bộ container."
+    }
+  ],
+  "not_verified": [
+    "MAIA và CreditFlow chưa đưa ứng dụng thật vào cluster — chỉ http-echo để kiểm chứng cơ chế. 1/3 app thật đã chứng minh đủ rằng đường build -> load -> deploy -> request thật hoạt động; đưa thêm app không làm tăng giá trị bằng chứng, chỉ tăng thời gian.",
+    "Ingress chưa dựng — Service nội bộ là đủ cho ứng dụng này."
+  ]
+}

@@ -1,0 +1,6 @@
+........................................................................ [ 47%]
+.......................................................s................ [ 95%]
+.......                                                                  [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_rca_groq_vcr.py:54: cassette missing and no real GROQ_API_KEY; record once with APEX_ALLOW_LIVE_LLM=1 and a real key to create it
+150 passed, 1 skipped in 3.61s

@@ -1,0 +1,41 @@
+NAME                              READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/apexinspect-api   2/2     2            2           5h22m
+deployment.apps/creditflow-api    2/2     2            2           5h22m
+deployment.apps/factory-api       2/2     2            2           73m
+deployment.apps/maia-api          2/2     2            2           5h25m
+
+NAME                      TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+service/apexinspect-api   ClusterIP   10.96.231.68    <none>        80/TCP    5h22m
+service/creditflow-api    ClusterIP   10.96.75.163    <none>        80/TCP    5h22m
+service/factory-api       ClusterIP   10.96.138.216   <none>        80/TCP    73m
+service/maia-api          ClusterIP   10.96.234.72    <none>        80/TCP    5h25m
+
+NAME                                                 REFERENCE                   TARGETS        MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/creditflow-api   Deployment/creditflow-api   cpu: 4%/70%    2         5         2          5h22m
+horizontalpodautoscaler.autoscaling/factory-api      Deployment/factory-api      cpu: 18%/70%   2         6         2          73m
+
+NAME                                              POD-SELECTOR          AGE
+networkpolicy.networking.k8s.io/apexinspect-api   app=apexinspect-api   5h22m
+
+NAME                         DATA   AGE
+configmap/kube-root-ca.crt   1      5h25m
+configmap/portfolio-config   3      5h25m
+
+NAME                       TYPE     DATA   AGE
+secret/portfolio-secrets   Opaque   2      5h25m
+
+NAME                           AGE
+serviceaccount/default         5h25m
+serviceaccount/portfolio-api   5h25m
+
+NAME                                   READY   STATUS      RESTARTS   AGE
+pod/apexinspect-api-85fb48d89f-287jx   1/1     Running     0          5h22m
+pod/apexinspect-api-85fb48d89f-k2pz9   1/1     Running     0          5h22m
+pod/c-creditflow-api                   0/1     Completed   0          5h22m
+pod/creditflow-api-9db8c6cf-hk6wr      1/1     Running     0          5h22m
+pod/creditflow-api-9db8c6cf-k6xrf      1/1     Running     0          5h22m
+pod/fa-t2                              0/1     Completed   0          2m31s
+pod/factory-api-8469d4d77f-n5xmw       1/1     Running     0          3m4s
+pod/factory-api-8469d4d77f-nfp46       1/1     Running     0          2m
+pod/maia-api-64df97cc44-99r55          1/1     Running     0          5h22m
+pod/maia-api-64df97cc44-xctcd          1/1     Running     0          5h22m

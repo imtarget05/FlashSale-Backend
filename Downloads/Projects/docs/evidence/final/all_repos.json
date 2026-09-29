@@ -1,0 +1,105 @@
+{
+  "generated_at": "2026-09-29T15:08:09.978118+00:00",
+  "note": "Mọi con số chạy trên HEAD hiện tại. Pre-existing failure chỉ được gọi pre-existing nếu reproduce được trên commit trước — xem pre_existing_checks.",
+  "rows": [
+    {
+      "repo": "CreditFlow",
+      "commit": "c2d87d3",
+      "dirty_files": 0,
+      "runner": "pytest",
+      "passed": 412,
+      "failed": null,
+      "skipped": 3,
+      "duration_s": 55.2,
+      "exit": 0
+    },
+    {
+      "repo": "Factory-Data-Automation",
+      "commit": "8fe2dc4",
+      "dirty_files": 0,
+      "runner": "pytest",
+      "passed": 213,
+      "failed": 2,
+      "skipped": 5,
+      "duration_s": 5.1,
+      "exit": 1
+    },
+    {
+      "repo": "ApexInspect-AI",
+      "commit": "e8e42da",
+      "dirty_files": 0,
+      "runner": "node:test",
+      "passed": null,
+      "failed": null,
+      "skipped": 0,
+      "duration_s": 9.3,
+      "exit": 0
+    },
+    {
+      "repo": "MAIA",
+      "commit": "dd3318b",
+      "dirty_files": 0,
+      "runner": "pytest",
+      "passed": 859,
+      "failed": null,
+      "skipped": 1,
+      "duration_s": 331.1,
+      "exit": 0
+    },
+    {
+      "repo": "MiniERP",
+      "commit": "d0515f1",
+      "dirty_files": 0,
+      "runner": "dotnet",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "duration_s": 9.3,
+      "exit": 0
+    },
+    {
+      "repo": "FlashSale",
+      "commit": "9454e73",
+      "dirty_files": 0,
+      "runner": "dotnet",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "duration_s": 7.0,
+      "exit": 0
+    },
+    {
+      "repo": "Enterprise-Helpdesk",
+      "commit": "f320d59",
+      "dirty_files": 0,
+      "runner": "node:test",
+      "passed": 336,
+      "failed": 0,
+      "skipped": 0,
+      "duration_s": 20.8,
+      "exit": 0
+    },
+    {
+      "repo": "manufacturing-contracts",
+      "commit": "d785e4e",
+      "dirty_files": 0,
+      "runner": "pytest",
+      "passed": 54,
+      "failed": null,
+      "skipped": 0,
+      "duration_s": 30.5,
+      "exit": 0
+    },
+    {
+      "repo": "spark-benchmark",
+      "commit": "c3a23a1",
+      "dirty_files": 0,
+      "runner": "pytest",
+      "passed": 12,
+      "failed": null,
+      "skipped": 0,
+      "duration_s": 1.5,
+      "exit": 0
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+ journal: normal write path cho kết quả byte-identical (trừ updatedAt) (206.181791ms)
+✔ store: seed khi data/db.json chưa tồn tại (71.2025ms)
+✔ store: dữ liệu sống sót qua restart (commit -> load lại) (109.859125ms)
+[store] db.json không hợp lệ (Expected property name or '}' in JSON at position 15 (line 1 column 16)) → đã backup db.json.corrupt-1790704551608-eeb69f, khởi tạo lại từ dữ liệu mẫu.
+✔ store: db.json hỏng -> backup .corrupt-* rồi seed, không ném exception (80.192833ms)
+✔ store: nextId tăng dần theo collection, find trả bản ghi theo id số (75.672541ms)
+✔ store: commit ghi tuần tự, lần load sau thấy bản ghi cuối cùng (563.834625ms)
+✔ store: snapshot có version + updatedAt ISO (97.462916ms)
+✔ seed: cấu trúc dữ liệu mẫu hợp lệ (schema + ITIL realism) (0.486917ms)
+✔ POST /api/tickets alerted=false khi notifier cho nguong duoi (Low) (156.586375ms)
+✔ POST /api/tickets alerted=true khi notifier bao da gui (High) (131.354334ms)
+✔ POST /api/tickets khong duoc 500 khi notifier nem loi (van 201, alerted=false) (146.629292ms)
+[error] Error: disk full (simulated)
+    at store.commit (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/test/transaction-rollback.test.js:42:38)
+    at save (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:96:28)
+    at /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:101:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:330:175
+✔ monitoring DOWN commit fail: check, incident, history va alert count ve nguyen state (248.651959ms)
+[error] Error: disk full (simulated)
+    at store.commit (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/test/transaction-rollback.test.js:42:38)
+    at save (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:96:28)
+    at /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:101:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:330:175
+✔ monitoring UP commit fail: incident dang mo phai giu nguyen state va khong alert (156.364875ms)
+[error] Error: probe exploded before commit
+    at Object.runCheck (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/test/transaction-rollback.test.js:142:15)
+    at probe (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:324:104)
+    at /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:330:323
+    at /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:100:28
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:66:14)
+    at transact (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:97:47)
+    at /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:330:181
+    at Layer.handle [as handle_request] (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/node_modules/express/lib/router/layer.js:95:5)
+    at next (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/node_modules/express/lib/router/route.js:149:13)
+    at /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/auth.js:97:16
+✔ monitoring pre-commit exception: mutation truoc save cung phai rollback (86.1335ms)
+[error] Error: disk full (simulated)
+    at store.commit (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/test/transaction-rollback.test.js:42:38)
+    at save (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:96:28)
+    at /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:101:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:330:175
+✔ rollback giu nguyen identity cua row dang ton tai (khong thay theo ca collection) (152.642ms)
+[error] Error: disk full (simulated)
+    at c.context.store.commit (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/test/transaction-rollback.test.js:222:22)
+    at save (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:96:28)
+    at /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:101:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:330:175
+✔ rollback khong xoa ticket da commit cua request chay song song (memory + db.json) (104.148292ms)
+[error] Error: probe exploded before commit
+    at Object.runCheck (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/test/transaction-rollback.test.js:276:15)
+    at probe (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:324:104)
+    at /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:330:323
+    at /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:100:28
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:66:14)
+    at transact (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:97:47)
+    at /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/enterprise-routes.js:330:181
+    at Layer.handle [as handle_request] (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/node_modules/express/lib/router/layer.js:95:5)
+    at next (/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/node_modules/express/lib/router/route.js:149:13)
+    at /Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab/internal-portal/src/auth.js:97:16
+✔ pre-commit exception rollback: chi field da ghi bi rewind, field khac giu nguyen (85.557417ms)
+✔ app.js chỉ tham chiếu id có thật trong index.html (1.148ms)
+✔ index.html khai báo đủ phần tử then chốt của 4 phân hệ (0.119ms)
+✔ các hàm gọi từ onclick trong app.js đều được định nghĩa (0.57ms)
+✔ mọi lời gọi api/apiJson có body đều set Content-Type: application/json (0.65975ms)
+✔ CSS áp dụng thuộc tính hidden (không bị display:flex đè) (0.212958ms)
+✔ CSS chứa style cho các thành phần UI mới (0.148167ms)
+✔ CSS có responsive breakpoint + prefers-reduced-motion (0.069875ms)
+✔ app.js không còn fetch() thô ngoài tầng API (error handling tập trung) (0.170334ms)
+✔ mọi render ra HTML đều escapeHtml (chống XSS từ dữ liệu) (0.230625ms)
+✔ index.html cân bằng thẻ (không có thẻ mở chưa đóng) (0.613542ms)
+✔ index.html không có id trùng lặp (tránh DOM trả sai phần tử) (0.176541ms)
+✔ class JS thêm động vào DOM đều có định nghĩa trong CSS (0.591875ms)
+✔ mọi endpoint mà UI gọi đều tồn tại ở backend (40.362834ms)
+ℹ tests 337
+ℹ suites 0
+ℹ pass 336
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 13545.813417

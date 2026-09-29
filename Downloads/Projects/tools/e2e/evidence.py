@@ -178,13 +178,26 @@ class EvidenceRun:
         if status:
             self.status = status
         else:
-            failed = [c for c in self.checks if not c["passed"]]
+            # FAILED và PARTIAL là hai thứ khác nhau, và để chúng lẫn vào
+            # nhau là lỗi nguy hiểm nhất của một báo cáo bằng chứng.
+            #
+            #   FAILED  = business flow chạy và ra kết quả sai.
+            #   PARTIAL = business flow chạy đúng, nhưng một ranh giới chưa
+            #             chạy thật (simulated, mocked, hoặc bị skip).
+            #
+            # Một test bị skip vì thiếu credential là ranh giới chưa chạy, KHÔNG
+            # phải kết quả sai. Xếp nó vào FAILED sẽ khiến người đọc tưởng hệ
+            # thống hỏng, và cũng khiến một PARTIAL trung thực bị nâng lên
+            # thành vấn đề — hoặc tệ hơn, bị "sửa" bằng cách xoá hẳn skip khỏi
+            # báo cáo.
+            real_failures = [c for c in self.checks
+                             if not c["passed"] and c["boundary"] == "REAL"]
             unverified = [c for c in self.checks
-                          if c["boundary"] in {"SIMULATED", "MOCKED", "NOT_RUN"}]
-            if failed:
+                          if c["boundary"] in
+                          {"SIMULATED", "MOCKED", "NOT_RUN"}]
+            if real_failures:
                 self.status = "FAILED"
             elif unverified:
-                # Business flow chạy, nhưng một ranh giới chưa chạy thật.
                 self.status = "PARTIAL"
             else:
                 self.status = "VERIFIED"

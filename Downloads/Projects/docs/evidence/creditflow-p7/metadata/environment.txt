@@ -1,0 +1,3 @@
+python: Python 3.14.7
+git HEAD: 847f8f45738663ce323074e7cf02e156f6206e7f
+generated_at: 2026-09-29T08:01:25.727734+00:00

@@ -1,0 +1,19 @@
+{
+  "ran": true,
+  "write_exit": 0,
+  "read_exit": 0,
+  "write_pid": 74713,
+  "read_pid": 74746,
+  "processes_differ": true,
+  "collected_before_restart": [
+    "from-step-1"
+  ],
+  "recovered_from_postgres": [
+    "from-step-1"
+  ],
+  "state_survived_restart": true,
+  "final_phase": "completed-after-restart",
+  "final_marker": "resumed-with-1-items",
+  "resumed_correctly": true,
+  "result_pass": true
+}

@@ -1,0 +1,166 @@
+{
+  "generated_at": "2026-09-29T09:39:05.503355+00:00",
+  "context": "kind-portfolio-local",
+  "cluster": {
+    "tool": "kind — Kubernetes v1.37.0, Debian 13, containerd 2.3.4",
+    "capacity": {
+      "cpu": "8",
+      "ephemeral-storage": "485473984512",
+      "hugepages-1Gi": "0",
+      "hugepages-2Mi": "0",
+      "hugepages-32Mi": "0",
+      "hugepages-64Ki": "0",
+      "memory": "8126756Ki",
+      "pods": "110"
+    },
+    "client_version": "v1.36.1"
+  },
+  "namespace": "portfolio",
+  "deployments": {
+    "maia-api": {
+      "replicas": 2,
+      "ready": 2,
+      "strategy": "RollingUpdate",
+      "maxUnavailable": 0,
+      "readiness_probe": true,
+      "liveness_probe": true,
+      "cpu_request": "25m",
+      "memory_limit": "64Mi",
+      "runAsNonRoot": true,
+      "readOnlyRootFilesystem": true,
+      "allowPrivilegeEscalation": false,
+      "service": {
+        "type": "ClusterIP",
+        "cluster_ip": "10.96.234.72",
+        "port": 80,
+        "targetPort": "http"
+      }
+    },
+    "creditflow-api": {
+      "replicas": 2,
+      "ready": 2,
+      "strategy": "RollingUpdate",
+      "maxUnavailable": 0,
+      "readiness_probe": true,
+      "liveness_probe": true,
+      "cpu_request": "25m",
+      "memory_limit": "64Mi",
+      "runAsNonRoot": true,
+      "readOnlyRootFilesystem": true,
+      "allowPrivilegeEscalation": false,
+      "service": {
+        "type": "ClusterIP",
+        "cluster_ip": "10.96.75.163",
+        "port": 80,
+        "targetPort": "http"
+      }
+    },
+    "apexinspect-api": {
+      "replicas": 2,
+      "ready": 2,
+      "strategy": "RollingUpdate",
+      "maxUnavailable": 0,
+      "readiness_probe": true,
+      "liveness_probe": true,
+      "cpu_request": "25m",
+      "memory_limit": "64Mi",
+      "runAsNonRoot": true,
+      "readOnlyRootFilesystem": true,
+      "allowPrivilegeEscalation": false,
+      "service": {
+        "type": "ClusterIP",
+        "cluster_ip": "10.96.231.68",
+        "port": 80,
+        "targetPort": "http"
+      }
+    }
+  },
+  "hpa": {
+    "name": "creditflow-api",
+    "min": 2,
+    "max": 5,
+    "current_target": [
+      {
+        "resource": {
+          "current": {
+            "averageUtilization": 6,
+            "averageValue": "1m"
+          },
+          "name": "cpu"
+        },
+        "type": "Resource"
+      }
+    ]
+  },
+  "configmap": {
+    "name": "portfolio-config",
+    "keys": [
+      "APEX_PLC_MODE",
+      "LOG_LEVEL",
+      "OTEL_SERVICE_NAME"
+    ]
+  },
+  "secret": {
+    "name": "portfolio-secrets",
+    "type": "Opaque",
+    "keys": [
+      "API_TOKEN",
+      "DB_PASSWORD"
+    ],
+    "note": "gia tri gia; Secret that phai tu external secret store"
+  },
+  "networkpolicy": {
+    "name": "apexinspect-api",
+    "policyTypes": [
+      "Ingress",
+      "Egress"
+    ],
+    "note": "deny-by-default: chi cho phep ingress tu cung namespace, egress toi DNS"
+  },
+  "verified": {
+    "deployment_ready_2_of_2": true,
+    "service_traffic": {
+      "method": "curl tu mot pod thu ba, qua ClusterIP DNS trong namespace",
+      "maia-api": "maia-api ok",
+      "creditflow-api": "creditflow-api ok",
+      "apexinspect-api": "apexinspect-api ok"
+    },
+    "probes_defined_and_passing": true,
+    "resource_limits_set": true,
+    "self_healing_restart": {
+      "action": "kubectl delete pod -l app=maia-api",
+      "result": "Deployment tao lai pod, readyReplicas quay lai 2/2"
+    },
+    "rolling_update": {
+      "action": "kubectl set env deployment/maia-api ROLLING_TEST=v2",
+      "result": "rollout status: successfully rolled out",
+      "during_rollout": "2/2 ready — maxUnavailable=0 nen khong gian doan"
+    },
+    "hpa_working": {
+      "metrics_api": "Available=True; kubectl top pod tra so thuc",
+      "target_reading": "cpu 4% so voi target 70%",
+      "scale_cap_proof": "dat replicas len 6, HPA ke ve 5 = maxReplicas. Bang chung HPA thuc su thoi, khong phai chi duoc khai bao."
+    },
+    "security_context": {
+      "runAsNonRoot": true,
+      "readOnlyRootFilesystem": true,
+      "allowPrivilegeEscalation": false,
+      "capabilities_dropped": [
+        "ALL"
+      ],
+      "automountServiceAccountToken": false
+    }
+  },
+  "not_verified_here": [
+    "Ung dung THAT chay trong cluster. Manifest nay kiem chung co che K8s; API that da duoc kiem chung bang test (MAIA 831, CreditFlow 410, Factory 213). Dua app that vao se bi che do bang loi ha tang.",
+    "Ingress/IngressClass: khong can cho 3 API nay — Service noi bo la du.",
+    "PDB: chua them. Voi replica=2 va maxUnavailable=0, PDB chua bat buoc, nhung nen co khi len >2 replica.",
+    "NetworkPolicy chi ap cho apexinspect, khong phai ca 3. De chung nhat thi ap cho ca namespace."
+  ],
+  "bug_found": {
+    "symptom": "CrashLoopBackOff ngay khi deploy, exit code 2",
+    "root_cause": "hashicorp/http-echo nhan co `-listen`, khong phai `-port`",
+    "fix": "doi args sang -listen=:PORT",
+    "lesson": "Sai co flags lam container chet ngay lap tuc. Chi nhin trang thai pod thi kho chan doan; phai doc log container."
+  }
+}

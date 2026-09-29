@@ -1,0 +1,44 @@
+{
+  "generated_at": "2026-09-29T07:48:32.851531+00:00",
+  "mart_source_map": {
+    "mart_oee": "oee_daily",
+    "mart_quality": "quality_daily",
+    "mart_inventory": "inventory_snapshot"
+  },
+  "mart_grain": {
+    "mart_oee": [
+      "Date"
+    ],
+    "mart_quality": [
+      "Date"
+    ],
+    "mart_inventory": [
+      "Product"
+    ]
+  },
+  "marts_read_from": "gold layer only — mart khong doc raw",
+  "row_counts": {
+    "mart_oee": 2,
+    "mart_quality": 2,
+    "mart_inventory": 2
+  },
+  "row_counts_match_dataframes": true,
+  "grain_clean": {
+    "mart_oee": true,
+    "mart_quality": true,
+    "mart_inventory": true
+  },
+  "deterministic_rebuild": true,
+  "idempotent_rerun_counts_equal": true,
+  "dashboard_kpis": {
+    "total_actual_qty": 275,
+    "total_reject_qty": 16,
+    "avg_oee_pct": 88.5,
+    "days_with_data": 2,
+    "total_defects": 5,
+    "defect_rate_pct": 3.5,
+    "skus_not_ok": 1,
+    "inventory_value": 600.0
+  },
+  "sqlite_db": "docs/evidence/factory-v3/marts/marts.db"
+}

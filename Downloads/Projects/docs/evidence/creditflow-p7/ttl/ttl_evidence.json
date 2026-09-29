@@ -1,0 +1,7 @@
+{
+  "default_count_2y_ttl_days": 90,
+  "within_ttl": 2,
+  "after_ttl": null,
+  "expired_is_none": true,
+  "no_ttl_feature_survives": 5000.0
+}

@@ -1,0 +1,200 @@
+[
+  {
+    "timestamp": "2026-09-29T12:31:31.060573+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "1250d5f655cf42d1aaf95492c5f4d96a",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 9.89
+  },
+  {
+    "timestamp": "2026-09-29T12:31:39.593684+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "cc9f56bdec8349c897777247a7fa08e9",
+    "method": "GET",
+    "path": "/health",
+    "status_code": 200,
+    "duration_ms": 1.76
+  },
+  {
+    "timestamp": "2026-09-29T12:31:46.011833+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "eb425c8cbe2541669ec8574a9509f3d4",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 3.66
+  },
+  {
+    "timestamp": "2026-09-29T12:31:48.646777+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "trace-abc-123",
+    "method": "GET",
+    "path": "/health",
+    "status_code": 200,
+    "duration_ms": 0.47
+  },
+  {
+    "timestamp": "2026-09-29T12:31:56.886338+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "3787b7afa0ca4223b79e01ac9287b242",
+    "method": "GET",
+    "path": "/health",
+    "status_code": 200,
+    "duration_ms": 4.11
+  },
+  {
+    "timestamp": "2026-09-29T12:32:01.019869+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "33db267b22e44317870db47dd731a5cb",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 4.15
+  },
+  {
+    "timestamp": "2026-09-29T12:32:16.029280+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "72399d4030d64a7592875fbbe208076e",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 11.24
+  },
+  {
+    "timestamp": "2026-09-29T12:32:31.037164+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "d1d2a794c1f348348a6b4ba795d831a4",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 14.33
+  },
+  {
+    "timestamp": "2026-09-29T12:32:46.026201+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "4267de69fd8f43e48cb76f5771f2e171",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 7.97
+  },
+  {
+    "timestamp": "2026-09-29T12:33:01.012391+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "902e25f191f4420181a5fcfea9eccf47",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 2.54
+  },
+  {
+    "timestamp": "2026-09-29T12:33:16.019562+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "cce96f98a20d4daf914c8b8653a0c09c",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 4.9
+  },
+  {
+    "timestamp": "2026-09-29T12:33:31.022968+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "ed484c23841c414183679650080cbda6",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 8.04
+  },
+  {
+    "timestamp": "2026-09-29T12:33:46.014214+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "d570b3f1bd84488682cc2b1f3c72ddde",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 4.85
+  },
+  {
+    "timestamp": "2026-09-29T12:34:01.018830+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "5e4702f37fda4412a614f017f0220c6c",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 6.62
+  },
+  {
+    "timestamp": "2026-09-29T12:34:16.018419+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "18cd1f42ab19485b8472c2e7403ef3db",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 8.23
+  },
+  {
+    "timestamp": "2026-09-29T12:34:31.020155+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "8db8fb4614934546aa5aaf278dc31d2a",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 7.65
+  },
+  {
+    "timestamp": "2026-09-29T12:34:46.019231+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "9b3982b5f0c14f9486f783d447ee9771",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 5.9
+  },
+  {
+    "timestamp": "2026-09-29T12:35:01.008995+00:00",
+    "level": "INFO",
+    "service": "apexinspect-gateway",
+    "event": "http_request",
+    "correlation_id": "359915fe4d3d4da6b506c1ae6c30a07d",
+    "method": "GET",
+    "path": "/metrics",
+    "status_code": 200,
+    "duration_ms": 2.91
+  }
+]

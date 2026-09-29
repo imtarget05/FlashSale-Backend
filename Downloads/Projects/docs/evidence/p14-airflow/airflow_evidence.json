@@ -1,0 +1,160 @@
+{
+  "generated_at": "2026-09-29T09:27:16.199220+00:00",
+  "airflow_version": "2.10.5",
+  "python_version": "3.11.15",
+  "airflow_home": "/Users/mainguyenbinhtan/Downloads/Projects/.airflow",
+  "dag_id": "factory_medallion_daily",
+  "import_errors": "NONE",
+  "schedule": "0 2 * * *",
+  "catchup": false,
+  "topological_order": [
+    "ingest",
+    "validate_quarantine",
+    "gold",
+    "marts",
+    "quality_checks"
+  ],
+  "tasks": {
+    "ingest": {
+      "downstream": [
+        "validate_quarantine"
+      ],
+      "retries": 2,
+      "retry_delay_s": 30.0,
+      "exponential_backoff": true
+    },
+    "validate_quarantine": {
+      "downstream": [
+        "gold"
+      ],
+      "retries": 2,
+      "retry_delay_s": 30.0,
+      "exponential_backoff": true
+    },
+    "gold": {
+      "downstream": [
+        "marts"
+      ],
+      "retries": 2,
+      "retry_delay_s": 30.0,
+      "exponential_backoff": true
+    },
+    "marts": {
+      "downstream": [
+        "quality_checks"
+      ],
+      "retries": 2,
+      "retry_delay_s": 30.0,
+      "exponential_backoff": true
+    },
+    "quality_checks": {
+      "downstream": [],
+      "retries": 2,
+      "retry_delay_s": 30.0,
+      "exponential_backoff": true
+    }
+  },
+  "dependency_chain_verified": true,
+  "success_path": {
+    "dags_test_exit": 0,
+    "dag_state": "success",
+    "tasks_marked_success": 5,
+    "task_count": 5,
+    "all_tasks_succeeded": true
+  },
+  "retry_path": {
+    "configured": "retries=2, retry_delay=30s, exponential_backoff=True",
+    "on_all_tasks": true,
+    "observed_run": {
+      "when": "2026-09-29 16:17-16:20",
+      "cause": "ModuleNotFoundError: No module named 'pydantic'",
+      "attempts": 3,
+      "gaps_s": [
+        38,
+        117
+      ],
+      "backoff_observed": true,
+      "final_state": "failed",
+      "note": "Day la hanh vi that cua Airflow, khong phai mo phong. Thieu dependency la loi moi truong — dung loai loi ma DAG nay phai chiu, va no da fail dung cach thay vi nuot loi."
+    },
+    "note": "tasks_retried=0 o day la LAN CHAY THANH CONG, khong phai retry chua duoc chung minh. Retry da duoc chung minh CHAY THAT o mot lan rieng: khi venv thieu pydantic, Airflow da thu lai 2 lan roi chuyen FAILED — xem retry_observed_run. Config retries=2 + exponential backoff tren ca 5 task la khai bao; hanh vi thi bang log cua lan chay that."
+  },
+  "failure_path": {
+    "quality_check_rejects_bad_data": true,
+    "error": "quality check that: ['marts_non_empty', 'reject_rate_plausible'] — chi tiet: {'marts_non_empty': False, 'reject_rate': None, 'reject_rate_plausible': False, 'go",
+    "how": "Monkeypatch mart_row_counts tra ve 0 dong, roi chay lai task_quality_checks. Task phai raise ValueError."
+  },
+  "idempotency": {
+    "verified": true,
+    "method": "build_all_marts chay 2 lan vao cung file SQLite; counts va noi dung DataFrame giong het",
+    "result": "IDEMPOTENT (counts equal): True, (data equal): True"
+  },
+  "task_logs": {
+    "ingest": {
+      "task": "ingest",
+      "msg": "da nap va lam sach",
+      "datasets": {
+        "inventory": 5,
+        "machine": 12,
+        "production": 29,
+        "quality": 17,
+        "workers": 9
+      },
+      "elapsed_s": 0.04
+    },
+    "validate": {
+      "task": "validate",
+      "msg": "contract gate xong",
+      "before": {
+        "inventory": 5,
+        "machine": 12,
+        "production": 29,
+        "quality": 17,
+        "workers": 9
+      },
+      "after": {
+        "inventory": 5,
+        "machine": 12,
+        "production": 29,
+        "quality": 17,
+        "workers": 9
+      },
+      "dropped": 0,
+      "ratio": 0.0,
+      "quarantine": {
+        "inventory": 97,
+        "production": 103
+      }
+    },
+    "gold": {
+      "task": "gold",
+      "msg": "gold da dung",
+      "datasets": [
+        "inventory_snapshot",
+        "machine_health",
+        "oee_daily",
+        "quality_daily"
+      ]
+    },
+    "marts": {
+      "task": "marts",
+      "msg": "mart da dung",
+      "db": "/Users/mainguyenbinhtan/Downloads/Projects/Factory-Data-Automation-v-AI-Reporting-Platform/data/marts/marts.db",
+      "counts": {
+        "mart_oee": 3,
+        "mart_quality": 3,
+        "mart_inventory": 2
+      }
+    },
+    "quality": {
+      "task": "quality",
+      "msg": "tat ca chi so dung",
+      "marts_non_empty": true,
+      "reject_rate": 0.0102,
+      "reject_rate_plausible": true,
+      "good_plus_reject": 11004,
+      "total_actual": 11004,
+      "good_plus_reject_le_actual": true
+    }
+  }
+}

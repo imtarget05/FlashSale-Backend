@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-09-29T07:48:32.851531+00:00",
+  "git_head": "521ad5b1df39792de3986813a671fcd0d36cbbce",
+  "targeted_tests": "test_catalog.py test_lineage.py test_marts.py test_gold_layer.py",
+  "targeted_exit_code": 0,
+  "full_suite_exit_code": 1,
+  "full_suite_summary": "2 failed, 213 passed, 5 skipped, 1 warning in 2.02s",
+  "pre_existing_failures": [
+    "tests/test_scale_and_perf.py::test_fda_013_scale_10x_pipeline_survives",
+    "tests/test_silver_parquet.py::test_silver_parquet_smaller_than_csv"
+  ],
+  "pre_existing_note": "Da xac nhan bang git stash: 2 test nay fail tren HEAD truoc khi them catalog/lineage/marts — khong phai regression.",
+  "gold_layer": "complete (commit 521ad5b, 20/20)",
+  "catalog": "PASS",
+  "lineage": "PASS",
+  "marts": "PASS"
+}

@@ -1,0 +1,20 @@
+{
+  "rrf_k": 60,
+  "formula": "sum(1/(K + rank + 1)) per chunk_id",
+  "source": "src/maia/retriever.py:157,163",
+  "samples": {
+    "dense#1_bm25#1": 0.032258,
+    "dense#5_bm25#5": 0.030303,
+    "dense#10_bm25#2": 0.029958,
+    "dense#2_bm25#None": 0.015873,
+    "dense#1_bm25#50": 0.025138
+  },
+  "properties_verified": {
+    "monotonic_per_list": true,
+    "two_list_beats_one": true,
+    "fusion_additive": true,
+    "bounded_0_1": true
+  },
+  "all_pass": true,
+  "note": "RRF không đảm bảo thứ tự tuyệt đối giữa các doc ở vị trí khác nhau — đây là định nghĩa chuẩn của Reciprocal Rank Fusion, không phải bug. Các tính chất được kiểm ở trên là những gì RRF thực sự bảo đảm."
+}

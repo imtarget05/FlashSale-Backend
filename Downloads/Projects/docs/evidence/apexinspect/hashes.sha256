@@ -1,0 +1,7 @@
+40b58ac89be440a5f4db1adab46fdb8c29a9c84a26e1d9ed2fecfe5c884b566b  ./audit/AUDIT-CHAIN.xml
+c173536b0ab9f0cdebafdda2f16c65edf4ad97a2b7257ebbeb4eaba85bacb1bb  ./audit/audit-chain-verification.json
+5e9eb591e3d4bff66c26d9bb9bcadf6424167ee9a85ce7e7f12ee0af67d822f7  ./benchmarks/baseline-latency.json
+3592a71a5dd73fc14475a8329737485fe3009233af4dfb17db11059ec22eb858  ./benchmarks/documented-baseline-committed.json
+c9d8083d4bbbfac3829057873d26287fdf0733e0bdfbf85b438f83ff1c036fe1  ./hitl/HITL.xml
+d2d9ca400181d076af09340835b44ea25787f84c76062dbf3a55af6d0f86b20d  ./tests/FULL.xml
+fffae7b9f24486aae81b6319b4353e55a6e5d381323d437be4029a4516d2ac1e  ./trigger/TRIGGER.xml

@@ -1,0 +1,35 @@
+NAME                              READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/apexinspect-api   2/2     2            2           4m41s
+deployment.apps/creditflow-api    2/2     2            2           4m41s
+deployment.apps/maia-api          2/2     2            2           7m27s
+
+NAME                      TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+service/apexinspect-api   ClusterIP   10.96.231.68   <none>        80/TCP    4m41s
+service/creditflow-api    ClusterIP   10.96.75.163   <none>        80/TCP    4m41s
+service/maia-api          ClusterIP   10.96.234.72   <none>        80/TCP    7m27s
+
+NAME                                                 REFERENCE                   TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/creditflow-api   Deployment/creditflow-api   cpu: 6%/70%   2         5         2          4m41s
+
+NAME                                              POD-SELECTOR          AGE
+networkpolicy.networking.k8s.io/apexinspect-api   app=apexinspect-api   4m41s
+
+NAME                         DATA   AGE
+configmap/kube-root-ca.crt   1      7m27s
+configmap/portfolio-config   3      7m27s
+
+NAME                       TYPE     DATA   AGE
+secret/portfolio-secrets   Opaque   2      7m27s
+
+NAME                           AGE
+serviceaccount/default         7m27s
+serviceaccount/portfolio-api   7m27s
+
+NAME                                   READY   STATUS      RESTARTS   AGE
+pod/apexinspect-api-85fb48d89f-287jx   1/1     Running     0          4m41s
+pod/apexinspect-api-85fb48d89f-k2pz9   1/1     Running     0          4m41s
+pod/c-creditflow-api                   0/1     Completed   0          4m28s
+pod/creditflow-api-9db8c6cf-hk6wr      1/1     Running     0          4m41s
+pod/creditflow-api-9db8c6cf-k6xrf      1/1     Running     0          4m41s
+pod/maia-api-64df97cc44-99r55          1/1     Running     0          3m54s
+pod/maia-api-64df97cc44-xctcd          1/1     Running     0          3m58s

@@ -1,0 +1,22 @@
+{
+  "invariant": "served feature value == training feature value",
+  "per_as_of": {
+    "as_of_day_30": {
+      "features_compared": 8,
+      "mismatches": {},
+      "parity": true
+    },
+    "as_of_day_90": {
+      "features_compared": 8,
+      "mismatches": {},
+      "parity": true
+    },
+    "as_of_day_180": {
+      "features_compared": 8,
+      "mismatches": {},
+      "parity": true
+    }
+  },
+  "all_match": true,
+  "definitions_shared_by_identity": true
+}

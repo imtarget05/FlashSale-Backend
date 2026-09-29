@@ -1,0 +1,9 @@
+{
+  "thread_id": "p8-restart-probe",
+  "pid": 78763,
+  "collected": [
+    "from-step-1"
+  ],
+  "phase": "after-step-1",
+  "marker": ""
+}

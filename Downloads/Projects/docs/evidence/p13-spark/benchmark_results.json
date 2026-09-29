@@ -1,0 +1,118 @@
+{
+  "generated_at": "2026-09-29T09:03:43.512153+00:00",
+  "environment": {
+    "python": "3.14.7",
+    "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+    "processor": "arm",
+    "cpu_count": 8,
+    "spark_master": "local[4]",
+    "repeats": 3
+  },
+  "dataset": {
+    "seed": 20260929,
+    "sizes": {
+      "small": 50000,
+      "medium": 500000,
+      "large": 5000000
+    },
+    "lines": 12,
+    "products": 400,
+    "defect_codes": [
+      "SCRATCH",
+      "CRACK",
+      "SOLDER",
+      "MISSING",
+      "SHORT",
+      "COATING",
+      "WARP",
+      "BOW",
+      "CONTAM"
+    ],
+    "dirty_by_design": [
+      "downtime_min uses -1 for missing, not 0 (a real shop floor distinguishes 'not measured' from 'no downtime')",
+      "defect_code_id is -1 for units with no defect recorded",
+      "actual_qty can exceed target_qty (overproduction happens)",
+      "good_qty + reject_qty is not guaranteed to equal actual_qty (scrap between stations)"
+    ]
+  },
+  "results": [
+    {
+      "size": "small",
+      "rows": 50000,
+      "input_bytes": 2950000,
+      "polars_best_s": 0.003908250015228987,
+      "spark_best_s": 0.17789566691499203,
+      "polars_all_s": [
+        0.0039,
+        0.0047,
+        0.0041
+      ],
+      "spark_all_s": [
+        0.2334,
+        0.194,
+        0.1779
+      ],
+      "speedup_polars_over_spark": 45.52,
+      "polars_python_peak_mb": 0.03,
+      "spark_python_peak_mb": 9.9,
+      "process_peak_rss_mb": 173.5,
+      "parity": true,
+      "parity_tolerance": 1e-05
+    },
+    {
+      "size": "medium",
+      "rows": 500000,
+      "input_bytes": 29500000,
+      "polars_best_s": 0.006234915927052498,
+      "spark_best_s": 0.617513749981299,
+      "polars_all_s": [
+        0.0068,
+        0.0071,
+        0.0062
+      ],
+      "spark_all_s": [
+        0.6175,
+        0.6248,
+        0.7546
+      ],
+      "speedup_polars_over_spark": 99.04,
+      "polars_python_peak_mb": 0.03,
+      "spark_python_peak_mb": 0.11,
+      "process_peak_rss_mb": 248.2,
+      "parity": true,
+      "parity_tolerance": 1e-05
+    },
+    {
+      "size": "large",
+      "rows": 5000000,
+      "input_bytes": 295000000,
+      "polars_best_s": 0.0726197500480339,
+      "spark_best_s": 1.1971680419519544,
+      "polars_all_s": [
+        0.0726,
+        0.0727,
+        0.0726
+      ],
+      "spark_all_s": [
+        1.3465,
+        1.3343,
+        1.1972
+      ],
+      "speedup_polars_over_spark": 16.49,
+      "polars_python_peak_mb": 0.01,
+      "spark_python_peak_mb": 0.11,
+      "process_peak_rss_mb": 844.9,
+      "parity": true,
+      "parity_tolerance": 1e-05
+    }
+  ],
+  "all_parity_ok": true,
+  "winner_at_every_size": "polars",
+  "winner_note": "Polars thang o ca ba kich thuoc tren may nay. Day la ket qua THAT, khong phai ket qua mong doi — va no KHONG phai lý do de bo Spark. Spark thuoc ve bai toan khac: du lieu lon hon may nay, phan bo, va chay tren cluster.",
+  "measurement_caveats": [
+    "extra_peak_mb do bang tracemalloc, chi do Python heap. Spark chay  tren JVM nen con so nay KHONG phan anh bo nho thuc cua Spark — process_peak_rss_mb moi la con so gan dung hon, va no la toan boc process (Spark JVM + Python).",
+    "Thoi gian la 'best of N' sau warm-up. P50/mean co trong results.json.",
+    "Cung mot may, cung mot Spark master (local[4]). Ket qua khong chuyen sang may khac ma khong do lai.",
+    "O local[4] thi chua co y nghia gi ve hanh vi khi scale ngang — do la cau hoi rieng, khong suy ra duoc tu day."
+  ]
+}

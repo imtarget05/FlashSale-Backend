@@ -1,0 +1,13 @@
+============================= test session starts ==============================
+collecting ... collected 8 items
+
+tests/test_persistence.py::test_all_three_tiers_are_distinct PASSED      [ 12%]
+tests/test_persistence.py::test_dsn_has_no_hardcoded_default PASSED      [ 25%]
+tests/test_persistence.py::test_dsn_reads_from_env PASSED                [ 37%]
+tests/test_persistence.py::test_postgres_available_is_false_without_dsn PASSED [ 50%]
+tests/test_persistence.py::test_checkpoint_table_default_and_override PASSED [ 62%]
+tests/test_persistence.py::test_no_credential_literal_in_source PASSED   [ 75%]
+tests/test_persistence.py::test_durable_checkpointer_setup_creates_schema PASSED [ 87%]
+tests/test_persistence.py::test_state_persists_across_two_sequential_processes PASSED [100%]
+
+============================== 8 passed in 1.31s ===============================

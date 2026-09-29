@@ -1,0 +1,16 @@
+{
+  "source": "ApexInspect-AI/src/agent/audit_chain.py",
+  "formula": "entry_hash = sha256(canonical_json({index, prev_hash, record})); genesis prev_hash='GENESIS'",
+  "tests": {
+    "valid_chain_verifies": true,
+    "modified_record_detected": true,
+    "deleted_record_detected": true,
+    "reordered_record_detected": true,
+    "has_prev_hash": true,
+    "has_entry_hash": true,
+    "genesis_prev_hash": true,
+    "entry_hash_sha256_len64": true
+  },
+  "all_pass": true,
+  "finding": "ApexInspect ĐÃ CÓ tamper-evident hash chain. ERRATA: regrade-01 nói 'AuditLog KHÔNG tamper-evident, cần port từ CreditFlow' — SAI. PHASE 10 (port hash chain) KHÔNG còn cần thiết."
+}

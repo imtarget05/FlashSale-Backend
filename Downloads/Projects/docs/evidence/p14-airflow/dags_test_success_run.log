@@ -1,0 +1,363 @@
+[2026-09-29T16:27:19.931+0700] {plugins.py:37} INFO - setup plugin alembic.autogenerate.schemas
+[2026-09-29T16:27:19.932+0700] {plugins.py:37} INFO - setup plugin alembic.autogenerate.tables
+[2026-09-29T16:27:19.932+0700] {plugins.py:37} INFO - setup plugin alembic.autogenerate.types
+[2026-09-29T16:27:19.932+0700] {plugins.py:37} INFO - setup plugin alembic.autogenerate.constraints
+[2026-09-29T16:27:19.932+0700] {plugins.py:37} INFO - setup plugin alembic.autogenerate.defaults
+[2026-09-29T16:27:19.932+0700] {plugins.py:37} INFO - setup plugin alembic.autogenerate.comments
+[2026-09-29T16:27:19.932+0700] {plugins.py:37} INFO - setup plugin alembic.ext.checkconstraint_byname
+[2026-09-29T16:27:19.989+0700] {dagbag.py:588} INFO - Filling up the DagBag from /Users/mainguyenbinhtan/Downloads/Projects/Factory-Data-Automation-v-AI-Reporting-Platform/dags
+[2026-09-29T16:27:20.006+0700] {dag.py:4435} INFO - dagrun id: factory_medallion_daily
+[2026-09-29T16:27:20.010+0700] {dag.py:4451} INFO - created dagrun <DagRun factory_medallion_daily @ 2026-09-30 00:00:00+00:00: manual__2026-09-30T00:00:00+00:00, state:running, queued_at: None. externally triggered: False>
+[2026-09-29T16:27:20.059+0700] {dag.py:4396} INFO - [DAG TEST] starting task_id=ingest map_index=-1
+[2026-09-29T16:27:20.060+0700] {dag.py:4399} INFO - [DAG TEST] running task <TaskInstance: factory_medallion_daily.ingest manual__2026-09-30T00:00:00+00:00 [scheduled]>
+[2026-09-29 16:27:20,085] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='manufacturing-data' AIRFLOW_CTX_DAG_ID='factory_medallion_daily' AIRFLOW_CTX_TASK_ID='ingest' AIRFLOW_CTX_EXECUTION_DATE='2026-09-30T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-30T00:00:00+00:00'
+[2026-09-29T16:27:20.085+0700] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='manufacturing-data' AIRFLOW_CTX_DAG_ID='factory_medallion_daily' AIRFLOW_CTX_TASK_ID='ingest' AIRFLOW_CTX_EXECUTION_DATE='2026-09-30T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-30T00:00:00+00:00'
+[2026-09-29T16:27:20.086+0700] {taskinstance.py:732} INFO - ::endgroup::
+Discovered files: {'production': 'production.csv', 'quality': 'quality.csv', 'inventory': 'inventory.csv', 'machine': 'machine.csv', 'workers': 'workers.csv'}
+{"timestamp": "2026-09-29T09:27:20.306584+00:00", "level": "INFO", "logger": "etl", "message": "etl_start", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.306+0700] {logging_config.py:53} INFO - etl_start
+{"timestamp": "2026-09-29T09:27:20.306785+00:00", "level": "INFO", "logger": "etl", "message": "{\"datasets_found\": [\"production\", \"quality\", \"inventory\", \"machine\", \"workers\"]}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.306+0700] {logging_config.py:55} INFO - {"datasets_found": ["production", "quality", "inventory", "machine", "workers"]}
+{"timestamp": "2026-09-29T09:27:20.306889+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.306+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.306983+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"file\": \"inventory.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.306+0700] {logging_config.py:55} INFO - {"dataset": "inventory", "file": "inventory.csv"}
+{"timestamp": "2026-09-29T09:27:20.310992+00:00", "level": "WARNING", "logger": "etl", "message": "rows_quarantined", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.310+0700] {logging_config.py:53} WARNING - rows_quarantined
+{"timestamp": "2026-09-29T09:27:20.311141+00:00", "level": "WARNING", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"rejected_rows\": 1, \"violation_records\": 1, \"written\": 1, \"remaining\": 5}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.311+0700] {logging_config.py:55} WARNING - {"dataset": "inventory", "rejected_rows": 1, "violation_records": 1, "written": 1, "remaining": 5}
+{"timestamp": "2026-09-29T09:27:20.315389+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.315+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.315537+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"rows\": 5}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.315+0700] {logging_config.py:55} INFO - {"dataset": "inventory", "rows": 5}
+{"timestamp": "2026-09-29T09:27:20.315641+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.315+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.315729+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"machine\", \"file\": \"machine.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.315+0700] {logging_config.py:55} INFO - {"dataset": "machine", "file": "machine.csv"}
+  Removed 12 duplicates from machine
+{"timestamp": "2026-09-29T09:27:20.318677+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.318+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.318807+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"machine\", \"rows\": 12}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.318+0700] {logging_config.py:55} INFO - {"dataset": "machine", "rows": 12}
+{"timestamp": "2026-09-29T09:27:20.318907+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.318+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.318996+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"production\", \"file\": \"production.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.318+0700] {logging_config.py:55} INFO - {"dataset": "production", "file": "production.csv"}
+{"timestamp": "2026-09-29T09:27:20.320642+00:00", "level": "WARNING", "logger": "etl", "message": "rows_quarantined", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.320+0700] {logging_config.py:53} WARNING - rows_quarantined
+{"timestamp": "2026-09-29T09:27:20.320750+00:00", "level": "WARNING", "logger": "etl", "message": "{\"dataset\": \"production\", \"rejected_rows\": 1, \"violation_records\": 1, \"written\": 1, \"remaining\": 29}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.320+0700] {logging_config.py:55} WARNING - {"dataset": "production", "rejected_rows": 1, "violation_records": 1, "written": 1, "remaining": 29}
+{"timestamp": "2026-09-29T09:27:20.323392+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.323+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.323539+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"production\", \"rows\": 29}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.323+0700] {logging_config.py:55} INFO - {"dataset": "production", "rows": 29}
+{"timestamp": "2026-09-29T09:27:20.323640+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.323+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.323729+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"quality\", \"file\": \"quality.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.323+0700] {logging_config.py:55} INFO - {"dataset": "quality", "file": "quality.csv"}
+  Removed 1 duplicates from quality
+{"timestamp": "2026-09-29T09:27:20.326701+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.326+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.326823+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"quality\", \"rows\": 17}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.326+0700] {logging_config.py:55} INFO - {"dataset": "quality", "rows": 17}
+{"timestamp": "2026-09-29T09:27:20.326921+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.326+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.327010+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"workers\", \"file\": \"workers.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.327+0700] {logging_config.py:55} INFO - {"dataset": "workers", "file": "workers.csv"}
+{"timestamp": "2026-09-29T09:27:20.329658+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.329+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.329779+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"workers\", \"rows\": 9}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.329+0700] {logging_config.py:55} INFO - {"dataset": "workers", "rows": 9}
+{"timestamp": "2026-09-29T09:27:20.329877+00:00", "level": "INFO", "logger": "etl", "message": "etl_complete", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.329+0700] {logging_config.py:53} INFO - etl_complete
+{"timestamp": "2026-09-29T09:27:20.329963+00:00", "level": "INFO", "logger": "etl", "message": "{\"datasets_loaded\": [\"inventory\", \"machine\", \"production\", \"quality\", \"workers\"]}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.329+0700] {logging_config.py:55} INFO - {"datasets_loaded": ["inventory", "machine", "production", "quality", "workers"]}
+{"task": "ingest", "msg": "da nap va lam sach", "datasets": {"inventory": 5, "machine": 12, "production": 29, "quality": 17, "workers": 9}, "elapsed_s": 0.02}
+[2026-09-29 16:27:20,330] {python.py:240} INFO - Done. Returned value was: {'datasets': {'inventory': 5, 'machine': 12, 'production': 29, 'quality': 17, 'workers': 9}, 'count': 5}
+[2026-09-29T16:27:20.330+0700] {python.py:240} INFO - Done. Returned value was: {'datasets': {'inventory': 5, 'machine': 12, 'production': 29, 'quality': 17, 'workers': 9}, 'count': 5}
+[2026-09-29T16:27:20.334+0700] {taskinstance.py:341} INFO - ::group::Post task execution logs
+[2026-09-29T16:27:20.334+0700] {taskinstance.py:353} INFO - Marking task as SUCCESS. dag_id=factory_medallion_daily, task_id=ingest, run_id=manual__2026-09-30T00:00:00+00:00, execution_date=20260930T000000, start_date=, end_date=20260929T092720
+[2026-09-29T16:27:20.338+0700] {dag.py:4410} INFO - [DAG TEST] end task task_id=ingest map_index=-1
+[2026-09-29T16:27:20.344+0700] {dag.py:4396} INFO - [DAG TEST] starting task_id=validate_quarantine map_index=-1
+[2026-09-29T16:27:20.344+0700] {dag.py:4399} INFO - [DAG TEST] running task <TaskInstance: factory_medallion_daily.validate_quarantine manual__2026-09-30T00:00:00+00:00 [scheduled]>
+[2026-09-29 16:27:20,350] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='manufacturing-data' AIRFLOW_CTX_DAG_ID='factory_medallion_daily' AIRFLOW_CTX_TASK_ID='validate_quarantine' AIRFLOW_CTX_EXECUTION_DATE='2026-09-30T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-30T00:00:00+00:00'
+[2026-09-29T16:27:20.350+0700] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='manufacturing-data' AIRFLOW_CTX_DAG_ID='factory_medallion_daily' AIRFLOW_CTX_TASK_ID='validate_quarantine' AIRFLOW_CTX_EXECUTION_DATE='2026-09-30T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-30T00:00:00+00:00'
+[2026-09-29T16:27:20.350+0700] {taskinstance.py:732} INFO - ::endgroup::
+Discovered files: {'production': 'production.csv', 'quality': 'quality.csv', 'inventory': 'inventory.csv', 'machine': 'machine.csv', 'workers': 'workers.csv'}
+{"timestamp": "2026-09-29T09:27:20.351279+00:00", "level": "INFO", "logger": "etl", "message": "etl_start", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.351+0700] {logging_config.py:53} INFO - etl_start
+{"timestamp": "2026-09-29T09:27:20.351383+00:00", "level": "INFO", "logger": "etl", "message": "{\"datasets_found\": [\"production\", \"quality\", \"inventory\", \"machine\", \"workers\"]}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.351+0700] {logging_config.py:55} INFO - {"datasets_found": ["production", "quality", "inventory", "machine", "workers"]}
+{"timestamp": "2026-09-29T09:27:20.351468+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.351+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.351548+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"file\": \"inventory.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.351+0700] {logging_config.py:55} INFO - {"dataset": "inventory", "file": "inventory.csv"}
+{"timestamp": "2026-09-29T09:27:20.353311+00:00", "level": "WARNING", "logger": "etl", "message": "rows_quarantined", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.353+0700] {logging_config.py:53} WARNING - rows_quarantined
+{"timestamp": "2026-09-29T09:27:20.353436+00:00", "level": "WARNING", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"rejected_rows\": 1, \"violation_records\": 1, \"written\": 1, \"remaining\": 5}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.353+0700] {logging_config.py:55} WARNING - {"dataset": "inventory", "rejected_rows": 1, "violation_records": 1, "written": 1, "remaining": 5}
+{"timestamp": "2026-09-29T09:27:20.355488+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.355+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.355612+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"rows\": 5}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.355+0700] {logging_config.py:55} INFO - {"dataset": "inventory", "rows": 5}
+{"timestamp": "2026-09-29T09:27:20.355712+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.355+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.355801+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"machine\", \"file\": \"machine.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.355+0700] {logging_config.py:55} INFO - {"dataset": "machine", "file": "machine.csv"}
+  Removed 12 duplicates from machine
+{"timestamp": "2026-09-29T09:27:20.358491+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.358+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.358635+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"machine\", \"rows\": 12}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.358+0700] {logging_config.py:55} INFO - {"dataset": "machine", "rows": 12}
+{"timestamp": "2026-09-29T09:27:20.358740+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.358+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.358827+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"production\", \"file\": \"production.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.358+0700] {logging_config.py:55} INFO - {"dataset": "production", "file": "production.csv"}
+{"timestamp": "2026-09-29T09:27:20.360447+00:00", "level": "WARNING", "logger": "etl", "message": "rows_quarantined", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.360+0700] {logging_config.py:53} WARNING - rows_quarantined
+{"timestamp": "2026-09-29T09:27:20.360566+00:00", "level": "WARNING", "logger": "etl", "message": "{\"dataset\": \"production\", \"rejected_rows\": 1, \"violation_records\": 1, \"written\": 1, \"remaining\": 29}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.360+0700] {logging_config.py:55} WARNING - {"dataset": "production", "rejected_rows": 1, "violation_records": 1, "written": 1, "remaining": 29}
+{"timestamp": "2026-09-29T09:27:20.363082+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.363+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.363202+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"production\", \"rows\": 29}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.363+0700] {logging_config.py:55} INFO - {"dataset": "production", "rows": 29}
+{"timestamp": "2026-09-29T09:27:20.363300+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.363+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.363390+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"quality\", \"file\": \"quality.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.363+0700] {logging_config.py:55} INFO - {"dataset": "quality", "file": "quality.csv"}
+  Removed 1 duplicates from quality
+{"timestamp": "2026-09-29T09:27:20.366226+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.366+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.366346+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"quality\", \"rows\": 17}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.366+0700] {logging_config.py:55} INFO - {"dataset": "quality", "rows": 17}
+{"timestamp": "2026-09-29T09:27:20.366447+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.366+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.366536+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"workers\", \"file\": \"workers.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.366+0700] {logging_config.py:55} INFO - {"dataset": "workers", "file": "workers.csv"}
+{"timestamp": "2026-09-29T09:27:20.369082+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.369+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.369207+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"workers\", \"rows\": 9}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.369+0700] {logging_config.py:55} INFO - {"dataset": "workers", "rows": 9}
+{"timestamp": "2026-09-29T09:27:20.369305+00:00", "level": "INFO", "logger": "etl", "message": "etl_complete", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.369+0700] {logging_config.py:53} INFO - etl_complete
+{"timestamp": "2026-09-29T09:27:20.369393+00:00", "level": "INFO", "logger": "etl", "message": "{\"datasets_loaded\": [\"inventory\", \"machine\", \"production\", \"quality\", \"workers\"]}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.369+0700] {logging_config.py:55} INFO - {"datasets_loaded": ["inventory", "machine", "production", "quality", "workers"]}
+{"task": "validate", "msg": "contract gate xong", "before": {"inventory": 5, "machine": 12, "production": 29, "quality": 17, "workers": 9}, "after": {"inventory": 5, "machine": 12, "production": 29, "quality": 17, "workers": 9}, "dropped": 0, "ratio": 0.0, "quarantine": {"inventory": 103, "production": 109}}
+[2026-09-29 16:27:20,371] {python.py:240} INFO - Done. Returned value was: {'dropped': 0, 'kept': 72, 'ratio': 0.0, 'quarantine': {'inventory': 103, 'production': 109}}
+[2026-09-29T16:27:20.371+0700] {python.py:240} INFO - Done. Returned value was: {'dropped': 0, 'kept': 72, 'ratio': 0.0, 'quarantine': {'inventory': 103, 'production': 109}}
+[2026-09-29T16:27:20.374+0700] {taskinstance.py:341} INFO - ::group::Post task execution logs
+[2026-09-29T16:27:20.374+0700] {taskinstance.py:353} INFO - Marking task as SUCCESS. dag_id=factory_medallion_daily, task_id=validate_quarantine, run_id=manual__2026-09-30T00:00:00+00:00, execution_date=20260930T000000, start_date=, end_date=20260929T092720
+[2026-09-29T16:27:20.377+0700] {dag.py:4410} INFO - [DAG TEST] end task task_id=validate_quarantine map_index=-1
+[2026-09-29T16:27:20.381+0700] {dag.py:4396} INFO - [DAG TEST] starting task_id=gold map_index=-1
+[2026-09-29T16:27:20.382+0700] {dag.py:4399} INFO - [DAG TEST] running task <TaskInstance: factory_medallion_daily.gold manual__2026-09-30T00:00:00+00:00 [scheduled]>
+[2026-09-29 16:27:20,388] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='manufacturing-data' AIRFLOW_CTX_DAG_ID='factory_medallion_daily' AIRFLOW_CTX_TASK_ID='gold' AIRFLOW_CTX_EXECUTION_DATE='2026-09-30T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-30T00:00:00+00:00'
+[2026-09-29T16:27:20.388+0700] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='manufacturing-data' AIRFLOW_CTX_DAG_ID='factory_medallion_daily' AIRFLOW_CTX_TASK_ID='gold' AIRFLOW_CTX_EXECUTION_DATE='2026-09-30T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-30T00:00:00+00:00'
+[2026-09-29T16:27:20.388+0700] {taskinstance.py:732} INFO - ::endgroup::
+Discovered files: {'production': 'production.csv', 'quality': 'quality.csv', 'inventory': 'inventory.csv', 'machine': 'machine.csv', 'workers': 'workers.csv'}
+{"timestamp": "2026-09-29T09:27:20.389277+00:00", "level": "INFO", "logger": "etl", "message": "etl_start", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.389+0700] {logging_config.py:53} INFO - etl_start
+{"timestamp": "2026-09-29T09:27:20.389395+00:00", "level": "INFO", "logger": "etl", "message": "{\"datasets_found\": [\"production\", \"quality\", \"inventory\", \"machine\", \"workers\"]}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.389+0700] {logging_config.py:55} INFO - {"datasets_found": ["production", "quality", "inventory", "machine", "workers"]}
+{"timestamp": "2026-09-29T09:27:20.389486+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.389+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.389573+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"file\": \"inventory.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.389+0700] {logging_config.py:55} INFO - {"dataset": "inventory", "file": "inventory.csv"}
+{"timestamp": "2026-09-29T09:27:20.391167+00:00", "level": "WARNING", "logger": "etl", "message": "rows_quarantined", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.391+0700] {logging_config.py:53} WARNING - rows_quarantined
+{"timestamp": "2026-09-29T09:27:20.391290+00:00", "level": "WARNING", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"rejected_rows\": 1, \"violation_records\": 1, \"written\": 1, \"remaining\": 5}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.391+0700] {logging_config.py:55} WARNING - {"dataset": "inventory", "rejected_rows": 1, "violation_records": 1, "written": 1, "remaining": 5}
+{"timestamp": "2026-09-29T09:27:20.393344+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.393+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.393469+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"rows\": 5}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.393+0700] {logging_config.py:55} INFO - {"dataset": "inventory", "rows": 5}
+{"timestamp": "2026-09-29T09:27:20.393568+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.393+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.393656+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"machine\", \"file\": \"machine.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.393+0700] {logging_config.py:55} INFO - {"dataset": "machine", "file": "machine.csv"}
+  Removed 12 duplicates from machine
+{"timestamp": "2026-09-29T09:27:20.398642+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.398+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.399037+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"machine\", \"rows\": 12}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.399+0700] {logging_config.py:55} INFO - {"dataset": "machine", "rows": 12}
+{"timestamp": "2026-09-29T09:27:20.399201+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.399+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.399314+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"production\", \"file\": \"production.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.399+0700] {logging_config.py:55} INFO - {"dataset": "production", "file": "production.csv"}
+{"timestamp": "2026-09-29T09:27:20.402269+00:00", "level": "WARNING", "logger": "etl", "message": "rows_quarantined", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.402+0700] {logging_config.py:53} WARNING - rows_quarantined
+{"timestamp": "2026-09-29T09:27:20.402755+00:00", "level": "WARNING", "logger": "etl", "message": "{\"dataset\": \"production\", \"rejected_rows\": 1, \"violation_records\": 1, \"written\": 1, \"remaining\": 29}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.402+0700] {logging_config.py:55} WARNING - {"dataset": "production", "rejected_rows": 1, "violation_records": 1, "written": 1, "remaining": 29}
+{"timestamp": "2026-09-29T09:27:20.405814+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.405+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.405958+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"production\", \"rows\": 29}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.405+0700] {logging_config.py:55} INFO - {"dataset": "production", "rows": 29}
+{"timestamp": "2026-09-29T09:27:20.406068+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.406+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.406169+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"quality\", \"file\": \"quality.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.406+0700] {logging_config.py:55} INFO - {"dataset": "quality", "file": "quality.csv"}
+  Removed 1 duplicates from quality
+{"timestamp": "2026-09-29T09:27:20.410085+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.410+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.410247+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"quality\", \"rows\": 17}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.410+0700] {logging_config.py:55} INFO - {"dataset": "quality", "rows": 17}
+{"timestamp": "2026-09-29T09:27:20.410375+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.410+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.410478+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"workers\", \"file\": \"workers.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.410+0700] {logging_config.py:55} INFO - {"dataset": "workers", "file": "workers.csv"}
+{"timestamp": "2026-09-29T09:27:20.463766+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.463+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.464055+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"workers\", \"rows\": 9}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.464+0700] {logging_config.py:55} INFO - {"dataset": "workers", "rows": 9}
+{"timestamp": "2026-09-29T09:27:20.464201+00:00", "level": "INFO", "logger": "etl", "message": "etl_complete", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.464+0700] {logging_config.py:53} INFO - etl_complete
+{"timestamp": "2026-09-29T09:27:20.464337+00:00", "level": "INFO", "logger": "etl", "message": "{\"datasets_loaded\": [\"inventory\", \"machine\", \"production\", \"quality\", \"workers\"]}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.464+0700] {logging_config.py:55} INFO - {"datasets_loaded": ["inventory", "machine", "production", "quality", "workers"]}
+{"task": "gold", "msg": "gold da dung", "datasets": ["inventory_snapshot", "machine_health", "oee_daily", "quality_daily"]}
+[2026-09-29 16:27:20,484] {python.py:240} INFO - Done. Returned value was: {'gold_datasets': ['inventory_snapshot', 'machine_health', 'oee_daily', 'quality_daily']}
+[2026-09-29T16:27:20.484+0700] {python.py:240} INFO - Done. Returned value was: {'gold_datasets': ['inventory_snapshot', 'machine_health', 'oee_daily', 'quality_daily']}
+[2026-09-29T16:27:20.488+0700] {taskinstance.py:341} INFO - ::group::Post task execution logs
+[2026-09-29T16:27:20.488+0700] {taskinstance.py:353} INFO - Marking task as SUCCESS. dag_id=factory_medallion_daily, task_id=gold, run_id=manual__2026-09-30T00:00:00+00:00, execution_date=20260930T000000, start_date=, end_date=20260929T092720
+[2026-09-29T16:27:20.492+0700] {dag.py:4410} INFO - [DAG TEST] end task task_id=gold map_index=-1
+[2026-09-29T16:27:20.497+0700] {dag.py:4396} INFO - [DAG TEST] starting task_id=marts map_index=-1
+[2026-09-29T16:27:20.497+0700] {dag.py:4399} INFO - [DAG TEST] running task <TaskInstance: factory_medallion_daily.marts manual__2026-09-30T00:00:00+00:00 [scheduled]>
+[2026-09-29 16:27:20,505] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='manufacturing-data' AIRFLOW_CTX_DAG_ID='factory_medallion_daily' AIRFLOW_CTX_TASK_ID='marts' AIRFLOW_CTX_EXECUTION_DATE='2026-09-30T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-30T00:00:00+00:00'
+[2026-09-29T16:27:20.505+0700] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='manufacturing-data' AIRFLOW_CTX_DAG_ID='factory_medallion_daily' AIRFLOW_CTX_TASK_ID='marts' AIRFLOW_CTX_EXECUTION_DATE='2026-09-30T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-30T00:00:00+00:00'
+[2026-09-29T16:27:20.505+0700] {taskinstance.py:732} INFO - ::endgroup::
+Discovered files: {'production': 'production.csv', 'quality': 'quality.csv', 'inventory': 'inventory.csv', 'machine': 'machine.csv', 'workers': 'workers.csv'}
+{"timestamp": "2026-09-29T09:27:20.506046+00:00", "level": "INFO", "logger": "etl", "message": "etl_start", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.506+0700] {logging_config.py:53} INFO - etl_start
+{"timestamp": "2026-09-29T09:27:20.506170+00:00", "level": "INFO", "logger": "etl", "message": "{\"datasets_found\": [\"production\", \"quality\", \"inventory\", \"machine\", \"workers\"]}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.506+0700] {logging_config.py:55} INFO - {"datasets_found": ["production", "quality", "inventory", "machine", "workers"]}
+{"timestamp": "2026-09-29T09:27:20.506269+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.506+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.506355+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"file\": \"inventory.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.506+0700] {logging_config.py:55} INFO - {"dataset": "inventory", "file": "inventory.csv"}
+{"timestamp": "2026-09-29T09:27:20.508144+00:00", "level": "WARNING", "logger": "etl", "message": "rows_quarantined", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.508+0700] {logging_config.py:53} WARNING - rows_quarantined
+{"timestamp": "2026-09-29T09:27:20.508294+00:00", "level": "WARNING", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"rejected_rows\": 1, \"violation_records\": 1, \"written\": 1, \"remaining\": 5}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.508+0700] {logging_config.py:55} WARNING - {"dataset": "inventory", "rejected_rows": 1, "violation_records": 1, "written": 1, "remaining": 5}
+{"timestamp": "2026-09-29T09:27:20.510452+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.510+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.510578+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"rows\": 5}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.510+0700] {logging_config.py:55} INFO - {"dataset": "inventory", "rows": 5}
+{"timestamp": "2026-09-29T09:27:20.510676+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.510+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.510762+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"machine\", \"file\": \"machine.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.510+0700] {logging_config.py:55} INFO - {"dataset": "machine", "file": "machine.csv"}
+  Removed 12 duplicates from machine
+{"timestamp": "2026-09-29T09:27:20.513750+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.513+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.513905+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"machine\", \"rows\": 12}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.513+0700] {logging_config.py:55} INFO - {"dataset": "machine", "rows": 12}
+{"timestamp": "2026-09-29T09:27:20.514009+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.514+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.514099+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"production\", \"file\": \"production.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.514+0700] {logging_config.py:55} INFO - {"dataset": "production", "file": "production.csv"}
+{"timestamp": "2026-09-29T09:27:20.515772+00:00", "level": "WARNING", "logger": "etl", "message": "rows_quarantined", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.515+0700] {logging_config.py:53} WARNING - rows_quarantined
+{"timestamp": "2026-09-29T09:27:20.515886+00:00", "level": "WARNING", "logger": "etl", "message": "{\"dataset\": \"production\", \"rejected_rows\": 1, \"violation_records\": 1, \"written\": 1, \"remaining\": 29}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.515+0700] {logging_config.py:55} WARNING - {"dataset": "production", "rejected_rows": 1, "violation_records": 1, "written": 1, "remaining": 29}
+{"timestamp": "2026-09-29T09:27:20.518466+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.518+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.518583+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"production\", \"rows\": 29}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.518+0700] {logging_config.py:55} INFO - {"dataset": "production", "rows": 29}
+{"timestamp": "2026-09-29T09:27:20.518683+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.518+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.518775+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"quality\", \"file\": \"quality.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.518+0700] {logging_config.py:55} INFO - {"dataset": "quality", "file": "quality.csv"}
+  Removed 1 duplicates from quality
+{"timestamp": "2026-09-29T09:27:20.521686+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.521+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.521825+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"quality\", \"rows\": 17}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.521+0700] {logging_config.py:55} INFO - {"dataset": "quality", "rows": 17}
+{"timestamp": "2026-09-29T09:27:20.521927+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.521+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.522024+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"workers\", \"file\": \"workers.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.522+0700] {logging_config.py:55} INFO - {"dataset": "workers", "file": "workers.csv"}
+{"timestamp": "2026-09-29T09:27:20.524689+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.524+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.524814+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"workers\", \"rows\": 9}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.524+0700] {logging_config.py:55} INFO - {"dataset": "workers", "rows": 9}
+{"timestamp": "2026-09-29T09:27:20.524919+00:00", "level": "INFO", "logger": "etl", "message": "etl_complete", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.524+0700] {logging_config.py:53} INFO - etl_complete
+{"timestamp": "2026-09-29T09:27:20.525009+00:00", "level": "INFO", "logger": "etl", "message": "{\"datasets_loaded\": [\"inventory\", \"machine\", \"production\", \"quality\", \"workers\"]}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.525+0700] {logging_config.py:55} INFO - {"datasets_loaded": ["inventory", "machine", "production", "quality", "workers"]}
+{"task": "marts", "msg": "mart da dung", "db": "/Users/mainguyenbinhtan/Downloads/Projects/Factory-Data-Automation-v-AI-Reporting-Platform/data/marts/marts.db", "counts": {"mart_oee": 3, "mart_quality": 3, "mart_inventory": 2}}
+[2026-09-29 16:27:20,547] {python.py:240} INFO - Done. Returned value was: {'db_path': '/Users/mainguyenbinhtan/Downloads/Projects/Factory-Data-Automation-v-AI-Reporting-Platform/data/marts/marts.db', 'row_counts': {'mart_oee': 3, 'mart_quality': 3, 'mart_inventory': 2}}
+[2026-09-29T16:27:20.547+0700] {python.py:240} INFO - Done. Returned value was: {'db_path': '/Users/mainguyenbinhtan/Downloads/Projects/Factory-Data-Automation-v-AI-Reporting-Platform/data/marts/marts.db', 'row_counts': {'mart_oee': 3, 'mart_quality': 3, 'mart_inventory': 2}}
+[2026-09-29T16:27:20.550+0700] {taskinstance.py:341} INFO - ::group::Post task execution logs
+[2026-09-29T16:27:20.550+0700] {taskinstance.py:353} INFO - Marking task as SUCCESS. dag_id=factory_medallion_daily, task_id=marts, run_id=manual__2026-09-30T00:00:00+00:00, execution_date=20260930T000000, start_date=, end_date=20260929T092720
+[2026-09-29T16:27:20.554+0700] {dag.py:4410} INFO - [DAG TEST] end task task_id=marts map_index=-1
+[2026-09-29T16:27:20.559+0700] {dag.py:4396} INFO - [DAG TEST] starting task_id=quality_checks map_index=-1
+[2026-09-29T16:27:20.559+0700] {dag.py:4399} INFO - [DAG TEST] running task <TaskInstance: factory_medallion_daily.quality_checks manual__2026-09-30T00:00:00+00:00 [scheduled]>
+[2026-09-29 16:27:20,567] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='manufacturing-data' AIRFLOW_CTX_DAG_ID='factory_medallion_daily' AIRFLOW_CTX_TASK_ID='quality_checks' AIRFLOW_CTX_EXECUTION_DATE='2026-09-30T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-30T00:00:00+00:00'
+[2026-09-29T16:27:20.567+0700] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='manufacturing-data' AIRFLOW_CTX_DAG_ID='factory_medallion_daily' AIRFLOW_CTX_TASK_ID='quality_checks' AIRFLOW_CTX_EXECUTION_DATE='2026-09-30T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-09-30T00:00:00+00:00'
+[2026-09-29T16:27:20.567+0700] {taskinstance.py:732} INFO - ::endgroup::
+Discovered files: {'production': 'production.csv', 'quality': 'quality.csv', 'inventory': 'inventory.csv', 'machine': 'machine.csv', 'workers': 'workers.csv'}
+{"timestamp": "2026-09-29T09:27:20.567760+00:00", "level": "INFO", "logger": "etl", "message": "etl_start", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.567+0700] {logging_config.py:53} INFO - etl_start
+{"timestamp": "2026-09-29T09:27:20.567872+00:00", "level": "INFO", "logger": "etl", "message": "{\"datasets_found\": [\"production\", \"quality\", \"inventory\", \"machine\", \"workers\"]}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.567+0700] {logging_config.py:55} INFO - {"datasets_found": ["production", "quality", "inventory", "machine", "workers"]}
+{"timestamp": "2026-09-29T09:27:20.567965+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.567+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.568052+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"file\": \"inventory.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.568+0700] {logging_config.py:55} INFO - {"dataset": "inventory", "file": "inventory.csv"}
+{"timestamp": "2026-09-29T09:27:20.569951+00:00", "level": "WARNING", "logger": "etl", "message": "rows_quarantined", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.569+0700] {logging_config.py:53} WARNING - rows_quarantined
+{"timestamp": "2026-09-29T09:27:20.570088+00:00", "level": "WARNING", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"rejected_rows\": 1, \"violation_records\": 1, \"written\": 1, \"remaining\": 5}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.570+0700] {logging_config.py:55} WARNING - {"dataset": "inventory", "rejected_rows": 1, "violation_records": 1, "written": 1, "remaining": 5}
+{"timestamp": "2026-09-29T09:27:20.572206+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.572+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.572331+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"inventory\", \"rows\": 5}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.572+0700] {logging_config.py:55} INFO - {"dataset": "inventory", "rows": 5}
+{"timestamp": "2026-09-29T09:27:20.572434+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.572+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.572524+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"machine\", \"file\": \"machine.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.572+0700] {logging_config.py:55} INFO - {"dataset": "machine", "file": "machine.csv"}
+  Removed 12 duplicates from machine
+{"timestamp": "2026-09-29T09:27:20.575187+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.575+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.575314+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"machine\", \"rows\": 12}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.575+0700] {logging_config.py:55} INFO - {"dataset": "machine", "rows": 12}
+{"timestamp": "2026-09-29T09:27:20.575414+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.575+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.575502+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"production\", \"file\": \"production.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.575+0700] {logging_config.py:55} INFO - {"dataset": "production", "file": "production.csv"}
+{"timestamp": "2026-09-29T09:27:20.577048+00:00", "level": "WARNING", "logger": "etl", "message": "rows_quarantined", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.577+0700] {logging_config.py:53} WARNING - rows_quarantined
+{"timestamp": "2026-09-29T09:27:20.577167+00:00", "level": "WARNING", "logger": "etl", "message": "{\"dataset\": \"production\", \"rejected_rows\": 1, \"violation_records\": 1, \"written\": 1, \"remaining\": 29}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.577+0700] {logging_config.py:55} WARNING - {"dataset": "production", "rejected_rows": 1, "violation_records": 1, "written": 1, "remaining": 29}
+{"timestamp": "2026-09-29T09:27:20.579669+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.579+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.579802+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"production\", \"rows\": 29}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.579+0700] {logging_config.py:55} INFO - {"dataset": "production", "rows": 29}
+{"timestamp": "2026-09-29T09:27:20.579964+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.579+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.580087+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"quality\", \"file\": \"quality.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.580+0700] {logging_config.py:55} INFO - {"dataset": "quality", "file": "quality.csv"}
+  Removed 1 duplicates from quality
+{"timestamp": "2026-09-29T09:27:20.583169+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.583+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.583309+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"quality\", \"rows\": 17}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.583+0700] {logging_config.py:55} INFO - {"dataset": "quality", "rows": 17}
+{"timestamp": "2026-09-29T09:27:20.583415+00:00", "level": "INFO", "logger": "etl", "message": "loading_dataset", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.583+0700] {logging_config.py:53} INFO - loading_dataset
+{"timestamp": "2026-09-29T09:27:20.583509+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"workers\", \"file\": \"workers.csv\"}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.583+0700] {logging_config.py:55} INFO - {"dataset": "workers", "file": "workers.csv"}
+{"timestamp": "2026-09-29T09:27:20.586146+00:00", "level": "INFO", "logger": "etl", "message": "data_cleaned", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.586+0700] {logging_config.py:53} INFO - data_cleaned
+{"timestamp": "2026-09-29T09:27:20.586274+00:00", "level": "INFO", "logger": "etl", "message": "{\"dataset\": \"workers\", \"rows\": 9}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.586+0700] {logging_config.py:55} INFO - {"dataset": "workers", "rows": 9}
+{"timestamp": "2026-09-29T09:27:20.586375+00:00", "level": "INFO", "logger": "etl", "message": "etl_complete", "module": "logging_config", "function": "log_event", "line": 53, "component": "pipeline"}
+[2026-09-29T16:27:20.586+0700] {logging_config.py:53} INFO - etl_complete
+{"timestamp": "2026-09-29T09:27:20.586463+00:00", "level": "INFO", "logger": "etl", "message": "{\"datasets_loaded\": [\"inventory\", \"machine\", \"production\", \"quality\", \"workers\"]}", "module": "logging_config", "function": "log_event", "line": 55, "component": "pipeline"}
+[2026-09-29T16:27:20.586+0700] {logging_config.py:55} INFO - {"datasets_loaded": ["inventory", "machine", "production", "quality", "workers"]}
+{"task": "quality", "msg": "tat ca chi so dung", "marts_non_empty": true, "reject_rate": 0.0102, "reject_rate_plausible": true, "good_plus_reject": 11004, "total_actual": 11004, "good_plus_reject_le_actual": true}
+[2026-09-29 16:27:20,609] {python.py:240} INFO - Done. Returned value was: {'marts_non_empty': True, 'reject_rate': 0.0102, 'reject_rate_plausible': True, 'good_plus_reject': 11004, 'total_actual': 11004, 'good_plus_reject_le_actual': True}
+[2026-09-29T16:27:20.609+0700] {python.py:240} INFO - Done. Returned value was: {'marts_non_empty': True, 'reject_rate': 0.0102, 'reject_rate_plausible': True, 'good_plus_reject': 11004, 'total_actual': 11004, 'good_plus_reject_le_actual': True}
+[2026-09-29T16:27:20.612+0700] {taskinstance.py:341} INFO - ::group::Post task execution logs
+[2026-09-29T16:27:20.612+0700] {taskinstance.py:353} INFO - Marking task as SUCCESS. dag_id=factory_medallion_daily, task_id=quality_checks, run_id=manual__2026-09-30T00:00:00+00:00, execution_date=20260930T000000, start_date=, end_date=20260929T092720
+[2026-09-29T16:27:20.615+0700] {dag.py:4410} INFO - [DAG TEST] end task task_id=quality_checks map_index=-1
+[2026-09-29T16:27:20.617+0700] {dagrun.py:854} INFO - Marking run <DagRun factory_medallion_daily @ 2026-09-30 00:00:00+00:00: manual__2026-09-30T00:00:00+00:00, state:running, queued_at: None. externally triggered: False> successful
+[2026-09-29T16:27:20.617+0700] {dagrun.py:905} INFO - DagRun Finished: dag_id=factory_medallion_daily, execution_date=2026-09-30 00:00:00+00:00, run_id=manual__2026-09-30T00:00:00+00:00, run_start_date=2026-09-30 00:00:00+00:00, run_end_date=2026-09-29 09:27:20.617505+00:00, run_duration=-52359.382495, state=success, external_trigger=False, run_type=manual, data_interval_start=2026-09-28 02:00:00+00:00, data_interval_end=2026-09-29 02:00:00+00:00, dag_hash=None
+/Users/mainguyenbinhtan/Downloads/Projects/.venv-airflow/lib/python3.11/site-packages/airflow/cli/commands/dag_command.py:48 UserWarning: Could not import graphviz. Rendering graph to the graphical format will not be possible.

@@ -1,0 +1,12 @@
+{
+  "why_separate": [
+    "thread state bi xoa khi thread ket thuc; long-term memory thi khong",
+    "thread state chi agent ghi; memory can truy van theo tenant",
+    "vector index co lifecycle rieng (re-embed khi doi model)"
+  ],
+  "tiers": {
+    "thread_state": "AsyncPostgresSaver (langgraph) — Postgres 16 docker, da chung minh qua 2 process khac nhau",
+    "long_term_memory": "LongTermMemory (src/maia/agent/memory.py) — SQLite, da ton tai truoc, KHONG sua doi",
+    "rag_index": "Qdrant vector store (src/maia/vector_store.py) — da ton tai truoc, KHONG sua doi"
+  }
+}

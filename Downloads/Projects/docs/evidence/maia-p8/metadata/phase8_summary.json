@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-09-29T08:11:59.385058+00:00",
+  "git_head": "54b87d89ef350fc24a31427fa265f5942f7684fc",
+  "baseline_before_work": "54b87d89ef350fc24a31427fa265f5942f7684fc",
+  "baseline_suite": "823 passed, 0 failed, 1 skipped",
+  "full_suite": "831 passed, 1 skipped, 46 warnings in 114.49s (0:01:54)",
+  "full_suite_exit": 0,
+  "persistence_tests_exit": 0,
+  "restart_proof_passed": true,
+  "different_pids": true,
+  "state_survived_restart": true,
+  "resumed_correctly": true,
+  "regressions_introduced": 0,
+  "env_requirement": "MAIA_POSTGRES_DSN phai troi toi Postgres; khong co DSN mac dinh trong code"
+}

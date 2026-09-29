@@ -1,0 +1,48 @@
+{
+  "started_at": "2026-09-29T12:42:19.220102+00:00",
+  "job": "apexinspect",
+  "step_1_before_kill": {
+    "up": "1",
+    "alert": [
+      null,
+      null
+    ]
+  },
+  "step_2_killed": {
+    "at": "2026-09-29T12:42:19.291337+00:00"
+  },
+  "step_3_metric_changed": {
+    "up": true,
+    "polls": 4,
+    "note": "Prometheus scrape that báo target down"
+  },
+  "step_4_alert_fired": {
+    "state": true,
+    "polls": 10,
+    "rule": "ServiceDown (expr: up == 0)"
+  },
+  "step_5_alertmanager": {
+    "received": true,
+    "api": "http://localhost:9303"
+  },
+  "step_6_restored": {
+    "up": true,
+    "polls": 4
+  },
+  "step_7_alert_resolved": {
+    "resolved": true,
+    "how": "series_gone",
+    "polls": 3,
+    "alerts_metric": null,
+    "current_api_state": null,
+    "note": "`up=1` + không còn alert firing là đủ để kết luận service đã phục hồi. Giá trị null nghĩa là series ALERTS đã bị xoá khỏi TSDB — đó là Prometheus đã dọn, tức alert đã hết."
+  },
+  "finished_at": "2026-09-29T12:43:45.147769+00:00",
+  "checks": {
+    "metric_went_down": true,
+    "alert_fired": true,
+    "service_restored": true,
+    "alert_resolved": true
+  },
+  "cycle_complete": true
+}

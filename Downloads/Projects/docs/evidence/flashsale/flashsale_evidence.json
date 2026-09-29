@@ -1,0 +1,118 @@
+{
+  "generated_at": "2026-09-29T13:05:51.595989+00:00",
+  "repo": "FlashSale-Backend",
+  "git_head": "9454e73742d62d67cbcf48463ec492496bacf902",
+  "stack": ".NET 10, EF Core, Postgres 16, Redis 7, RabbitMQ 3",
+  "tests": {
+    "unit": {
+      "failed": 0,
+      "passed": 167,
+      "skipped": 0,
+      "total": 167
+    },
+    "integration": {
+      "failed": 0,
+      "passed": 60,
+      "skipped": 0,
+      "total": 60
+    },
+    "unit_exit": 0,
+    "integration_exit": 0
+  },
+  "zero_oversell": {
+    "scenario": "stock=10, 50 concurrent POST /api/orders, quantity=1",
+    "path": "real HTTP -> Order.Api -> SubmitOrderUseCase -> Redis Lua reserve",
+    "runs": [
+      {
+        "accepted": 10,
+        "rejected_4xx": 40,
+        "final_stock": 0,
+        "pass": true
+      },
+      {
+        "accepted": 10,
+        "rejected_4xx": 40,
+        "final_stock": 0,
+        "pass": true
+      },
+      {
+        "accepted": 10,
+        "rejected_4xx": 40,
+        "final_stock": 0,
+        "pass": true
+      }
+    ],
+    "reproducible": true
+  },
+  "idempotency": {
+    "key": "evidence-idem-1790687191",
+    "requests": 3,
+    "responses": [
+      "{\"message\":\"Order accepted\",\"idempotencyKey\":\"evidence-idem-1790687191\",\"status\":\"processing\"}",
+      "{\"error\":\"Duplicate request\",\"idempotencyKey\":\"evidence-idem-1790687191\"}",
+      "{\"error\":\"Duplicate request\",\"idempotencyKey\":\"evidence-idem-1790687191\"}"
+    ],
+    "stock_after": "9",
+    "expected_stock": "9 (một lần trừ duy nhất)",
+    "verified": true,
+    "note": "2/3 request trả 'Duplicate request'; chỉ 1 order được tạo."
+  },
+  "redis_lua": {
+    "script": "HGET qty -> SISMEMBER dedupe -> so sanh -> HINCRBY -> SADD ledger -> EXPIRE 86400. Toàn bộ trong MỘT script Lua, nên atomic theo thiết kế của Redis.",
+    "atomicity": "single Lua script — không có cửa sổ TOCTOU",
+    "dedupe": "SISMEMBER trên reservation:{id} chặn reserve trùng key",
+    "ttl": "EXPIRE 86400 chống ledger phình vô hạn",
+    "guard": "quantity <= 0 bị chặn ở C# trước khi gọi script"
+  },
+  "infrastructure": {
+    "postgres": {
+      "container": "flashsale-pg",
+      "port": 55433,
+      "tables": "10"
+    },
+    "redis": {
+      "container": "flashsale-redis",
+      "port": 56379
+    },
+    "rabbitmq": {
+      "container": "flashsale-rabbit",
+      "port": 55672,
+      "queues": [
+        "Listing queues for vhost / ...",
+        "name\tmessages\tconsumers",
+        "orders\t0\t2"
+      ]
+    },
+    "api": "Order.Api trên :5199, health/live 200, health/ready 200",
+    "worker": "Order.Worker: OutboxDispatcherHostedService, OrderProcessorHost (at-least-once, idempotent, max 4 attempts)"
+  },
+  "orders_state": {
+    "total": "104",
+    "by_status": [
+      "PendingPayment|104"
+    ]
+  },
+  "not_verified": [
+    {
+      "claim": "Outbox pattern end-to-end",
+      "status": "PARTIAL",
+      "reason": "Bảng OutboxMessages tồn tại (có ProcessedAt, RetryCount, DeadLetteredAt) và worker có OutboxDispatcherHostedService, nhưng đường order KHÔNG ghi vào bảng này — nó publish best-effort qua RabbitMQ. Chính code ghi rõ: 'no-outbox is a documented gap' (SubmitOrderUseCase.cs).",
+      "evidence": "73+ orders được tạo, OutboxMessages vẫn 0 rows."
+    },
+    {
+      "claim": "Backup -> checksum -> restore -> verify invariant",
+      "status": "NOT_RUN",
+      "reason": "Có thư mục backups/ nhưng chưa chạy vòng restore đầy đủ có kiểm chứng invariant sau restore."
+    },
+    {
+      "claim": "DLQ flow (consumer fail -> retry -> dead letter)",
+      "status": "PARTIAL",
+      "reason": "Schema có DeadLetteredAt và worker khai báo max 4 attempts, nhưng chưa gây ra failure để quan sát message thực sự đi tới dead-letter."
+    },
+    {
+      "claim": "Payment saga tới Completed",
+      "status": "NOT_RUN",
+      "reason": "Payment.Service chưa khởi động; order dừng ở PendingPayment."
+    }
+  ]
+}

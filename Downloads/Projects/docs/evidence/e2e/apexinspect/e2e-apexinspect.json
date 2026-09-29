@@ -1,0 +1,56 @@
+{
+  "evidence_version": "3.0",
+  "scenario_id": "E2E-APEXINSPECT",
+  "execution_location": "LOCAL",
+  "command": "python -m pytest tests/ -q",
+  "started_at": "2026-09-29T17:56:29Z",
+  "duration_s": 0.0,
+  "status": "PARTIAL",
+  "repos": [
+    {
+      "path": "ApexInspect-AI",
+      "commit": "e8e42daed8a9997e6d98d1dd8ac7772eb5d76da6",
+      "worktree": "DIRTY_WORKTREE_SNAPSHOT",
+      "dirty_files": [
+        "M .gitignore",
+        "?? k8s/"
+      ]
+    }
+  ],
+  "boundaries": {
+    "unit-and-integration": "REAL",
+    "live-llm-rca": "NOT_RUN (needs a real GROQ_API_KEY and a recorded cassette)"
+  },
+  "checks": [
+    {
+      "invariant": "the full suite has no failures",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "0 failed",
+      "actual": "0 failed",
+      "detail": "150 passed, 0 failed, 1 skipped"
+    },
+    {
+      "invariant": "no test was skipped",
+      "boundary": "NOT_RUN",
+      "passed": false,
+      "expected": "0 skipped",
+      "actual": "1 skipped",
+      "detail": "tests/test_rca_groq_vcr.py:54: cassette missing and no real GROQ_API_KEY; record once with APEX_ALLOW_LIVE_LLM=1 and a real key to create it"
+    }
+  ],
+  "checks_passed": 1,
+  "checks_total": 2,
+  "artifacts": [
+    "docs/evidence/e2e/apexinspect/apexinspect-test-output.txt"
+  ],
+  "sha256": {
+    "docs/evidence/e2e/apexinspect/apexinspect-test-output.txt": "e7087737fc76b5422e9c0c776fcbb8a27a4f1dd5596edf78dfa7c4e76bdb7dba"
+  },
+  "environment": {
+    "python": "3.14.7",
+    "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+    "hostname": "MacBook-Pro-cua-Tan.local"
+  },
+  "notes": "150 passed, 0 failed, 1 skipped - tests/test_rca_groq_vcr.py:54: cassette missing and no real GROQ_API_KEY; record once with APEX_ALLOW_LIVE_LLM=1 and a real key to create it"
+}

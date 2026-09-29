@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-09-29T07:48:32.851531+00:00",
+  "edge_count": 8,
+  "full_chain_raw_to_mart": [
+    "inventory_snapshot",
+    "machine_health",
+    "mart_inventory",
+    "mart_oee",
+    "mart_quality",
+    "oee_daily",
+    "quality_daily",
+    "silver_production"
+  ],
+  "mart_oee_ancestors": [
+    "oee_daily",
+    "raw_production",
+    "silver_production"
+  ],
+  "upstream_mart_inventory": [
+    "inventory_snapshot"
+  ],
+  "downstream_silver_production": [
+    "inventory_snapshot",
+    "machine_health",
+    "oee_daily",
+    "quality_daily"
+  ],
+  "has_cycle": false,
+  "mart_edge_fields": [
+    "source_dataset",
+    "target_dataset",
+    "transform",
+    "run_id",
+    "timestamp"
+  ]
+}

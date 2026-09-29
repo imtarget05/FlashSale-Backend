@@ -1,0 +1,68 @@
+{
+  "edges": [
+    {
+      "run_id": "mart-build",
+      "source_dataset": "inventory_snapshot",
+      "target_dataset": "mart_inventory",
+      "timestamp": "2026-09-29T07:48:33.251223+00:00",
+      "transform": "materialize"
+    },
+    {
+      "run_id": "mart-build",
+      "source_dataset": "oee_daily",
+      "target_dataset": "mart_oee",
+      "timestamp": "2026-09-29T07:48:33.251220+00:00",
+      "transform": "materialize"
+    },
+    {
+      "run_id": "mart-build",
+      "source_dataset": "quality_daily",
+      "target_dataset": "mart_quality",
+      "timestamp": "2026-09-29T07:48:33.251221+00:00",
+      "transform": "materialize"
+    },
+    {
+      "run_id": "catalog-seed",
+      "source_dataset": "raw_production",
+      "target_dataset": "silver_production",
+      "timestamp": "2026-09-29T07:48:33.251196+00:00",
+      "transform": "etl"
+    },
+    {
+      "run_id": "catalog-seed",
+      "source_dataset": "silver_production",
+      "target_dataset": "inventory_snapshot",
+      "timestamp": "2026-09-29T07:48:33.251200+00:00",
+      "transform": "etl"
+    },
+    {
+      "run_id": "catalog-seed",
+      "source_dataset": "silver_production",
+      "target_dataset": "machine_health",
+      "timestamp": "2026-09-29T07:48:33.251203+00:00",
+      "transform": "etl"
+    },
+    {
+      "run_id": "catalog-seed",
+      "source_dataset": "silver_production",
+      "target_dataset": "oee_daily",
+      "timestamp": "2026-09-29T07:48:33.251205+00:00",
+      "transform": "etl"
+    },
+    {
+      "run_id": "catalog-seed",
+      "source_dataset": "silver_production",
+      "target_dataset": "quality_daily",
+      "timestamp": "2026-09-29T07:48:33.251206+00:00",
+      "transform": "etl"
+    }
+  ],
+  "generated_at": "2026-09-29T07:48:33.251654+00:00",
+  "lineage_version": "1.0",
+  "zone_order": [
+    "RAW",
+    "SILVER",
+    "GOLD",
+    "MART"
+  ]
+}

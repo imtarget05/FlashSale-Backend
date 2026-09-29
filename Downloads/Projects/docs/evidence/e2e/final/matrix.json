@@ -1,0 +1,57 @@
+{
+  "generated_from": "docs/evidence/{e2e,azure}",
+  "note": "Every cell is derived from an evidence file. A cell with no file behind it reads NO EVIDENCE, never PASS.",
+  "projects": {
+    "CreditFlow": {
+      "unit": "NO EVIDENCE",
+      "integration": "NO EVIDENCE",
+      "e2e": "NO EVIDENCE",
+      "azure": "PASS"
+    },
+    "Factory": {
+      "unit": "NO EVIDENCE",
+      "integration": "NO EVIDENCE",
+      "e2e": "NO EVIDENCE",
+      "azure": "PASS"
+    },
+    "ApexInspect": {
+      "unit": "NO EVIDENCE",
+      "integration": "NO EVIDENCE",
+      "e2e": "PARTIAL",
+      "azure": "N/A"
+    },
+    "FlashSale": {
+      "unit": "NO EVIDENCE",
+      "integration": "NO EVIDENCE",
+      "e2e": "PASS",
+      "azure": "N/A"
+    },
+    "MAIA": {
+      "unit": "NO EVIDENCE",
+      "integration": "NO EVIDENCE",
+      "e2e": "NO EVIDENCE",
+      "azure": "PASS"
+    },
+    "MiniERP": {
+      "unit": "NO EVIDENCE",
+      "integration": "NO EVIDENCE",
+      "e2e": "NO EVIDENCE",
+      "azure": "N/A"
+    },
+    "Helpdesk": {
+      "unit": "NO EVIDENCE",
+      "integration": "NO EVIDENCE",
+      "e2e": "PARTIAL",
+      "azure": "N/A"
+    }
+  },
+  "special": {
+    "Security E2E (negative paths)": [
+      "VERIFIED",
+      "VERIFIED"
+    ],
+    "Observability E2E (3 apps)": [
+      "VERIFIED"
+    ]
+  }
+}

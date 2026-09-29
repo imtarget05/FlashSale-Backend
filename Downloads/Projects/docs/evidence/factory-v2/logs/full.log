@@ -1,0 +1,53 @@
+........................................................................ [ 47%]
+...........s...........................................F...F.s.......... [ 94%]
+.....sss                                                                 [100%]
+=================================== FAILURES ===================================
+___________________ test_fda_013_scale_10x_pipeline_survives ___________________
+
+    def test_fda_013_scale_10x_pipeline_survives():
+        """FDA-013: 10x scale test on production records (~110k rows).
+    
+        Verifies memory stability, correct deduplication, clipping, and aggregate completion.
+        """
+        raw_csv = REPO_ROOT / "data" / "raw" / "production.csv"
+        if not raw_csv.exists():
+            pytest.skip("production.csv missing")
+    
+        df_base = pd.read_csv(raw_csv)
+        base_len = len(df_base)
+>       assert base_len > 1000
+E       assert 30 > 1000
+
+tests/test_scale_and_perf.py:41: AssertionError
+_____________________ test_silver_parquet_smaller_than_csv _____________________
+
+cleaned = {'inventory':         Date Product  Stock_Qty  ...  Unit_Price  Supplier           Created_At
+0 2026-01-05   SKU-B    ...01-07T08:00:00
+16 2026-01-07   SKU-B   L1  ...    Minor         W-001  2026-01-07T08:00:00
+
+[17 rows x 9 columns], ...}
+tmp_path = PosixPath('/private/var/folders/3s/h7_vfnxn1lx_mgrd4jqty2400000gn/T/pytest-of-mainguyenbinhtan/pytest-618/test_silver_parquet_smaller_th0')
+
+    @pytest.mark.skipif(not _HAS_PARQUET, reason="needs polars or pyarrow for parquet")
+    def test_silver_parquet_smaller_than_csv(cleaned, tmp_path):
+        """Snappy parquet must beat the equivalent CSV on disk."""
+        info = export_silver_production(cleaned, outdir=str(tmp_path))
+        csv_path = str(tmp_path / "production.csv")
+        cleaned["production"].to_csv(csv_path, index=False)
+>       assert os.path.getsize(info["path"]) < os.path.getsize(csv_path), (
+            f"parquet {os.path.getsize(info['path'])} >= csv {os.path.getsize(csv_path)}"
+        )
+E       AssertionError: parquet 4905 >= csv 2387
+E       assert 4905 < 2387
+E        +  where 4905 = <function getsize at 0x10020a560>('/private/var/folders/3s/h7_vfnxn1lx_mgrd4jqty2400000gn/T/pytest-of-mainguyenbinhtan/pytest-618/test_silver_parquet_smaller_th0/production.parquet')
+E        +    where <function getsize at 0x10020a560> = <module 'posixpath' (frozen)>.getsize
+E        +      where <module 'posixpath' (frozen)> = os.path
+E        +  and   2387 = <function getsize at 0x10020a560>('/private/var/folders/3s/h7_vfnxn1lx_mgrd4jqty2400000gn/T/pytest-of-mainguyenbinhtan/pytest-618/test_silver_parquet_smaller_th0/production.csv')
+E        +    where <function getsize at 0x10020a560> = <module 'posixpath' (frozen)>.getsize
+E        +      where <module 'posixpath' (frozen)> = os.path
+
+tests/test_silver_parquet.py:87: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_scale_and_perf.py::test_fda_013_scale_10x_pipeline_survives
+FAILED tests/test_silver_parquet.py::test_silver_parquet_smaller_than_csv - A...
+2 failed, 145 passed, 5 skipped in 1.69s

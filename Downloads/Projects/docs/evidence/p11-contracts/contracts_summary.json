@@ -1,0 +1,176 @@
+{
+  "generated_at": "2026-09-29T08:21:45.633922+00:00",
+  "registry_version": "1.0.0",
+  "scope_is": [
+    "three versioned JSON Schema contracts",
+    "a documented producer/consumer map",
+    "an explicit compatibility rule enforced by tests",
+    "per-product security class, SLA and retention"
+  ],
+  "scope_is_not": [
+    "a data mesh (no federated governance plane)",
+    "an event backbone (transport is out of scope; see Phase 12)",
+    "a schema registry service (this is a repository of files, versioned in git)"
+  ],
+  "compatibility_policy": {
+    "rule": "A change is backward compatible if and only if it is additive within an existing major version.",
+    "backward_compatible": [
+      "adding a new optional property with a default",
+      "adding a new enum value to a property whose consumers are documented to tolerate unknown values",
+      "relaxing a numeric bound",
+      "adding a new event_type to manufacturing-events (consumers must ignore unknown types)"
+    ],
+    "breaking": [
+      "adding a property to the required list",
+      "REMOVING a property from the required list (a consumer written against 'this is always present' will fail at runtime, not at validation)",
+      "removing or renaming a property",
+      "tightening a numeric bound",
+      "removing an enum value",
+      "changing a property's type",
+      "changing the meaning of an existing value"
+    ],
+    "version_rule": "Major bump for breaking. Minor for additive. Patch for documentation or description-only changes. schema_version in the payload is a string SemVer and MUST match the contract version.",
+    "why_enum_extension_is_risky": "manufacturing-events allows new event types, but only for consumers that already skip unknown types. A consumer that switches exhaustively over event_type must treat a new type as a hard failure, and that consumer is not compatible with the minor bump."
+  },
+  "delivery_semantics": {
+    "default": "at-least-once",
+    "consumer_requirement": "Deduplicate on event_id. No contract in this registry promises exactly-once delivery.",
+    "idempotency_keys": {
+      "inspection-events": "event_id",
+      "manufacturing-events": "event_id",
+      "factory-kpis": "snapshot_id plus revision"
+    }
+  },
+  "data_products": [
+    {
+      "id": "inspection-events",
+      "version": "1.0.0",
+      "contract": "contracts/inspection-events.v1.json",
+      "owner": "quality-engineering",
+      "producer": "ApexInspect-AI",
+      "consumers": [
+        "Factory-Data-Automation-v-AI-Reporting-Platform",
+        "MiniERP-Manufacturing-Warehouse"
+      ],
+      "grain": "one unit, one inspection",
+      "security_class": "internal",
+      "sla": {
+        "freshness_hours": 1,
+        "completeness_pct": 99.5,
+        "latency": "P95 end-to-end under 5 minutes from occurred_at to availability in the Factory silver layer",
+        "measurement": "measured at the consumer, from occurred_at, not from produced_at"
+      },
+      "retention": {
+        "hot_days": 90,
+        "archive_years": 7,
+        "reason": "quality claims and regulatory traceability"
+      },
+      "required_fields": [
+        "event_id",
+        "event_type",
+        "occurred_at",
+        "produced_at",
+        "schema_version",
+        "unit",
+        "line",
+        "inspection"
+      ],
+      "top_level_props": [
+        "event_id",
+        "event_type",
+        "inspection",
+        "line",
+        "occurred_at",
+        "produced_at",
+        "schema_version",
+        "unit"
+      ]
+    },
+    {
+      "id": "factory-kpis",
+      "version": "1.0.0",
+      "contract": "contracts/factory-kpis.v1.json",
+      "owner": "manufacturing-data",
+      "producer": "Factory-Data-Automation-v-AI-Reporting-Platform",
+      "consumers": [
+        "dashboards and BI",
+        "MiniERP-Manufacturing-Warehouse"
+      ],
+      "grain": "one line, one plant-local calendar day, optional shift",
+      "security_class": "internal",
+      "sla": {
+        "freshness_hours": 24,
+        "completeness_pct": 99.0,
+        "latency": "published within 24h of period end; late corrections arrive as an incremented revision",
+        "measurement": "period.window_end to produced_at"
+      },
+      "retention": {
+        "hot_days": 400,
+        "archive_years": 7,
+        "reason": "trend analysis and capacity planning"
+      },
+      "required_fields": [
+        "snapshot_id",
+        "produced_at",
+        "schema_version",
+        "grain",
+        "period",
+        "metrics"
+      ],
+      "top_level_props": [
+        "grain",
+        "metrics",
+        "period",
+        "produced_at",
+        "revision",
+        "schema_version",
+        "snapshot_id"
+      ]
+    },
+    {
+      "id": "manufacturing-events",
+      "version": "1.0.0",
+      "contract": "contracts/manufacturing-events.v1.json",
+      "owner": "integration-platform",
+      "producer": "all three",
+      "consumers": [
+        "all three"
+      ],
+      "grain": "one business action, one envelope",
+      "security_class": "confidential",
+      "sla": {
+        "freshness_hours": 24,
+        "completeness_pct": 99.9,
+        "latency": "P95 under 15 minutes for quarantine events, which gate a physical line",
+        "measurement": "occurred_at to consumer processing"
+      },
+      "retention": {
+        "hot_days": 30,
+        "archive_years": 7,
+        "reason": "audit trail for inventory movements"
+      },
+      "required_fields": [
+        "event_id",
+        "event_type",
+        "occurred_at",
+        "produced_at",
+        "schema_version",
+        "producer",
+        "tenant_id",
+        "entity"
+      ],
+      "top_level_props": [
+        "correlation_id",
+        "entity",
+        "event_id",
+        "event_type",
+        "occurred_at",
+        "payload",
+        "produced_at",
+        "producer",
+        "schema_version",
+        "tenant_id"
+      ]
+    }
+  ]
+}

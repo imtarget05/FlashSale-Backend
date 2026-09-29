@@ -1,0 +1,55 @@
+{
+  "evidence_version": "3.0",
+  "scenario_id": "E2E-HELPDESK",
+  "execution_location": "LOCAL",
+  "command": "cd internal-portal && npm test",
+  "started_at": "2026-09-29T17:56:29Z",
+  "duration_s": 0.0,
+  "status": "PARTIAL",
+  "repos": [
+    {
+      "path": "Enterprise-IT-Helpdesk-Lab",
+      "commit": "f320d59a002d2baed505fc53406f46ea1a267f5e",
+      "worktree": "DIRTY_WORKTREE_SNAPSHOT",
+      "dirty_files": [
+        "M internal-portal/package-lock.json"
+      ]
+    }
+  ],
+  "boundaries": {
+    "unit-and-integration": "REAL",
+    "live-llm-rca": "N/A"
+  },
+  "checks": [
+    {
+      "invariant": "the full suite has no failures",
+      "boundary": "REAL",
+      "passed": true,
+      "expected": "0 failed",
+      "actual": "0 failed",
+      "detail": "336 passed, 0 failed, 1 skipped"
+    },
+    {
+      "invariant": "no test was skipped",
+      "boundary": "NOT_RUN",
+      "passed": false,
+      "expected": "0 skipped",
+      "actual": "1 skipped",
+      "detail": ""
+    }
+  ],
+  "checks_passed": 1,
+  "checks_total": 2,
+  "artifacts": [
+    "docs/evidence/e2e/helpdesk/helpdesk-test-output.txt"
+  ],
+  "sha256": {
+    "docs/evidence/e2e/helpdesk/helpdesk-test-output.txt": "7f50da1e7b4990e1a503b612e41b3860046bfbfd2f70aacfb78e04d4415b3e64"
+  },
+  "environment": {
+    "python": "3.14.7",
+    "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+    "hostname": "MacBook-Pro-cua-Tan.local"
+  },
+  "notes": "336 passed, 0 failed, 1 skipped"
+}

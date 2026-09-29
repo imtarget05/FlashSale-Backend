@@ -1,0 +1,6 @@
+python: Python 3.14.7
+pandas 3.0.5
+polars 1.44.2
+pyarrow 25.0.1
+git HEAD: 521ad5b1df39792de3986813a671fcd0d36cbbce
+generated_at: 2026-09-29T07:48:32.851531+00:00

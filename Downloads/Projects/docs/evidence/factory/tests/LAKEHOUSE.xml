@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="1" tests="4" time="0.426" timestamp="2026-09-29T08:16:25.109218+07:00" hostname="MacBook-Pro-cua-Tan.local"><testcase classname="tests.test_silver_parquet" name="test_silver_parquet_roundtrip" time="0.083" /><testcase classname="tests.test_silver_parquet" name="test_silver_parquet_smaller_than_csv" time="0.003"><failure message="AssertionError: parquet 7919 &gt;= csv 2387&#10;assert 7919 &lt; 2387&#10; +  where 7919 = &lt;function getsize at 0x10227e400&gt;('/private/var/folders/3s/h7_vfnxn1lx_mgrd4jqty2400000gn/T/pytest-of-mainguyenbinhtan/pytest-593/test_silver_parquet_smaller_th0/production.parquet')&#10; +    where &lt;function getsize at 0x10227e400&gt; = &lt;module 'posixpath' (frozen)&gt;.getsize&#10; +      where &lt;module 'posixpath' (frozen)&gt; = os.path&#10; +  and   2387 = &lt;function getsize at 0x10227e400&gt;('/private/var/folders/3s/h7_vfnxn1lx_mgrd4jqty2400000gn/T/pytest-of-mainguyenbinhtan/pytest-593/test_silver_parquet_smaller_th0/production.csv')&#10; +    where &lt;function getsize at 0x10227e400&gt; = &lt;module 'posixpath' (frozen)&gt;.getsize&#10; +      where &lt;module 'posixpath' (frozen)&gt; = os.path">cleaned = {'inventory':         Date Product  Stock_Qty  ...  Unit_Price  Supplier           Created_At
+0 2026-01-05   SKU-B    ...01-07T08:00:00
+16 2026-01-07   SKU-B   L1  ...    Minor         W-001  2026-01-07T08:00:00
+
+[17 rows x 9 columns], ...}
+tmp_path = PosixPath('/private/var/folders/3s/h7_vfnxn1lx_mgrd4jqty2400000gn/T/pytest-of-mainguyenbinhtan/pytest-593/test_silver_parquet_smaller_th0')
+
+    @pytest.mark.skipif(not _HAS_PARQUET, reason="needs polars or pyarrow for parquet")
+    def test_silver_parquet_smaller_than_csv(cleaned, tmp_path):
+        """Snappy parquet must beat the equivalent CSV on disk."""
+        info = export_silver_production(cleaned, outdir=str(tmp_path))
+        csv_path = str(tmp_path / "production.csv")
+        cleaned["production"].to_csv(csv_path, index=False)
+&gt;       assert os.path.getsize(info["path"]) &lt; os.path.getsize(csv_path), (
+            f"parquet {os.path.getsize(info['path'])} &gt;= csv {os.path.getsize(csv_path)}"
+        )
+E       AssertionError: parquet 7919 &gt;= csv 2387
+E       assert 7919 &lt; 2387
+E        +  where 7919 = &lt;function getsize at 0x10227e400&gt;('/private/var/folders/3s/h7_vfnxn1lx_mgrd4jqty2400000gn/T/pytest-of-mainguyenbinhtan/pytest-593/test_silver_parquet_smaller_th0/production.parquet')
+E        +    where &lt;function getsize at 0x10227e400&gt; = &lt;module 'posixpath' (frozen)&gt;.getsize
+E        +      where &lt;module 'posixpath' (frozen)&gt; = os.path
+E        +  and   2387 = &lt;function getsize at 0x10227e400&gt;('/private/var/folders/3s/h7_vfnxn1lx_mgrd4jqty2400000gn/T/pytest-of-mainguyenbinhtan/pytest-593/test_silver_parquet_smaller_th0/production.csv')
+E        +    where &lt;function getsize at 0x10227e400&gt; = &lt;module 'posixpath' (frozen)&gt;.getsize
+E        +      where &lt;module 'posixpath' (frozen)&gt; = os.path
+
+tests/test_silver_parquet.py:87: AssertionError</failure></testcase><testcase classname="tests.test_silver_parquet" name="test_engine_report_matches_reality" time="0.000" /><testcase classname="tests.test_silver_parquet" name="test_csv_gzip_fallback_when_no_parquet_engine" time="0.000"><skipped type="pytest.skip" message="parquet available; fallback not needed">/Users/mainguyenbinhtan/Downloads/Projects/Factory-Data-Automation-v-AI-Reporting-Platform/tests/test_silver_parquet.py:97: parquet available; fallback not needed</skipped></testcase></testsuite></testsuites>

@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-09-29T07:48:32.851531+00:00",
+  "dataset_count": 9,
+  "zones": {
+    "RAW": 1,
+    "SILVER": 1,
+    "GOLD": 4,
+    "MART": 3
+  },
+  "validate_problems": [],
+  "valid": true,
+  "required_fields": [
+    "name",
+    "description",
+    "owner",
+    "schema",
+    "zone",
+    "source",
+    "consumers",
+    "freshness_sla_hours",
+    "version",
+    "created_at",
+    "updated_at"
+  ]
+}

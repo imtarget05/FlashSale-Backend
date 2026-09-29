@@ -1,0 +1,203 @@
+{
+  "generated_at": "2026-09-29T09:02:45.357921+00:00",
+  "environment": {
+    "python": "3.14.7",
+    "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+    "processor": "arm",
+    "cpu_count": 8,
+    "spark_master": "local[4]",
+    "repeats": 3
+  },
+  "dataset": {
+    "seed": 20260929,
+    "sizes": {
+      "small": 50000,
+      "medium": 500000,
+      "large": 5000000
+    },
+    "lines": 12,
+    "products": 400,
+    "defect_codes": [
+      "SCRATCH",
+      "CRACK",
+      "SOLDER",
+      "MISSING",
+      "SHORT",
+      "COATING",
+      "WARP",
+      "BOW",
+      "CONTAM"
+    ],
+    "dirty_by_design": [
+      "downtime_min uses -1 for missing, not 0 (a real shop floor distinguishes 'not measured' from 'no downtime')",
+      "defect_code_id is -1 for units with no defect recorded",
+      "actual_qty can exceed target_qty (overproduction happens)",
+      "good_qty + reject_qty is not guaranteed to equal actual_qty (scrap between stations)"
+    ]
+  },
+  "results": [
+    {
+      "size": "small",
+      "rows": 50000,
+      "input_bytes": 2950000,
+      "polars": {
+        "engine": "polars",
+        "version": "1.44.2",
+        "best_s": 0.003908250015228987,
+        "mean_s": 0.0042446249863132834,
+        "all_s": [
+          0.0039,
+          0.0047,
+          0.0041
+        ],
+        "rows_out": 4380,
+        "extra_peak_mb": 0.03
+      },
+      "spark": {
+        "engine": "spark",
+        "times_s": [
+          0.2334,
+          0.194,
+          0.1779
+        ],
+        "best_s": 0.17789566691499203,
+        "mean_s": 0.2017691389967998,
+        "master": "local[4]",
+        "extra_peak_mb": 9.9
+      },
+      "parity": {
+        "columns_compared": [
+          "line_id",
+          "date",
+          "total_target",
+          "total_actual",
+          "total_good",
+          "total_reject",
+          "avg_cycle",
+          "downtime_sum",
+          "quality_pct",
+          "performance_pct"
+        ],
+        "polars_groups": 4380,
+        "spark_groups": 4380,
+        "same_group_keys": true,
+        "float_tolerance": 1e-05,
+        "mismatches": [],
+        "parity": true,
+        "how_compared": "so tung cot theo khoa (line_id, date); NaN va None quy ve mot; float so bang sai so thay vi == vi hai engine cong theo thu tu khac nhau; cot so nguyen so bang =="
+      },
+      "process_peak_rss_mb": 173.5,
+      "speedup_polars_over_spark": 45.52,
+      "wall_clock_s": 7.62
+    },
+    {
+      "size": "medium",
+      "rows": 500000,
+      "input_bytes": 29500000,
+      "polars": {
+        "engine": "polars",
+        "version": "1.44.2",
+        "best_s": 0.006234915927052498,
+        "mean_s": 0.006705930611739556,
+        "all_s": [
+          0.0068,
+          0.0071,
+          0.0062
+        ],
+        "rows_out": 4380,
+        "extra_peak_mb": 0.03
+      },
+      "spark": {
+        "engine": "spark",
+        "times_s": [
+          0.6175,
+          0.6248,
+          0.7546
+        ],
+        "best_s": 0.617513749981299,
+        "mean_s": 0.665626888978295,
+        "master": "local[4]",
+        "extra_peak_mb": 0.11
+      },
+      "parity": {
+        "columns_compared": [
+          "line_id",
+          "date",
+          "total_target",
+          "total_actual",
+          "total_good",
+          "total_reject",
+          "avg_cycle",
+          "downtime_sum",
+          "quality_pct",
+          "performance_pct"
+        ],
+        "polars_groups": 4380,
+        "spark_groups": 4380,
+        "same_group_keys": true,
+        "float_tolerance": 1e-05,
+        "mismatches": [],
+        "parity": true,
+        "how_compared": "so tung cot theo khoa (line_id, date); NaN va None quy ve mot; float so bang sai so thay vi == vi hai engine cong theo thu tu khac nhau; cot so nguyen so bang =="
+      },
+      "process_peak_rss_mb": 248.2,
+      "speedup_polars_over_spark": 99.04,
+      "wall_clock_s": 5.68
+    },
+    {
+      "size": "large",
+      "rows": 5000000,
+      "input_bytes": 295000000,
+      "polars": {
+        "engine": "polars",
+        "version": "1.44.2",
+        "best_s": 0.0726197500480339,
+        "mean_s": 0.07263458333909512,
+        "all_s": [
+          0.0726,
+          0.0727,
+          0.0726
+        ],
+        "rows_out": 4380,
+        "extra_peak_mb": 0.01
+      },
+      "spark": {
+        "engine": "spark",
+        "times_s": [
+          1.3465,
+          1.3343,
+          1.1972
+        ],
+        "best_s": 1.1971680419519544,
+        "mean_s": 1.2926552363205701,
+        "master": "local[4]",
+        "extra_peak_mb": 0.11
+      },
+      "parity": {
+        "columns_compared": [
+          "line_id",
+          "date",
+          "total_target",
+          "total_actual",
+          "total_good",
+          "total_reject",
+          "avg_cycle",
+          "downtime_sum",
+          "quality_pct",
+          "performance_pct"
+        ],
+        "polars_groups": 4380,
+        "spark_groups": 4380,
+        "same_group_keys": true,
+        "float_tolerance": 1e-05,
+        "mismatches": [],
+        "parity": true,
+        "how_compared": "so tung cot theo khoa (line_id, date); NaN va None quy ve mot; float so bang sai so thay vi == vi hai engine cong theo thu tu khac nhau; cot so nguyen so bang =="
+      },
+      "process_peak_rss_mb": 844.9,
+      "speedup_polars_over_spark": 16.49,
+      "wall_clock_s": 10.89
+    }
+  ],
+  "how_to_read": "speedup_polars_over_spark > 1 nghia la Polars nhanh hon. Gia tri duoi 1 nghia la Spark nhanh hon — dieu hoan toan binh thuong o kich thuoc lon va khong phai ly do de giu Spark."
+}

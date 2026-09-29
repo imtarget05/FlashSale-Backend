@@ -1,0 +1,49 @@
+{
+  "measurement_scope": "REPRODUCED_BASELINE_THIS_RUN",
+  "model": "yolov8n_pcb_defect.onnx",
+  "model_sha256": "aa2cc103b481af065d09d0b0262630fec382d189a4f40ec82e97cc7c7c3fd011",
+  "input_shape": [
+    1,
+    3,
+    640,
+    640
+  ],
+  "n_warmup": 20,
+  "n_measure": 200,
+  "latency_ms": {
+    "p50": 38.91,
+    "p95": 40.751,
+    "p99": 58.249,
+    "mean": 39.371,
+    "min": 37.704,
+    "max": 60.196
+  },
+  "throughput_fps": 25.4,
+  "cpu_rss_mb": 136.0,
+  "env": {
+    "os": "Darwin 27.0.0 arm64",
+    "python": "3.14.7",
+    "onnxruntime": "1.30.0",
+    "numpy": "2.5.3",
+    "provider": "CPUExecutionProvider"
+  },
+  "documented_baseline": {
+    "source": "ApexInspect-AI/benchmark_results.json (committed)",
+    "avg_latency_ms": 43.36,
+    "fps": 23.1,
+    "n_measure": 20
+  },
+  "comparison": {
+    "avg_ms_documented": 43.36,
+    "avg_ms_reproduced_previous_run": 43.47,
+    "reproducible": true,
+    "note": "Số 43.36ms trong README/benchmark_results.json REPRODUCE ĐƯỢC (43.47ms, lệch 0.3%) trên cùng Apple M-series. Tuy nhiên file gốc chỉ đo avg/min/max với n_measure=20 — không có P95/P99. Baseline này bổ sung P50/P95/P99 với n_measure=200."
+  },
+  "optimization_evidence": {
+    "queue_depth_measured": false,
+    "queue_wait_ms_measured": false,
+    "deadline_miss_rate_measured": false,
+    "overload_policy_documented": false,
+    "conclusion": "Chưa có bằng chứng nào cho thấy batching/priority/preemption sẽ giúp. PHASE 9 KHÔNG nên implement tối ưu nào — thiếu queue_depth và overload policy là ràng buộc Core của §12, thiếu chúng thì chưa biết hệ thống có nghẽn ở đâu."
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "catalog_version": "1.0",
+  "datasets": [
+    {
+      "consumers": [],
+      "created_at": "2026-09-29T07:48:33.251150+00:00",
+      "description": "CSV tho tu MES",
+      "freshness_sla_hours": null,
+      "name": "raw_production",
+      "owner": "manufacturing-data",
+      "schema": {
+        "Actual_Qty": "int",
+        "Date": "date",
+        "Good_Qty": "int"
+      },
+      "source": [],
+      "updated_at": "2026-09-29T07:48:33.251150+00:00",
+      "version": "1.0.0",
+      "zone": "RAW"
+    },
+    {
+      "consumers": [
+        "oee_daily",
+        "quality_daily",
+        "inventory_snapshot",
+        "machine_health"
+      ],
+      "created_at": "2026-09-29T07:48:33.251165+00:00",
+      "description": "Da clean + qua contract gate",
+      "freshness_sla_hours": 24,
+      "name": "silver_production",
+      "owner": "manufacturing-data",
+      "schema": {},
+      "source": [
+        "raw_production"
+      ],
+      "updated_at": "2026-09-29T07:48:33.251165+00:00",
+      "version": "1.0.0",
+      "zone": "SILVER"
+    },
+    {
+      "consumers": [],
+      "created_at": "2026-09-29T07:48:33.251177+00:00",
+      "description": "Gold curated: inventory_snapshot",
+      "freshness_sla_hours": 48,
+      "name": "inventory_snapshot",
+      "owner": "manufacturing-data",
+      "schema": {},
+      "source": [
+        "silver_production"
+      ],
+      "updated_at": "2026-09-29T07:48:33.251177+00:00",
+      "version": "1.0.0",
+      "zone": "GOLD"
+    },
+    {
+      "consumers": [],
+      "created_at": "2026-09-29T07:48:33.251180+00:00",
+      "description": "Gold curated: machine_health",
+      "freshness_sla_hours": 48,
+      "name": "machine_health",
+      "owner": "manufacturing-data",
+      "schema": {},
+      "source": [
+        "silver_production"
+      ],
+      "updated_at": "2026-09-29T07:48:33.251180+00:00",
+      "version": "1.0.0",
+      "zone": "GOLD"
+    },
+    {
+      "consumers": [],
+      "created_at": "2026-09-29T07:48:33.251170+00:00",
+      "description": "Gold curated: oee_daily",
+      "freshness_sla_hours": 48,
+      "name": "oee_daily",
+      "owner": "manufacturing-data",
+      "schema": {},
+      "source": [
+        "silver_production"
+      ],
+      "updated_at": "2026-09-29T07:48:33.251170+00:00",
+      "version": "1.0.0",
+      "zone": "GOLD"
+    },
+    {
+      "consumers": [],
+      "created_at": "2026-09-29T07:48:33.251174+00:00",
+      "description": "Gold curated: quality_daily",
+      "freshness_sla_hours": 48,
+      "name": "quality_daily",
+      "owner": "manufacturing-data",
+      "schema": {},
+      "source": [
+        "silver_production"
+      ],
+      "updated_at": "2026-09-29T07:48:33.251174+00:00",
+      "version": "1.0.0",
+      "zone": "GOLD"
+    },
+    {
+      "consumers": [],
+      "created_at": "2026-09-29T07:48:33.251217+00:00",
+      "description": "BI mart: mart_inventory",
+      "freshness_sla_hours": 48,
+      "name": "mart_inventory",
+      "owner": "manufacturing-data",
+      "schema": {},
+      "source": [
+        "inventory_snapshot"
+      ],
+      "updated_at": "2026-09-29T07:48:33.251217+00:00",
+      "version": "1.0.0",
+      "zone": "MART"
+    },
+    {
+      "consumers": [],
+      "created_at": "2026-09-29T07:48:33.251211+00:00",
+      "description": "BI mart: mart_oee",
+      "freshness_sla_hours": 48,
+      "name": "mart_oee",
+      "owner": "manufacturing-data",
+      "schema": {},
+      "source": [
+        "oee_daily"
+      ],
+      "updated_at": "2026-09-29T07:48:33.251211+00:00",
+      "version": "1.0.0",
+      "zone": "MART"
+    },
+    {
+      "consumers": [],
+      "created_at": "2026-09-29T07:48:33.251215+00:00",
+      "description": "BI mart: mart_quality",
+      "freshness_sla_hours": 48,
+      "name": "mart_quality",
+      "owner": "manufacturing-data",
+      "schema": {},
+      "source": [
+        "quality_daily"
+      ],
+      "updated_at": "2026-09-29T07:48:33.251215+00:00",
+      "version": "1.0.0",
+      "zone": "MART"
+    }
+  ],
+  "generated_at": "2026-09-29T07:48:33.251376+00:00",
+  "zone_order": [
+    "RAW",
+    "SILVER",
+    "GOLD",
+    "MART"
+  ]
+}

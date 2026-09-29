@@ -1,0 +1,13 @@
+{
+  "exposition": "http://127.0.0.1:7860/metrics",
+  "prometheus": "http://localhost:9103 (v2.52.0, scrape_interval 15s)",
+  "target_health": "up",
+  "promql_results": {
+    "apex_inspections_total": "5",
+    "apex_defects_total": "2",
+    "apex_yield_rate_ratio": "0.6",
+    "apex_avg_inference_ms": "55",
+    "up{job=\"apexinspect\"}": "1"
+  },
+  "note": "Giá trị đến từ POST /api/v1/inspections thật, có X-API-Key. Không có key, endpoint trả 401 và metric không đổi."
+}

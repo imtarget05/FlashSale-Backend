@@ -1,0 +1,77 @@
+{
+  "generated_at": "2026-09-29T13:28:06.614299+00:00",
+  "repo": "MiniERP-Manufacturing-Warehouse",
+  "git_head": "d0515f1bed05c222d7dc40fe65bfe1f34998c785",
+  "stack": ".NET 8 API, Oracle PL/SQL, xUnit",
+  "tests": {
+    "hermetic": {
+      "failed": 0,
+      "passed": 224,
+      "skipped": 0,
+      "total": 224
+    },
+    "oracle_attempt": {
+      "failed": 56,
+      "passed": 249,
+      "skipped": 0,
+      "total": 305
+    },
+    "hermetic_exit": 0,
+    "oracle_exit": 1
+  },
+  "capabilities": {
+    "FEFO": {
+      "status": "VERIFIED",
+      "how": "TraceabilityLogic.OrderForIssue — null-expiry last, then expiry ascending, then CreatedAt, then LotCode",
+      "test": "TraceabilityPropertyTests.OrderForIssue_FEFO_Invariant_Holds_ForRandomLotLists (property-based, seeded RNG, kiểm cả null-expiry)",
+      "why_property_based": "FEFO sai hiếm khi xử lý 2-3 lot có hạn; property test chạy hàng trăm lot ngẫu nhiên và kiểm pairwise — bắt được lỗi mà ví dụ cố định bỏ sót."
+    },
+    "traceability_scan_resolution": {
+      "status": "VERIFIED",
+      "test": "TraceabilityContractTests — 8 InlineData case cho LOT:/ITEM:/LOC:/PO: và mã trần"
+    },
+    "RBAC": {
+      "status": "VERIFIED",
+      "test": "Phase2RbacTests.cs, SecurityContractTests.cs, EndpointAuthorizationGuardTests tương đương"
+    },
+    "PL_SQL_transaction": {
+      "status": "PARTIAL",
+      "reason": "sql/02_plsql.sql và 08_traceability_plsql.sql có thật, nhưng chưa chạy được vì Oracle session chưa cấp được — xem claim_status.partial."
+    },
+    "inventory_atomicity": {
+      "status": "PARTIAL",
+      "reason": "Có endpoint và use case; chưa verify được runtime."
+    },
+    "outbox_helpdesk_fail_soft": {
+      "status": "PARTIAL",
+      "reason": "HelpdeskIntegrationTests tồn tại nhưng cần DB; chưa chứng minh được 'ERP commit thành công khi Helpdesk down'."
+    },
+    "genealogy_both_directions": {
+      "status": "PARTIAL",
+      "reason": "TraceabilityPhase2-4 tests tồn tại; chưa chạy được với DB thật."
+    }
+  },
+  "claim_status": {
+    "VERIFIED": [
+      "224 unit+contract tests trên code committed",
+      "FEFO ordering (property-based)",
+      "scan resolution",
+      "RBAC policy wiring"
+    ],
+    "PARTIAL": [
+      {
+        "claim": "Integration với Oracle thật",
+        "what_happened": "Oracle Free container khởi động được ('DATABASE IS READY TO USE!') nhưng user app không đăng nhập được: CREATE SESSION cấp báo thành công, dba_sys_privs xác nhận có 1 row, account OPEN — nhưng login vẫn ORA-01045.",
+        "attempts": [
+          "docker run container-registry.oracle.com/database/free",
+          "CREATE USER mini (ORA-65096: cần prefix C##)",
+          "CREATE USER \"C##MINI\" + grant",
+          "GRANT CONNECT / RESOURCE / CREATE SESSION riêng",
+          "tạo role trung gian rồi GRANT role cho user"
+        ],
+        "result": "0 integration test chạy được với DB thật"
+      }
+    ],
+    "design_strength_noted": "Repo TỪ CHỐI chạy test khi không được cấp DSN, thay vì âm thầm rơi về appsettings.json trỏ tới Oracle thật. Đó là quyết định đúng: test suite không được ghi vào database ngoài ý muốn. Vì vậy 81 test fail khi thiếu DSN là hành vi ĐÚNG, không phải bug."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "ran": true,
+  "checkpoint_tables": [
+    "checkpoint_blobs",
+    " checkpoint_migrations",
+    " checkpoint_writes",
+    " checkpoints"
+  ],
+  "probe_thread_checkpoint_rows": 40,
+  "rows_with_parent_link": 39,
+  "note": "parent chain la bang chung checkpoint tao da tao dung thu tu"
+}

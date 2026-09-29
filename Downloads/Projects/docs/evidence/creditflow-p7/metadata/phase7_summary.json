@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-09-29T08:01:25.727734+00:00",
+  "git_head": "847f8f45738663ce323074e7cf02e156f6206e7f",
+  "baseline_head_before_work": "847f8f45738663ce323074e7cf02e156f6206e7f",
+  "feature_store_files": [
+    "pipeline/feature_store/definitions.py",
+    "pipeline/feature_store/offline_store.py",
+    "pipeline/feature_store/online_store.py"
+  ],
+  "feature_store_pytest_exit": 0,
+  "full_suite_exit": 0,
+  "full_suite_summary": "412 passed, 3 skipped, 1 warning in 21.81s",
+  "leakage_invariant_holds": true,
+  "train_serve_parity_holds": true,
+  "ttl_behaviour_correct": true,
+  "regressions_introduced": 0
+}

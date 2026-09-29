@@ -1,0 +1,45 @@
+{
+  "as_of_sweep": {
+    "day_30": {
+      "total_loans": 1,
+      "income_90d": 4000.0,
+      "default_count_2y": 1
+    },
+    "day_60": {
+      "total_loans": 2,
+      "income_90d": 6000.0,
+      "default_count_2y": 1
+    },
+    "day_90": {
+      "total_loans": 2,
+      "income_90d": 8000.0,
+      "default_count_2y": 2
+    },
+    "day_120": {
+      "total_loans": 3,
+      "income_90d": 8000.0,
+      "default_count_2y": 2
+    },
+    "day_150": {
+      "total_loans": 3,
+      "income_90d": 8000.0,
+      "default_count_2y": 2
+    },
+    "day_180": {
+      "total_loans": 3,
+      "income_90d": 6000.0,
+      "default_count_2y": 2
+    }
+  },
+  "loans_visible_never_exceed_stored": true,
+  "feature_order": [
+    "total_loans",
+    "default_count_2y",
+    "income_90d",
+    "income_mean_90d",
+    "debt_to_income",
+    "default_rate",
+    "recency_days",
+    "has_income_history"
+  ]
+}
