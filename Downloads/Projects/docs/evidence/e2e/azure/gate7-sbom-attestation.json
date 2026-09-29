@@ -1,0 +1,71 @@
+{
+  "evidence_version": "1.0",
+  "gate": 7,
+  "name": "sbom_build_provenance_attestation",
+  "status": "VERIFIED",
+  "execution_location": "CI",
+  "repos": [
+    "imtarget05/Factory-Data-Automation-v-AI-Reporting-Platform"
+  ],
+  "workflow_run_id": "36621591677",
+  "workflow_url": "https://github.com/imtarget05/Factory-Data-Automation-v-AI-Reporting-Platform/actions/runs/36621591677",
+  "image": "ghcr.io/imtarget05/factory-data-automation-v-ai-reporting-platform-factory-api",
+  "image_digest": "sha256:d3af3f604ad5e3d5a671c3ff0634cb4c340955b3660162c2f71839a86b6d045b",
+  "attestation_verified": true,
+  "sbom_artifacts": [
+    "sbom-be9e5d3ae84f4ff024f412e9d07d79d4b4fb6620"
+  ],
+  "negative_test": {
+    "wrong_digest_rejected": true,
+    "note": "verify voi digest sai PHAI fail"
+  },
+  "executed_at": "2026-09-29T19:48:49.897029+00:00",
+  "checks": [
+    {
+      "check_id": "M1",
+      "name": "verifier REJECTS a wrong digest",
+      "system_result": "exit=1 (mong doi != 0)",
+      "probe_result": "PASS",
+      "probe_self_test": "PASS",
+      "oracle_source": "gh attestation verify exit code on bogus digest",
+      "failure_classification": "NONE"
+    },
+    {
+      "check_id": "G7-01",
+      "name": "workflow completed successfully",
+      "system_result": "conclusion=success",
+      "probe_result": "PASS",
+      "probe_self_test": "PASS",
+      "oracle_source": "GitHub Actions run conclusion",
+      "failure_classification": "NONE"
+    },
+    {
+      "check_id": "G7-02",
+      "name": "workflow reported an image digest",
+      "system_result": "digest=sha256:d3af3f604ad5e3d5",
+      "probe_result": "PASS",
+      "probe_self_test": "PASS",
+      "oracle_source": "containerimage.digest in build-push-action log output",
+      "failure_classification": "NONE"
+    },
+    {
+      "check_id": "G7-03",
+      "name": "attestation verifies against the REAL digest",
+      "system_result": "exit=0 ",
+      "probe_result": "PASS",
+      "probe_self_test": "PASS",
+      "oracle_source": "gh attestation verify exit code on pushed digest",
+      "failure_classification": "NONE"
+    },
+    {
+      "check_id": "G7-04",
+      "name": "SBOM artifact uploaded with the run",
+      "system_result": "sbom_artifacts=['sbom-be9e5d3ae84f4ff024f412e9d07d79d4b4fb6620']",
+      "probe_result": "PASS",
+      "probe_self_test": "PASS",
+      "oracle_source": "GitHub Actions artifacts API for this run",
+      "failure_classification": "NONE"
+    }
+  ],
+  "claim": "image provenance la verifiable; software composition duoc inventory. KHONG claim 'secure image'."
+}

@@ -1,0 +1,52 @@
+{
+  "evidence_version": "1.0",
+  "gate": 3,
+  "name": "overload_backpressure",
+  "status": "VERIFIED",
+  "execution_location": "LOCAL",
+  "repos": [
+    "FlashSale-Backend"
+  ],
+  "command": "dotnet test tests/UnitTests/FlashSale.UnitTests.csproj --filter FullyQualifiedName~OverloadBackpressureTests",
+  "exit_code": 0,
+  "duration_ms": 29.0,
+  "tests": {
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0,
+    "total": 5
+  },
+  "executed_at": "2026-09-29T19:33:38.838621+00:00",
+  "meta_gate": "PASS — oracle 'accepted + rejected = submitted' self-checked against both a correct and a message-losing case",
+  "boundary_under_test": "REAL (InMemoryOrderQueue bounded channel 5000) — not mocked",
+  "scenarios": [
+    {
+      "id": "G3-01",
+      "name": "queue full, accounting balances",
+      "submitted": 6000,
+      "capacity": 5000,
+      "invariant": "accepted + rejected == submitted"
+    },
+    {
+      "id": "G3-02",
+      "name": "memory bounded under sustained overload",
+      "submitted": 20000,
+      "accepted": 5000,
+      "invariant": "accepted <= capacity; excess is shed, not buffered"
+    },
+    {
+      "id": "G3-03",
+      "name": "recovery after consumer catches up",
+      "drained": 5000,
+      "invariant": "producer accepted again in < 1000ms"
+    },
+    {
+      "id": "G3-04",
+      "name": "overload outcome is distinct",
+      "invariant": "SystemBusy != Accepted (no fake success)"
+    }
+  ],
+  "documented_policy": "REJECT + SHED: queue day -> SubmitOrderUseCase tra lai reservation va tra SystemBusy. Khong buffer vo han, khong fake success.",
+  "measured_on": "macOS laptop, single process, in-process channel — KHONG suy ra cho production throughput",
+  "notes": "Khong sua code production; chinh sach overload da ton tai, test gi lai invariant do."
+}

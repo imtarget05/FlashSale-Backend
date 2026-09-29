@@ -1,0 +1,331 @@
+Lint & Code Quality	Run Ruff linter	﻿2026-09-29T19:34:33.1389295Z ##[group]Run ruff check app/ tests/
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1389736Z ^[[36;1mruff check app/ tests/^[[0m
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1458684Z shell: /usr/bin/bash -e {0}
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1459075Z env:
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1459339Z   PYTHON_VERSION: 3.11
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1459653Z   DOCKER_IMAGE: factory-data-platform
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1460073Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.16/x64
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1460571Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.16/x64/lib/pkgconfig
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1461054Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.16/x64
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1461526Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.16/x64
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1461962Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.16/x64
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1462407Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.16/x64/lib
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1462785Z ##[endgroup]
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1707502Z N806 Variable `WHITE` in function should be lowercase
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1708639Z    --> app/catalog/lineage.py:141:9
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1709321Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1709800Z 139 |     def _find_cycle(self) -> list[str] | None:
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1711207Z 140 |         """DFS có màu để phát hiện cycle trong graph đã có."""
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1711947Z 141 |         WHITE, GREY, BLACK = 0, 1, 2
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1712844Z     |         ^^^^^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1713358Z 142 |         color: dict[str, int] = {}
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1713912Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1714136Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1714453Z N806 Variable `GREY` in function should be lowercase
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1715121Z    --> app/catalog/lineage.py:141:16
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1715671Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1716148Z 139 |     def _find_cycle(self) -> list[str] | None:
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1717340Z 140 |         """DFS có màu để phát hiện cycle trong graph đã có."""
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1718050Z 141 |         WHITE, GREY, BLACK = 0, 1, 2
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1718421Z     |                ^^^^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1718723Z 142 |         color: dict[str, int] = {}
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1719070Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1719232Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1719407Z N806 Variable `BLACK` in function should be lowercase
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1719797Z    --> app/catalog/lineage.py:141:22
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1720105Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1720411Z 139 |     def _find_cycle(self) -> list[str] | None:
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1720932Z 140 |         """DFS có màu để phát hiện cycle trong graph đã có."""
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1721352Z 141 |         WHITE, GREY, BLACK = 0, 1, 2
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1721682Z     |                      ^^^^^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1721991Z 142 |         color: dict[str, int] = {}
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1722299Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1722433Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1722581Z UP037 [*] Remove quotes from type annotation
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1722950Z   --> app/catalog/registry.py:80:36
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1723254Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1723489Z 79 |     @classmethod
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1723828Z 80 |     def from_dict(cls, d: dict) -> "DatasetEntry":
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1724231Z    |                                    ^^^^^^^^^^^^^^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1724562Z 81 |         return cls(**d)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1724835Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1725070Z help: Remove quotes
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1725323Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1725559Z 79 |     @classmethod
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1725910Z    -     def from_dict(cls, d: dict) -> "DatasetEntry":
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1726314Z 80 +     def from_dict(cls, d: dict) -> DatasetEntry:
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1726674Z 81 |         return cls(**d)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1731534Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1731759Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1731933Z F401 [*] `typing.Any` imported but unused
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1732364Z   --> app/database/marts.py:17:20
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1732678Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1732911Z 15 | import os
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1733168Z 16 | import sqlite3
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1733492Z 17 | from typing import Any
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1733894Z    |                    ^^^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1734568Z 18 |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1735263Z 19 | import pandas as pd
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1735756Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1736322Z help: Remove unused import: `typing.Any`
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1736734Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1737251Z 16 | import sqlite3
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1737568Z    - from typing import Any
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1737873Z 17 |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1738095Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1738221Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1738438Z F401 [*] `app.etl.gold.GoldContractError` imported but unused
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1738865Z   --> app/database/marts.py:21:26
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1739167Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1739409Z 19 | import pandas as pd
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1739679Z 20 |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1739963Z 21 | from app.etl.gold import GoldContractError
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1740342Z    |                          ^^^^^^^^^^^^^^^^^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1740653Z 22 |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1740921Z 23 | MARTS_DIR = os.path.join(
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1741212Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1741541Z help: Remove unused import: `app.etl.gold.GoldContractError`
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1741940Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1742158Z 20 |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1742437Z    - from app.etl.gold import GoldContractError
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1742774Z 21 |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1742989Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1743118Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1743309Z F401 [*] `app.catalog.lineage.Lineage` imported but unused
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1743903Z   --> tests/test_catalog.py:12:33
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1744210Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1744447Z 10 | import pytest
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1744701Z 11 |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1745005Z 12 | from app.catalog.lineage import Lineage, LineageError
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1745402Z    |                                 ^^^^^^^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1745916Z 13 | from app.catalog.registry import ZONE_ORDER, Catalog, CatalogError, seed_default_catalog
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1746418Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1746665Z help: Remove unused import
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1747165Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1747408Z 11 |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1747731Z    - from app.catalog.lineage import Lineage, LineageError
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1748343Z 12 | from app.catalog.registry import ZONE_ORDER, Catalog, CatalogError, seed_default_catalog
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1748844Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1748972Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1749187Z F401 [*] `app.catalog.lineage.LineageError` imported but unused
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1749630Z   --> tests/test_catalog.py:12:42
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1749927Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1750156Z 10 | import pytest
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1750404Z 11 |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1750717Z 12 | from app.catalog.lineage import Lineage, LineageError
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1751130Z    |                                          ^^^^^^^^^^^^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1751656Z 13 | from app.catalog.registry import ZONE_ORDER, Catalog, CatalogError, seed_default_catalog
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1752164Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1752408Z help: Remove unused import
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1752680Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1753011Z 11 |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1753319Z    - from app.catalog.lineage import Lineage, LineageError
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1753905Z 12 | from app.catalog.registry import ZONE_ORDER, Catalog, CatalogError, seed_default_catalog
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1754402Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1754527Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1754693Z E702 Multiple statements on one line (semicolon)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1755081Z    --> tests/test_catalog.py:100:26
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1755386Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1755651Z  98 |     a = json.loads(cat.serialize())
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1756000Z  99 |     b = json.loads(cat.serialize())
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1756381Z 100 |     a.pop("generated_at"); b.pop("generated_at")
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1756744Z     |                          ^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1757311Z 101 |     assert a == b
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1757658Z 102 |     assert a["zone_order"] == list(ZONE_ORDER)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1758008Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1758140Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1758453Z F811 Redefinition of unused `test_gold_is_idempotent_same_input_same_output` from line 165
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1758990Z    --> tests/test_gold_layer.py:244:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1759487Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1759749Z 242 | # Idempotency + determinism
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1760185Z 243 | # --------------------------------------------------------------------------
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1760706Z 244 | def test_gold_is_idempotent_same_input_same_output(silver):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1761298Z     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `test_gold_is_idempotent_same_input_same_output` redefined here
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1761836Z 245 |     a, b = build_gold(silver), build_gold(silver)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1762217Z 246 |     for name in GOLD_DATASETS:
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1762519Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1762874Z    ::: tests/test_gold_layer.py:165:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1763188Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1763437Z 163 | # Idempotency + determinism
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1763834Z 164 | # --------------------------------------------------------------------------
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1764349Z 165 | def test_gold_is_idempotent_same_input_same_output(silver):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1765081Z     |     ---------------------------------------------- previous definition of `test_gold_is_idempotent_same_input_same_output` here
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1765719Z 166 |     a, b = build_gold(silver), build_gold(silver)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1766104Z 167 |     for name in GOLD_DATASETS:
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1766551Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1767162Z help: Remove definition: `test_gold_is_idempotent_same_input_same_output`
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1767525Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1767825Z F811 Redefinition of unused `test_gold_aggregation_order_independent` from line 171
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1768341Z    --> tests/test_gold_layer.py:250:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1768651Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1768998Z 250 | def test_gold_aggregation_order_independent(production):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1769565Z     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `test_gold_aggregation_order_independent` redefined here
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1770243Z 251 |     """Thứ tự dòng input không được ảnh hưởng output."""
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1770702Z 252 |     a = build_oee_daily(production)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1771024Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1771309Z    ::: tests/test_gold_layer.py:171:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1771619Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1771959Z 171 | def test_gold_aggregation_order_independent(production):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1772644Z     |     --------------------------------------- previous definition of `test_gold_aggregation_order_independent` here
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1773328Z 172 |     """Thứ tự dòng input không được ảnh hưởng output."""
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1773741Z 173 |     a = build_oee_daily(production)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1774056Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1774418Z help: Remove definition: `test_gold_aggregation_order_independent`
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1774732Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1775035Z F811 Redefinition of unused `test_export_gold_overwrites_not_appends` from line 178
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1775535Z    --> tests/test_gold_layer.py:257:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1775843Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1776223Z 257 | def test_export_gold_overwrites_not_appends(silver, tmp_path):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1776800Z     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `test_export_gold_overwrites_not_appends` redefined here
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1777634Z 258 |     gold = build_gold(silver)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1778036Z 259 |     m1 = export_gold(gold, outdir=str(tmp_path))
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1778418Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1778705Z    ::: tests/test_gold_layer.py:178:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1779012Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1779387Z 178 | def test_export_gold_overwrites_not_appends(silver, tmp_path):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1780085Z     |     --------------------------------------- previous definition of `test_export_gold_overwrites_not_appends` here
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1780646Z 179 |     gold = build_gold(silver)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1781021Z 180 |     m1 = export_gold(gold, outdir=str(tmp_path))
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1781373Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1781728Z help: Remove definition: `test_export_gold_overwrites_not_appends`
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1782210Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1782535Z F811 Redefinition of unused `test_export_gold_manifest_is_machine_readable` from line 187
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1783059Z    --> tests/test_gold_layer.py:266:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1783368Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1783741Z 266 | def test_export_gold_manifest_is_machine_readable(silver, tmp_path):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1784383Z     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `test_export_gold_manifest_is_machine_readable` redefined here
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1784956Z 267 |     m = export_gold(build_gold(silver), outdir=str(tmp_path))
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1785432Z 268 |     assert set(m["datasets"]) == set(GOLD_DATASETS)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1785786Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1786066Z    ::: tests/test_gold_layer.py:187:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1786372Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1786746Z 187 | def test_export_gold_manifest_is_machine_readable(silver, tmp_path):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1787788Z     |     --------------------------------------------- previous definition of `test_export_gold_manifest_is_machine_readable` here
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1788499Z 188 |     m = export_gold(build_gold(silver), outdir=str(tmp_path))
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1789001Z 189 |     assert set(m["datasets"]) == set(GOLD_DATASETS)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1789396Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1789968Z help: Remove definition: `test_export_gold_manifest_is_machine_readable`
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1790310Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1790649Z F811 Redefinition of unused `test_no_silent_row_loss_gold_covers_all_input_dates` from line 199
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1791197Z    --> tests/test_gold_layer.py:278:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1791509Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1791765Z 276 | # No silent data loss
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1792173Z 277 | # --------------------------------------------------------------------------
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1792701Z 278 | def test_no_silent_row_loss_gold_covers_all_input_dates(silver):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1793342Z     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `test_no_silent_row_loss_gold_covers_all_input_dates` redefined here
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1794079Z 279 |     """Mỗi ngày có trong silver phải xuất hiện trong gold tương ứng."""
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1794606Z 280 |     for src, builder in [("production", build_oee_daily),
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1794983Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1795287Z    ::: tests/test_gold_layer.py:199:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1795602Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1795872Z 197 | # No silent data loss
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1796277Z 198 | # --------------------------------------------------------------------------
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1796800Z 199 | def test_no_silent_row_loss_gold_covers_all_input_dates(silver):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1798043Z     |     --------------------------------------------------- previous definition of `test_no_silent_row_loss_gold_covers_all_input_dates` here
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1798920Z 200 |     """Mỗi ngày có trong silver phải xuất hiện trong gold tương ứng."""
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1799458Z 201 |     for src, builder in [("production", build_oee_daily),
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1799869Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1800277Z help: Remove definition: `test_no_silent_row_loss_gold_covers_all_input_dates`
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1800632Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1800947Z F811 Redefinition of unused `test_totals_conserved_production_to_oee` from line 210
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1801483Z    --> tests/test_gold_layer.py:289:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1801791Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1802131Z 289 | def test_totals_conserved_production_to_oee(production):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1802685Z     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `test_totals_conserved_production_to_oee` redefined here
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1803288Z 290 |     """Tổng ở silver phải bằng tổng ở gold — không mất dòng."""
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1803723Z 291 |     out = build_oee_daily(production)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1804043Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1804326Z    ::: tests/test_gold_layer.py:210:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1804628Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1804959Z 210 | def test_totals_conserved_production_to_oee(production):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1805768Z     |     --------------------------------------- previous definition of `test_totals_conserved_production_to_oee` here
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1806457Z 211 |     """Tổng ở silver phải bằng tổng ở gold — không mất dòng."""
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1807224Z 212 |     out = build_oee_daily(production)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1807628Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1807993Z help: Remove definition: `test_totals_conserved_production_to_oee`
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1808312Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1808451Z E741 Ambiguous variable name: `l`
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1808795Z   --> tests/test_lineage.py:20:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1809090Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1809332Z 18 | @pytest.fixture
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1809618Z 19 | def lin() -> Lineage:
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1809937Z 20 |     l = Lineage(path="/dev/null")
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1810255Z    |     ^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1810635Z 21 |     l.add_edge("raw_production", "silver_production", "etl", run_id="r1")
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1811227Z 22 |     l.add_edge("silver_production", "oee_daily", "kpi_aggregate", run_id="r1")
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1811682Z    |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1811818Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1811987Z E702 Multiple statements on one line (semicolon)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1812378Z    --> tests/test_lineage.py:127:34
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1812681Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1813135Z 125 | def test_build_from_catalog_is_idempotent():
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1813517Z 126 |     cat = seed_default_catalog()
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1813928Z 127 |     a = Lineage(path="/dev/null"); a.build_from_catalog(cat)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1814331Z     |                                  ^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1814644Z 128 |     n = len(a)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1814992Z 129 |     b = Lineage(path="/dev/null"); b.build_from_catalog(cat)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1815369Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1815505Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1815680Z E702 Multiple statements on one line (semicolon)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1816062Z    --> tests/test_lineage.py:129:34
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1816403Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1816730Z 127 |     a = Lineage(path="/dev/null"); a.build_from_catalog(cat)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1817420Z 128 |     n = len(a)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1817783Z 129 |     b = Lineage(path="/dev/null"); b.build_from_catalog(cat)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1818180Z     |                                  ^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1818686Z 130 |     assert len(b) == n, "build lại phải cho cùng số edge"
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1819065Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1819205Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1819344Z E741 Ambiguous variable name: `l`
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1819689Z    --> tests/test_lineage.py:135:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1819986Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1820313Z 133 | def test_build_from_catalog_matches_raw_silver_gold():
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1820719Z 134 |     cat = seed_default_catalog()
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1821125Z 135 |     l = Lineage(path="/dev/null"); l.build_from_catalog(cat)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1821506Z     |     ^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1821873Z 136 |     assert l.downstream("raw_production") == ["silver_production"]
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1822471Z 137 |     assert sorted(l.downstream("silver_production")) == sorted(GOLD_DATASETS)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1822916Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1823047Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1823222Z E702 Multiple statements on one line (semicolon)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1823601Z    --> tests/test_lineage.py:135:34
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1823922Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1824239Z 133 | def test_build_from_catalog_matches_raw_silver_gold():
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1824650Z 134 |     cat = seed_default_catalog()
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1825050Z 135 |     l = Lineage(path="/dev/null"); l.build_from_catalog(cat)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1825447Z     |                                  ^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1825866Z 136 |     assert l.downstream("raw_production") == ["silver_production"]
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1826442Z 137 |     assert sorted(l.downstream("silver_production")) == sorted(GOLD_DATASETS)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1827090Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1827300Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1827454Z E741 Ambiguous variable name: `l`
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1827980Z    --> tests/test_lineage.py:160:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1828288Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1828547Z 159 |     cat = seed_default_catalog()
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1828889Z 160 |     l = Lineage(path="/dev/null")
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1829201Z     |     ^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1829459Z 161 |     l.build_from_catalog(cat)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1829806Z 162 |     register_marts_in_catalog(cat, l)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1830126Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1830259Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1830433Z E702 Multiple statements on one line (semicolon)
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1830815Z    --> tests/test_lineage.py:174:26
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1831112Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1831377Z 172 |     a = json.loads(lin.serialize())
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1831731Z 173 |     b = json.loads(lin.serialize())
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1832118Z 174 |     a.pop("generated_at"); b.pop("generated_at")
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1832485Z     |                          ^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1832781Z 175 |     assert a == b
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1833040Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1833183Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1833365Z F841 Local variable `db` is assigned to but never used
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1833765Z    --> tests/test_marts.py:195:5
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1834056Z     |
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1834451Z 194 | def test_mart_row_count_returns_minus_one_for_missing_table(tmp_path, marts):
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1835127Z 195 |     db = write_sqlite(marts, str(tmp_path / "m.db"))
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1835490Z     |     ^^
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1835794Z help: Remove assignment to unused variable `db`
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1836048Z 
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1836158Z Found 23 errors.
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1836654Z [*] 5 fixable with the `--fix` option (1 hidden fix can be enabled with the `--unsafe-fixes` option).
+Lint & Code Quality	Run Ruff linter	2026-09-29T19:34:33.1848616Z ##[error]Process completed with exit code 1.

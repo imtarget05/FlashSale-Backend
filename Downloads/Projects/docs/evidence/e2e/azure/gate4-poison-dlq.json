@@ -1,0 +1,32 @@
+{
+  "gate": 4,
+  "name": "poison_message_dlq_replay",
+  "status": "VERIFIED",
+  "probe_self_test": "PASS",
+  "max_attempts": 3,
+  "poison_attempts": 3,
+  "passed": 12,
+  "total": 12,
+  "evidence_version": "1.0",
+  "execution_location": "LOCAL",
+  "command": "EVENTS_BOOTSTRAP_SERVERS=localhost:9092 /Users/mainguyenbinhtan/Downloads/Projects/.e2e-envs/contracts/bin/python /Users/mainguyenbinhtan/Downloads/Projects/tools/e2e/gate4_poison_dlq.py",
+  "exit_code": 0,
+  "meta_gate": {
+    "M1_oracle_flags_unbounded": "PASS",
+    "M2_oracle_accepts_healthy": "PASS",
+    "M3_boundary_at_threshold": "PASS",
+    "M4_empty_run_no_evidence": "PASS"
+  },
+  "application_bugs_found": [
+    "Deduplicator.is_duplicate vua kiem tra vua danh dau -> handler fail thi lan giao lai bi coi trung va bi bo: am tham mat du lieu",
+    "EventConsumer.subscribe() roi poll ngay -> mat message dau partition truoc khi assignment on dinh",
+    "run() loop dieu kien tren `handled` (chi dem thanh cong) -> poison khong bao gio duoc thu lan 2",
+    "Khong co bounded retry / DLQ: poison lam consumer quay vo han"
+  ],
+  "harness_bugs_found": [
+    "probe goi EventProducer.close() khong ton tai",
+    "topic chung giua control va poison -> max_messages=1 dung truoc khi den poison (da tach topic rieng)",
+    "return ok bi mat khi cat file -> meta_gate tra None, INVALID_EVIDENCE"
+  ],
+  "notes": "Kafka that (apache/kafka:3.7.0 KRaft). Poison dat DLQ sau 3 lan thu, DLQ song qua restart, replay 1 lan thanh cong, replay lan 2 bi idempotency chan."
+}

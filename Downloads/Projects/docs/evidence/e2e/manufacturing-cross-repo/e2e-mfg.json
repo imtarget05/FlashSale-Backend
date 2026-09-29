@@ -3,15 +3,18 @@
   "scenario_id": "E2E-MFG",
   "execution_location": "LOCAL",
   "command": "python tools/e2e/run_manufacturing_cross_repo.py (broker=localhost:9092)",
-  "started_at": "2026-09-29T17:51:22Z",
-  "duration_s": 29.14,
+  "started_at": "2026-09-29T19:26:09Z",
+  "duration_s": 60.17,
   "status": "VERIFIED",
   "repos": [
     {
       "path": "manufacturing-contracts",
       "commit": "d785e4e90730f776e3a6f47cfc19d2cdbac1e9f1",
-      "worktree": "clean",
-      "dirty_files": []
+      "worktree": "DIRTY_WORKTREE_SNAPSHOT",
+      "dirty_files": [
+        "M eventbus.py",
+        " M tests/test_eventbus.py"
+      ]
     },
     {
       "path": "ApexInspect-AI",
@@ -31,8 +34,10 @@
     {
       "path": "Enterprise-IT-Helpdesk-Lab",
       "commit": "f320d59a002d2baed505fc53406f46ea1a267f5e",
-      "worktree": "clean",
-      "dirty_files": []
+      "worktree": "DIRTY_WORKTREE_SNAPSHOT",
+      "dirty_files": [
+        "M internal-portal/package-lock.json"
+      ]
     }
   ],
   "boundaries": {
@@ -73,11 +78,11 @@
       "invariant": "the same correlation id reached every stage",
       "boundary": "REAL",
       "passed": true,
-      "expected": "CORR-MFG-e2e-20260930005122-001",
+      "expected": "CORR-MFG-e2e-20260930022609-001",
       "actual": [
-        "CORR-MFG-e2e-20260930005122-001"
+        "CORR-MFG-e2e-20260930022609-001"
       ],
-      "detail": "CORR-MFG-e2e-20260930005122-001 present in ['factory.consumer', 'factory.mart', 'helpdesk.incident', 'minierp.quality_context']"
+      "detail": "CORR-MFG-e2e-20260930022609-001 present in ['factory.consumer', 'factory.mart', 'helpdesk.incident', 'minierp.quality_context']"
     },
     {
       "invariant": "mart aggregated the lot from the gold records",
@@ -91,8 +96,8 @@
       "invariant": "the mart recorded the correlation id it was built from",
       "boundary": "REAL",
       "passed": true,
-      "expected": "CORR-MFG-e2e-20260930005122-001",
-      "actual": "CORR-MFG-e2e-20260930005122-001",
+      "expected": "CORR-MFG-e2e-20260930022609-001",
+      "actual": "CORR-MFG-e2e-20260930022609-001",
       "detail": ""
     },
     {
@@ -149,7 +154,7 @@
       "passed": true,
       "expected": "0 invalid event_ids delivered",
       "actual": "invalid delivered: []",
-      "detail": "invalid_ids=['EVT-e2e-20260930005122-003']; consumer saw 0 message(s), 0 of them invalid"
+      "detail": "invalid_ids=['EVT-e2e-20260930022609-003']; consumer saw 0 message(s), 0 of them invalid"
     }
   ],
   "checks_passed": 13,
@@ -158,12 +163,12 @@
     "docs/evidence/e2e/manufacturing-cross-repo/run-trace.json"
   ],
   "sha256": {
-    "docs/evidence/e2e/manufacturing-cross-repo/run-trace.json": "021dc842dc36621700307e5a74e57a80c1cc4b9632b5987bfcf1e665448a715a"
+    "docs/evidence/e2e/manufacturing-cross-repo/run-trace.json": "3348d060aafe083f24a3067a4afb088c29441bbabc9a433d2cc9eb3686d73033"
   },
   "environment": {
-    "python": "3.11.15",
-    "platform": "macOS-27.0-arm64-arm-64bit",
+    "python": "3.14.7",
+    "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
     "hostname": "MacBook-Pro-cua-Tan.local"
   },
-  "notes": "run_id=e2e-20260930005122 correlation_id=CORR-MFG-e2e-20260930005122-001. Kafka, contract validation and persistent dedupe are real. The three consuming repos are simulated at the ingestion boundary only; see boundaries."
+  "notes": "run_id=e2e-20260930022609 correlation_id=CORR-MFG-e2e-20260930022609-001. Kafka, contract validation and persistent dedupe are real. The three consuming repos are simulated at the ingestion boundary only; see boundaries."
 }
