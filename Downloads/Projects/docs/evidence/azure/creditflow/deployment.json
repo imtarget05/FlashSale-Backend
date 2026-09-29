@@ -1,0 +1,73 @@
+{
+  "execution_location": "AZURE",
+  "service": "Azure Container Apps",
+  "sku": "Consumption",
+  "resource_group": "rg-portfolio-evidence",
+  "environment": "cae-portfolio",
+  "container_app": "ca-creditflow-api",
+  "fqdn": "https://ca-creditflow-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+  "commit_sha": "b36e28934deaf6ff8ef2235287c3b74290c4a3ea",
+  "image": "ghcr.io/imtarget05/creditflow-creditflow-api:b36e28934deaf6ff8ef2235287c3b74290c4a3ea",
+  "image_digest": "sha256:97a652e58cf4bc6b1f45758122d03ef12747d9ab7d9bc51c9bb4b7715c56634f",
+  "build_workflow_run": "https://github.com/imtarget05/CreditFlow/actions/runs/36603100210",
+  "pipeline": "GitHub Actions -> GHCR -> Azure Container Apps",
+  "min_replicas": 0,
+  "max_replicas": 1,
+  "cpu": "0.5",
+  "memory": "1.0Gi",
+  "registry": "GHCR (no ACR, no paid registry)",
+  "mode": "serving API only, self-contained",
+  "model": {
+    "name": "logistic_regression",
+    "version": "logistic_regression_v001",
+    "loaded": true,
+    "source": "models/production/pipeline.joblib, 3.2KB, committed to the repo",
+    "bundle_validation": "validate_model_bundle() runs at startup; a mismatched bundle fails the app rather than serving wrong numbers silently"
+  },
+  "verified": {
+    "liveness": {"endpoint": "GET /health/live", "status": 200, "auth": "none by design"},
+    "model_health": {"endpoint": "GET /health", "status": 200, "model_loaded": true},
+    "prediction": {
+      "endpoint": "POST /predict",
+      "status": 200,
+      "synthetic_profile_result": {
+        "risk_probability": 0.004,
+        "risk_level": "LOW",
+        "decision": "APPROVE",
+        "threshold": {"tuned_threshold": 0.2, "approve_max": 0.5, "review_max": 0.8}
+      },
+      "note": "a real model ran in the deployed container and returned a cost-aware decision, not a stub"
+    },
+    "negative_suite": {"path": "docs/evidence/azure/security/creditflow-phase19.json", "passed": 18, "total": 18},
+    "secret_audit": "clean: 0 API keys, 0 JWTs, 0 passwords in the evidence files"
+  },
+  "authority_matrix_enforced_at_startup": {
+    "observed": "starting with CREDITFLOW_API_KEY_ROLE=analyst was refused: 'not a credit authority level; expected one of RISK_COMMITTEE_L2, SYSTEM_STP, UNDERWRITER_L1'. The app refused to come up holding an identity it cannot rank.",
+    "deployed_role": "UNDERWRITER_L1"
+  },
+  "exposure": {
+    "unauthenticated_on_a_public_url": [
+      "POST /predict - model oracle; takes features, returns a score, reads no stored customer row",
+      "POST /predict/graph - starts a decision workflow",
+      "GET /drift - training reference aggregates including n_rows=3500",
+      "GET /model/info - model metadata"
+    ],
+    "protected_and_verified_401": [
+      "GET /applications (PII)",
+      "GET /disbursements (money-moving)",
+      "POST /predict/graph/{thread_id}/approve (money-moving)"
+    ],
+    "assessment": "Scoped auth is by design in the repo (tests/test_api_auth.py scopes auth to money-moving and PII endpoints). No customer data is exposed. But a public URL turns /predict into an unauthenticated model oracle, which is recorded as HIGH severity in deployment terms rather than quietly marked PASS."
+  },
+  "not_demonstrated_here": {
+    "point_in_time_invariant": "feature_timestamp > prediction_timestamp must not participate. This lives in pipeline/feature_store/ and is not on the HTTP serving path; it is verified by the repository test suite (410 tests), not by this Azure run.",
+    "degraded_endpoints": "GET /llm/info and GET /audit/{id} return 500 because httpx and langgraph are lazy dependencies deliberately excluded from the image. They fail loudly with a stack trace in the container log rather than degrading to a clean error message."
+  },
+  "cost_configuration": {
+    "scale_to_zero": true,
+    "acr": false,
+    "paid_plan": false,
+    "public_wording": "Deployed on Azure Container Apps Consumption with scale-to-zero and usage kept within the available free grant during verification."
+  },
+  "status": "VERIFIED"
+}

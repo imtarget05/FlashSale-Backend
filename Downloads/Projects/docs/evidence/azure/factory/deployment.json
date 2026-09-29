@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-09-29T15:48:50.005510+00:00",
+  "execution_location": "AZURE",
+  "azure_service": "Azure Container Apps (Consumption)",
+  "region": "eastasia",
+  "resource_group": "rg-portfolio-evidence",
+  "managed_environment": "cae-portfolio",
+  "commit_sha": "12016c28c65665f8b4876ed543df26368395bb05",
+  "image": {
+    "registry": "ghcr.io",
+    "repository": "ghcr.io/imtarget05/factory-data-automation-v-ai-reporting-platform-factory-api",
+    "tag": "12016c28c65665f8b4876ed543df26368395bb05",
+    "digest": "sha256:e41613d42d4891e4930f79523f93f81bbc7632584ec65e36ab055f41a800b41e",
+    "build_location": "GitHub Actions — no local build"
+  },
+  "deployment": {
+    "app": "ca-factory-api",
+    "fqdn": "ca-factory-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+    "public_url": "https://ca-factory-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+    "revision": "ca-factory-api--y17yozr",
+    "replicas": 0,
+    "running_image": "ghcr.io/imtarget05/factory-data-automation-v-ai-reporting-platform-factory-api:12016c28c65665f8b4876ed543df26368395bb05"
+  },
+  "scaling": {
+    "min_replicas": 0,
+    "max_replicas": 1,
+    "cpu": 0.5,
+    "memory": "1Gi"
+  },
+  "runtime_probes": {
+    "health": {
+      "path": "/api/v1/health",
+      "status": "200",
+      "latency_s": 29.108,
+      "body": "{\"status\":\"healthy\",\"timestamp\":\"2026-09-29T15:49:24.419497\",\"data_loaded\":true}"
+    },
+    "root": {
+      "path": "/",
+      "status": "200",
+      "latency_s": 0.217,
+      "body": "{\"app\":\"Smart Manufacturing Platform\",\"version\":\"1.0.0\",\"status\":\"running\",\"endpoints\":{\"data\":\"/api/v1/data\",\"kpis\":\"/api/v1/kpis\",\"alerts\":\"/api/v1/alerts\",\"report\":\"/api/v1/report\",\"export\":\"/api/v"
+    },
+    "controlled_failure_404": {
+      "path": "/api/v1/khong-ton-tai",
+      "status": "404",
+      "latency_s": 0.221,
+      "body": "{\"detail\":\"Not Found\"}"
+    },
+    "controlled_failure_405": {
+      "path": "/api/v1/health",
+      "status": "405",
+      "latency_s": 0.219,
+      "body": "{\"detail\":\"Method Not Allowed\"}"
+    },
+    "recovery": {
+      "path": "/api/v1/health",
+      "status": "200",
+      "latency_s": 0.2,
+      "body": "{\"status\":\"healthy\",\"timestamp\":\"2026-09-29T15:49:25.331927\",\"data_loaded\":true}"
+    }
+  },
+  "application_metrics": {
+    "factory_data_up": "1",
+    "factory_alerts_active": "0",
+    "factory_uptime_seconds": "5.26",
+    "factory_http_requests_total{route=\"/\",status=\"200\"}": "1",
+    "factory_http_requests_total{route=\"/api/v1/health\",status=\"200\"}": "2",
+    "factory_http_requests_total{route=\"/api/v1/health\",status=\"405\"}": "1",
+    "factory_http_requests_total{route=\"/api/v1/khong-ton-tai\",status=\"404\"}": "1"
+  },
+  "logs": {
+    "source": "Container Apps console logs, revision ca-factory-api--y17yozr",
+    "structured_lines_found": 13,
+    "sample": "{\"TimeStamp\": \"2026-09-29T15:49:24.4199317+00:00\", \"Log\": \"F {\\\"timestamp\\\": \\\"2026-09-29T15:49:24.419769+00:00\\\", \\\"level\\\": \\\"INFO\\\", \\\"logger\\\": \\\"api\\\", \\\"message\\\": \\\"request_end\\\", \\\"module\\\": \\\"main\\\", \\\"function\\"
+  },
+  "verified": {
+    "real_https_request": true,
+    "app_loaded_data": true,
+    "failure_returns_404": true,
+    "wrong_method_returns_405": true,
+    "recovers_after_failure": true,
+    "app_metrics_exposed": true,
+    "structured_logs_in_azure": true,
+    "scale_to_zero_observed": "reached 0 replicas while idle, then a request cold-started it back to 1 replica in 26.9s",
+    "image_digest_recorded": true,
+    "built_off_laptop": true
+  },
+  "cost_note": "Container Apps Consumption, scale-to-zero, 0.5 vCPU / 1Gi, image pulled from public GHCR. No ACR, no dedicated plan, no paid networking, no VNet. Designed to remain within the current Azure Container Apps monthly free grant: 180,000 vCPU-seconds, 360,000 GiB-seconds, 2,000,000 HTTP requests per month. Actual usage is single-digit requests, far inside that grant."
+}

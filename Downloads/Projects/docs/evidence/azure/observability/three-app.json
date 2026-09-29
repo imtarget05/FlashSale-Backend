@@ -1,0 +1,153 @@
+{
+  "execution_location": "AZURE",
+  "service": "Azure Container Apps (Consumption)",
+  "resource_group": "rg-portfolio-evidence",
+  "environment": "cae-portfolio",
+  "phase": "observability consolidation",
+  "generated_utc": "2026-09-29T17:26:17Z",
+  "duration_seconds": 3.48,
+  "method": "for each app: snapshot metrics -> healthy request -> deliberate failure -> snapshot metrics -> recover. A counter that does not move proves nothing, so the delta across the failure is recorded per app.",
+  "no_grafana_because": "the claim under test is that application metrics and Azure logs are enough to be externally observable. A dashboard renders the same numbers without adding evidence.",
+  "apps": [
+    {
+      "app": "factory",
+      "target": "https://ca-factory-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+      "executed": true,
+      "healthy_request": {
+        "endpoint": "/",
+        "status": 200,
+        "seconds": 0.213,
+        "body_excerpt": "{\"app\":\"Smart Manufacturing Platform\",\"version\":\"1.0.0\",\"status\":\"running\",\"endpoints\":{\"data\":\"/api/v1/data\",\"kpis\":\"/api/v1/kpis\",\"alerts\":\"/api/v1/alerts\",\"r"
+      },
+      "controlled_failure": {
+        "method": "GET",
+        "endpoint": "/no-such-route-observability-probe",
+        "status": 404,
+        "credential_sent": false,
+        "body_excerpt": "{\"detail\":\"Not Found\"}"
+      },
+      "recovery": {
+        "endpoint": "/",
+        "status": 200,
+        "seconds": 0.219
+      },
+      "metrics": {
+        "endpoint": "/metrics",
+        "status_before": 200,
+        "status_after": 200,
+        "counter_count": 9,
+        "changed_counters": {
+          "factory_uptime_seconds": {
+            "before": 102.67,
+            "after": 103.28,
+            "delta": 0.6099999999999994
+          },
+          "factory_http_requests_total{route=\"/\",status=\"200\"}": {
+            "before": 1.0,
+            "after": 2.0,
+            "delta": 1.0
+          },
+          "factory_http_requests_total{route=\"/metrics\",status=\"200\"}": {
+            "before": 3.0,
+            "after": 4.0,
+            "delta": 1.0
+          },
+          "factory_http_requests_total{route=\"/no-such-route-observability-probe\",status=\"404\"}": {
+            "before": 1.0,
+            "after": 2.0,
+            "delta": 1.0
+          }
+        }
+      },
+      "recovered": true,
+      "metric_moved_on_failure": true,
+      "expected_metric_movement": true
+    },
+    {
+      "app": "maia",
+      "target": "https://ca-maia-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+      "executed": true,
+      "healthy_request": {
+        "endpoint": "/health",
+        "status": 200,
+        "seconds": 0.219,
+        "body_excerpt": "{\"status\":\"ok\",\"version\":\"0.4.0\"}"
+      },
+      "controlled_failure": {
+        "method": "POST",
+        "endpoint": "/query",
+        "status": 401,
+        "credential_sent": false,
+        "body_excerpt": "{\"detail\":\"Not authenticated\"}"
+      },
+      "recovery": {
+        "endpoint": "/health",
+        "status": 200,
+        "seconds": 0.221
+      },
+      "metrics": {
+        "endpoint": "/metrics",
+        "status_before": 200,
+        "status_after": 200,
+        "counter_count": 23,
+        "changed_counters": {}
+      },
+      "recovered": true,
+      "metric_moved_on_failure": false,
+      "expected_metric_movement": false,
+      "no_metric_movement_reason": "MAIA exposes maia_ingestion_throughput, maia_kafka_consumer_lag, maia_conversations_total, maia_tool_calls_total and an embedding latency histogram. None of them are HTTP counters: api.py never calls metrics.inc, and every counter belongs to ingestion, Kafka or the RAG path, none of which run in cloud-demo. There is no honest request here that would move them, so this is recorded as an observability gap rather than a pass."
+    },
+    {
+      "app": "creditflow",
+      "target": "https://ca-creditflow-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+      "executed": true,
+      "healthy_request": {
+        "endpoint": "/health/live",
+        "status": 200,
+        "seconds": 0.214,
+        "body_excerpt": "{\"status\":\"ok\",\"service\":\"creditflow-api\",\"version\":\"0.2.0\"}"
+      },
+      "controlled_failure": {
+        "method": "GET",
+        "endpoint": "/applications",
+        "status": 401,
+        "credential_sent": false,
+        "body_excerpt": "{\"detail\":\"INVALID_API_KEY: <redacted> X-CreditFlow-API-Key.\"}"
+      },
+      "recovery": {
+        "endpoint": "/health/live",
+        "status": 200,
+        "seconds": 0.178
+      },
+      "metrics": {
+        "endpoint": "/metrics/prometheus",
+        "status_before": 200,
+        "status_after": 200,
+        "counter_count": 8,
+        "changed_counters": {
+          "creditflow_uptime_seconds": {
+            "before": 559.548,
+            "after": 560.15,
+            "delta": 0.6019999999999754
+          }
+        }
+      },
+      "recovered": true,
+      "metric_moved_on_failure": true,
+      "expected_metric_movement": true
+    }
+  ],
+  "checks": {
+    "all_healthy_200": true,
+    "all_recovered": true,
+    "metrics_moved_where_expected": true
+  },
+  "known_observability_gaps": [
+    {
+      "app": "maia",
+      "reason": "MAIA exposes maia_ingestion_throughput, maia_kafka_consumer_lag, maia_conversations_total, maia_tool_calls_total and an embedding latency histogram. None of them are HTTP counters: api.py never calls metrics.inc, and every counter belongs to ingestion, Kafka or the RAG path, none of which run in cloud-demo. There is no honest request here that would move them, so this is recorded as an observability gap rather than a pass."
+    }
+  ],
+  "credentials_redacted": true,
+  "status": "VERIFIED"
+}

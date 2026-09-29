@@ -1,0 +1,375 @@
+{
+  "execution_location": "AZURE",
+  "service": "Azure Container Apps",
+  "sku": "Consumption",
+  "resource_group": "rg-portfolio-evidence",
+  "environment": "cae-portfolio",
+  "container_app": "ca-creditflow-api",
+  "target": "https://ca-creditflow-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+  "phase": 19,
+  "suite": "creditflow-negative-security",
+  "commit_sha": "b36e28934deaf6ff8ef2235287c3b74290c4a3ea",
+  "image": "ghcr.io/imtarget05/creditflow-creditflow-api:b36e28934deaf6ff8ef2235287c3b74290c4a3ea",
+  "image_digest": "sha256:97a652e58cf4bc6b1f45758122d03ef12747d9ab7d9bc51c9bb4b7715c56634f",
+  "revision": "ca-creditflow-api--0000001",
+  "min_replicas": 0,
+  "max_replicas": 1,
+  "groups_covered": [
+    "authentication",
+    "functional",
+    "input",
+    "leak",
+    "policy"
+  ],
+  "started_utc": "2026-09-29T17:22:41Z",
+  "duration_seconds": 3.6,
+  "credentials_redacted": true,
+  "data_used": "synthetic credit profiles only; no real financial record",
+  "total": 18,
+  "passed": 18,
+  "failed": 0,
+  "results": [
+    {
+      "case": "auth:no_key_predict_open_by_design",
+      "group": "authentication",
+      "attack": "POST /predict with no API key",
+      "control": "scoring endpoint is intentionally unauthenticated in this repo",
+      "expected_status": 200,
+      "actual_status": 200,
+      "forbidden_count": 1,
+      "forbidden_substrings_checked": [
+        "Traceback"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"risk_probability\":0.004,\"risk_level\":\"LOW\",\"decision\":\"APPROVE\",\"model_version\":\"logistic_regression_v001\",\"model_name\":\"logistic_regression\",\"threshold\":{\"tuned_threshold\":0.2,\"approve_max\":0.5,\"review_max\":0.8},\"reasons\":[\"high debt-to-income ratio\"],\"deployment\":\"API\"}",
+      "elapsed_seconds": 0.202,
+      "verdict": "PASS",
+      "exposure": "unauthenticated model oracle on a public URL",
+      "data_exposed": "none: the call takes features and returns a score, it does not read stored customer rows"
+    },
+    {
+      "case": "auth:applications_requires_key",
+      "group": "authentication",
+      "attack": "GET /applications with no API key",
+      "control": "PII endpoint is refused without a credential",
+      "expected_status": 401,
+      "actual_status": 401,
+      "forbidden_count": 2,
+      "forbidden_substrings_checked": [
+        "Traceback",
+        "/app/"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"detail\":\"INVALID_API_KEY: <redacted> X-CreditFlow-API-Key.\"}",
+      "elapsed_seconds": 0.187,
+      "verdict": "PASS"
+    },
+    {
+      "case": "auth:disbursements_requires_key",
+      "group": "authentication",
+      "attack": "GET /disbursements with no API key",
+      "control": "money-moving ledger is refused without a credential",
+      "expected_status": 401,
+      "actual_status": 401,
+      "forbidden_count": 2,
+      "forbidden_substrings_checked": [
+        "Traceback",
+        "/app/"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"detail\":\"INVALID_API_KEY: <redacted> X-CreditFlow-API-Key.\"}",
+      "elapsed_seconds": 0.183,
+      "verdict": "PASS"
+    },
+    {
+      "case": "auth:approve_requires_key",
+      "group": "authentication",
+      "attack": "POST /predict/graph/<id>/approve with no API key",
+      "control": "the approval that can move money is refused without a credential",
+      "expected_status": 401,
+      "actual_status": 401,
+      "forbidden_count": 2,
+      "forbidden_substrings_checked": [
+        "Traceback",
+        "/app/"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"detail\":\"INVALID_API_KEY: <redacted> X-CreditFlow-API-Key.\"}",
+      "elapsed_seconds": 0.201,
+      "verdict": "PASS"
+    },
+    {
+      "case": "auth:wrong_key_rejected",
+      "group": "authentication",
+      "attack": "GET /applications with a wrong API key",
+      "control": "a wrong credential is refused even on a protected route",
+      "expected_status": 401,
+      "actual_status": 401,
+      "forbidden_count": 1,
+      "forbidden_substrings_checked": [
+        "Traceback"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"detail\":\"INVALID_API_KEY: <redacted> X-CreditFlow-API-Key.\"}",
+      "elapsed_seconds": 0.212,
+      "verdict": "PASS"
+    },
+    {
+      "case": "positive:applications_with_key",
+      "group": "functional",
+      "attack": "GET /applications with a valid API key",
+      "control": "a correct credential is accepted",
+      "expected_status": 200,
+      "actual_status": 200,
+      "forbidden_count": 1,
+      "forbidden_substrings_checked": [
+        "Traceback"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"count\":0,\"applications\":[]}",
+      "elapsed_seconds": 0.191,
+      "verdict": "PASS"
+    },
+    {
+      "case": "positive:valid_profile",
+      "group": "functional",
+      "attack": "none (positive control)",
+      "control": "a valid profile reaches the model and yields a decision",
+      "expected_status": 200,
+      "actual_status": 200,
+      "forbidden_count": 0,
+      "forbidden_substrings_checked": [],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"risk_probability\":0.004,\"risk_level\":\"LOW\",\"decision\":\"APPROVE\",\"model_version\":\"logistic_regression_v001\",\"model_name\":\"logistic_regression\",\"threshold\":{\"tuned_threshold\":0.2,\"approve_max\":0.5,\"review_max\":0.8},\"reasons\":[\"high debt-to-income ratio\"],\"deployment\":\"API\"}",
+      "elapsed_seconds": 0.195,
+      "verdict": "PASS",
+      "decision": "APPROVE",
+      "risk_level": "LOW",
+      "risk_probability": 0.004
+    },
+    {
+      "case": "positive:model_loaded",
+      "group": "functional",
+      "attack": "none (positive control)",
+      "control": "the model bundle is loaded and reported",
+      "expected_status": 200,
+      "actual_status": 200,
+      "forbidden_count": 0,
+      "forbidden_substrings_checked": [],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"status\":\"ok\",\"model_loaded\":true,\"model_version\":\"logistic_regression_v001\",\"model_name\":\"logistic_regression\"}",
+      "elapsed_seconds": 0.202,
+      "verdict": "PASS"
+    },
+    {
+      "case": "input:missing_features",
+      "group": "input",
+      "attack": "profile with three features removed",
+      "control": "missing required features are rejected by the schema",
+      "expected_status": 422,
+      "actual_status": 422,
+      "forbidden_count": 2,
+      "forbidden_substrings_checked": [
+        "risk_probability",
+        "Traceback"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"existing_debt\"],\"msg\":\"Field required\",\"input\":{\"income\":25000000,\"age\":32,\"employment_years\":10,\"loan_amount\":80000000,\"loan_term\":36}},{\"type\":\"missing\",\"loc\":[\"body\",\"credit_history\"],\"msg\":\"Field required\",\"input\":{\"income\":25000000,\"age\":32,\"employmen",
+      "elapsed_seconds": 0.23,
+      "verdict": "PASS"
+    },
+    {
+      "case": "input:empty_body",
+      "group": "input",
+      "attack": "empty JSON object",
+      "control": "an empty body is rejected",
+      "expected_status": 422,
+      "actual_status": 422,
+      "forbidden_count": 2,
+      "forbidden_substrings_checked": [
+        "risk_probability",
+        "Traceback"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"income\"],\"msg\":\"Field required\",\"input\":{}},{\"type\":\"missing\",\"loc\":[\"body\",\"age\"],\"msg\":\"Field required\",\"input\":{}},{\"type\":\"missing\",\"loc\":[\"body\",\"employment_years\"],\"msg\":\"Field required\",\"input\":{}},{\"type\":\"missing\",\"loc\":[\"body\",\"loan_amount\"],\"msg",
+      "elapsed_seconds": 0.225,
+      "verdict": "PASS"
+    },
+    {
+      "case": "input:wrong_type",
+      "group": "input",
+      "attack": "income sent as a string",
+      "control": "type validation rejects it at the boundary",
+      "expected_status": 422,
+      "actual_status": 422,
+      "forbidden_count": 2,
+      "forbidden_substrings_checked": [
+        "risk_probability",
+        "Traceback"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"detail\":[{\"type\":\"float_parsing\",\"loc\":[\"body\",\"income\"],\"msg\":\"Input should be a valid number, unable to parse string as a number\",\"input\":\"not-a-number\"}]}",
+      "elapsed_seconds": 0.175,
+      "verdict": "PASS"
+    },
+    {
+      "case": "input:below_minimum_age",
+      "group": "input",
+      "attack": "age 17, below the ge=18 floor",
+      "control": "out-of-range values are rejected",
+      "expected_status": 422,
+      "actual_status": 422,
+      "forbidden_count": 1,
+      "forbidden_substrings_checked": [
+        "risk_probability"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"detail\":[{\"type\":\"greater_than_equal\",\"loc\":[\"body\",\"age\"],\"msg\":\"Input should be greater than or equal to 18\",\"input\":17,\"ctx\":{\"ge\":18}}]}",
+      "elapsed_seconds": 0.188,
+      "verdict": "PASS"
+    },
+    {
+      "case": "input:negative_income",
+      "group": "input",
+      "attack": "negative income against gt=0",
+      "control": "out-of-range values are rejected",
+      "expected_status": 422,
+      "actual_status": 422,
+      "forbidden_count": 1,
+      "forbidden_substrings_checked": [
+        "risk_probability"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"detail\":[{\"type\":\"greater_than\",\"loc\":[\"body\",\"income\"],\"msg\":\"Input should be greater than 0\",\"input\":-5000000,\"ctx\":{\"gt\":0.0}}]}",
+      "elapsed_seconds": 0.201,
+      "verdict": "PASS"
+    },
+    {
+      "case": "input:cross_field_violation",
+      "group": "input",
+      "attack": "employment_years 25 with age 30, violating employment_years <= age-18",
+      "control": "the cross-field business rule is enforced, not just per-field ranges",
+      "expected_status": 422,
+      "actual_status": 422,
+      "forbidden_count": 1,
+      "forbidden_substrings_checked": [
+        "risk_probability"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"detail\":[{\"type\":\"value_error\",\"loc\":[\"body\",\"employment_years\"],\"msg\":\"Value error, employment_years must be <= age - 18\",\"input\":25,\"ctx\":{\"error\":{}}}]}",
+      "elapsed_seconds": 0.183,
+      "verdict": "PASS"
+    },
+    {
+      "case": "leak:unknown_audit_id",
+      "group": "leak",
+      "attack": "GET /audit/<random id> for an application that does not exist",
+      "control": "a missing record discloses nothing about other records",
+      "expected_status": null,
+      "actual_status": 500,
+      "forbidden_count": 4,
+      "forbidden_substrings_checked": [
+        "password",
+        "api_key",
+        "Traceback",
+        "/app/"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "Internal Server Error",
+      "elapsed_seconds": 0.211,
+      "verdict": "PASS"
+    },
+    {
+      "case": "leak:metrics_no_credentials",
+      "group": "leak",
+      "attack": "GET /metrics with a valid key",
+      "control": "runtime metrics expose counters, not credentials or customer rows",
+      "expected_status": 200,
+      "actual_status": 200,
+      "forbidden_count": 4,
+      "forbidden_substrings_checked": [
+        "<the api key itself>",
+        "api_key",
+        "password",
+        "Traceback"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"runtime\":{\"requests\":{\"total\":24,\"predict\":12,\"health\":4,\"model_info\":2,\"metrics\":6},\"errors\":{\"total\":0},\"avg_predict_latency_ms\":13.474,\"llm_requests\":0,\"llm_errors\":0,\"uptime_seconds\":343.707},\"model\":{\"model_name\":\"logistic_regression\",\"version\":\"logistic_regression_v001\",\"trained_at\":\"2026-09",
+      "elapsed_seconds": 0.206,
+      "verdict": "PASS"
+    },
+    {
+      "case": "leak:prometheus_no_credentials",
+      "group": "leak",
+      "attack": "GET /metrics/prometheus with a valid key",
+      "control": "Prometheus exposition carries no secret",
+      "expected_status": 200,
+      "actual_status": 200,
+      "forbidden_count": 3,
+      "forbidden_substrings_checked": [
+        "<the api key itself>",
+        "api_key",
+        "password"
+      ],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "# HELP creditflow_requests_total Total HTTP requests handled.\n# TYPE creditflow_requests_total counter\ncreditflow_requests_total 24\ncreditflow_requests_by_endpoint{endpoint=\"predict\"} 12\ncreditflow_requests_by_endpoint{endpoint=\"health\"} 4\ncreditflow_requests_by_endpoint{endpoint=\"model_info\"} 2\ncre",
+      "elapsed_seconds": 0.183,
+      "verdict": "PASS"
+    },
+    {
+      "case": "policy:high_risk_profile",
+      "group": "policy",
+      "attack": "high-risk profile: 3 prior defaults, DTI far above 1",
+      "control": "the decision respects the configured thresholds",
+      "expected_status": 200,
+      "actual_status": 200,
+      "forbidden_count": 0,
+      "forbidden_substrings_checked": [],
+      "leaked": [],
+      "control_violation": null,
+      "response_excerpt": "{\"risk_probability\":0.9734,\"risk_level\":\"HIGH\",\"decision\":\"REJECT\",\"model_version\":\"logistic_regression_v001\",\"model_name\":\"logistic_regression\",\"threshold\":{\"tuned_threshold\":0.2,\"approve_max\":0.5,\"review_max\":0.8},\"reasons\":[\"high debt-to-income ratio\",\"high loan-to-income ratio\",\"short credit his",
+      "elapsed_seconds": 0.222,
+      "verdict": "PASS",
+      "decision": "REJECT",
+      "risk_level": "HIGH",
+      "risk_probability": 0.9734
+    }
+  ],
+  "exposure_review": {
+    "finding": "POST /predict and POST /predict/graph are unauthenticated",
+    "severity_in_repo_terms": "by design",
+    "severity_in_deployment_terms": "HIGH",
+    "why_both": "The repo scopes auth to 'money-moving and PII endpoints' (tests/test_api_auth.py), and /predict reads no stored customer row: it takes features and returns a score. But on a public URL it is an unauthenticated model oracle, and /drift additionally returns training reference statistics such as n_rows=3500.",
+    "protected_and_verified": [
+      "GET /applications",
+      "GET /disbursements",
+      "POST /predict/graph/{thread_id}/approve"
+    ],
+    "unprotected_on_a_public_url": [
+      "POST /predict (model oracle)",
+      "POST /predict/graph (starts a decision workflow)",
+      "GET /drift (training reference aggregates)",
+      "GET /model/info (model metadata)"
+    ],
+    "customer_data_exposed": false,
+    "not_proven_by_this_deployment": "The point-in-time invariant (feature_timestamp > prediction_timestamp must not participate) lives in pipeline/feature_store/, which is not on the HTTP serving path. It is verified by the repository test suite, not by this Azure run. Claiming otherwise would overstate the evidence."
+  },
+  "status": "VERIFIED"
+}

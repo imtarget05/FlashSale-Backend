@@ -1,0 +1,68 @@
+{
+  "execution_location": "AZURE",
+  "service": "Azure Container Apps",
+  "sku": "Consumption",
+  "resource_group": "rg-portfolio-evidence",
+  "environment": "cae-portfolio",
+  "container_app": "ca-maia-api",
+  "fqdn": "https://ca-maia-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+  "commit_sha": "47110b8013ca222aa30533b76b08423e0b1b1356",
+  "image": "ghcr.io/imtarget05/maia-maia-api:47110b8013ca222aa30533b76b08423e0b1b1356",
+  "image_digest": "sha256:2418e73078778f6ed636d899279f67177598e465f541299d39f5d98ac2a8d09b",
+  "revision": "ca-maia-api--0000003",
+  "build_workflow_run": "https://github.com/imtarget05/MAIA/actions/runs/36600673747",
+  "pipeline": "GitHub Actions -> GHCR -> Azure Container Apps",
+  "min_replicas": 0,
+  "max_replicas": 1,
+  "cpu": "0.5",
+  "memory": "1.0Gi",
+  "tls": "HTTPS only via ingress",
+  "registry": "GHCR (no ACR, no paid registry)",
+  "mode": "cloud-demo, self-contained",
+  "provenance": {
+    "build_location": "GitHub Actions, not the laptop",
+    "corporate_data_uploaded": false,
+    "qdrant_or_postgres_tunnelled": false,
+    "credentials_source": "Container Apps secrets; not present in image or repo",
+    "seeded_data": "two synthetic users in two distinct tenants, no business data"
+  },
+  "verified": {
+    "health": {"endpoint": "GET /health", "status": 200, "body": {"status": "ok", "version": "0.4.0"}},
+    "metrics": {"endpoint": "GET /metrics", "status": 200, "exposition": "Prometheus text, MAIA loops registry"},
+    "readiness": {"endpoint": "GET /ready", "status": 200, "reported": "degraded", "honest": true},
+    "auth_write_path": {"endpoint": "POST /auth/register", "status": 201, "meaning": "DB write, validation and serialisation work in the deployed container"},
+    "negative_suite": {"path": "docs/evidence/azure/security/maia-phase19.json", "passed": 13, "total": 13},
+    "scale_to_zero": {
+      "observed": true,
+      "replicas_before_idle": 1,
+      "replicas_after_idle": 0,
+      "seconds_to_reach_zero": 230,
+      "note": "measured by polling the replica list until it went empty"
+    },
+    "cold_start": {
+      "observed": true,
+      "replicas_before_request": 0,
+      "first_request_status": 200,
+      "first_request_seconds": 27.77,
+      "replicas_after_request": 1,
+      "note": "the request that revives a zero-replica app is the slow one; steady-state /health after warm-up is about 0.3s"
+    }
+  },
+  "not_demonstrated_here": {
+    "rag_query": "POST /query returns 500 because Qdrant is deliberately absent. The claim that a real RAG request returns a valid answer rests on the repository test suite against a real Qdrant, not on this deployment.",
+    "durable_checkpoints": "The demo database is sqlite inside the container filesystem and is lost on scale-to-zero. Durable Postgres checkpoints are a repository-level claim proven by tests, not by this deployment."
+  },
+  "known_defect": {
+    "endpoint": "POST /auth/refresh",
+    "symptom": "HTTP 500",
+    "exception": "sqlalchemy.exc.IntegrityError: UNIQUE constraint failed: user_sessions.refresh_token",
+    "status": "found on deploy, not yet reproduced in the repository test suite"
+  },
+  "cost_configuration": {
+    "scale_to_zero": true,
+    "acr": false,
+    "paid_plan": false,
+    "public_wording": "Deployed on Azure Container Apps Consumption with scale-to-zero and usage kept within the available free grant during verification."
+  },
+  "status": "VERIFIED"
+}
