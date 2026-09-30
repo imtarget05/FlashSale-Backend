@@ -1,0 +1,44 @@
+{
+  "CLAIMS": [
+    {
+      "claim": "Built a flash-sale commerce platform on .NET 10 with 234 automated tests passing (172 unit + 62 integration, 0 failures).",
+      "grade": "KEEP",
+      "project": "FlashSale-Backend",
+      "evidence": "dotnet test, 2026-09-30",
+      "metric": "172 unit + 62 integration passed, 0 failed",
+      "note": "Also state the gates. This is the project carrying Gates 1-7, which is a more interesting claim than the test count."
+    },
+    {
+      "claim": "Designed and shipped an 8-gate acceptance suite where each gate is proven by a negative control, not just a passing assertion.",
+      "grade": "KEEP",
+      "project": "portfolio (cross-cutting)",
+      "evidence": "docs/gate8-ai-ml-eval.json plus the per-gate evidence files",
+      "metric": "7/8 gates VERIFIED, 1 PARTIAL; every gate has a demonstrated failure mode",
+      "note": "Lead with this rather than any individual test count. The negative-control discipline is the transferable part."
+    },
+    {
+      "claim": "Demonstrated that a quality gate keyed on accuracy alone would have shipped a regression: a decision-threshold change raised accuracy 0.8373 to 0.872 while business cost rose 0.3227 to 0.4853 and recall fell 0.70 to 0.33.",
+      "grade": "KEEP",
+      "project": "CreditFlow",
+      "evidence": "docs/evidence/e2e/gate8a-creditflow-model-quality.json",
+      "metric": "accuracy +3.5pp, normalised business cost +50.5%, recall -37pp",
+      "note": "The single most defensible bullet here. It is a reasoned result about metric design, not a stack list."
+    },
+    {
+      "claim": "Separated retrieval evaluation from generation so a broken retriever cannot hide behind a fluent answer, and proved the gate rejects the exact regression a refactor causes: removing the BM25 leg drops recall@3 from 0.4000 to 0.3059.",
+      "grade": "KEEP",
+      "project": "MAIA",
+      "evidence": "docs/evidence/e2e/gate8b-maia-rag-quality.json",
+      "metric": "recall@3 0.4000 to 0.3059, MRR 0.3000 to 0.2078, gate rejects",
+      "note": "Always pair with the measured oracle ceiling of 0.80, because 17 of 85 answerable questions have no supporting text in the corpus. Quoting 0.40 alone invites 'that seems low', and the honest answer is more interesting than the number."
+    },
+    {
+      "claim": "Deployed three services to Azure Container Apps on a consumption plan and verified the endpoints answer.",
+      "grade": "KEEP",
+      "project": "portfolio (cross-cutting)",
+      "evidence": "docs/evidence/e2e/azure-live-state.json",
+      "metric": "3/3 Container Apps HTTP 200, 1 replica each, no ACR or AKS",
+      "note": "Say 'verified reachable' rather than 'production deployment'. These are scale-to-zero consumption apps for a portfolio, and inflating that is the easiest thing for an interviewer to unpick."
+    }
+  ]
+}

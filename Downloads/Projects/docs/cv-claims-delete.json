@@ -1,0 +1,28 @@
+{
+  "CLAIMS": [
+    {
+      "claim": "Built an AI vision system for PCB defect detection with 99% accuracy.",
+      "grade": "DELETE",
+      "project": "ApexInspect-AI",
+      "evidence": "none",
+      "metric": "no accuracy measurement exists anywhere in the repository",
+      "why": "Latency was measured on random-noise frames (P50 43.8ms, P95 81.6ms, P99 174.8ms), which bounds compute cost and says nothing about detection accuracy. There is no labelled-frame evaluation, so any accuracy figure would be invented. Replace with the latency and fail-closed numbers, which are real."
+    },
+    {
+      "claim": "Built a hallucination-safe RAG assistant that prevents the model from answering when evidence is insufficient.",
+      "grade": "DELETE",
+      "project": "MAIA",
+      "evidence": "docs/evidence/e2e/gate8b-abstention.json",
+      "metric": "MEASURED AND FAILS: 8 of 9 labeled no-answer queries are authorised on the production path",
+      "why": "The opposite of the claim is true, and it is measured. The evidence gate's no-answer and answerable score distributions overlap (0.6957 vs 0.3140) so no threshold value separates them. Keep the retrieval bullet; drop this one entirely rather than softening it."
+    },
+    {
+      "claim": "Production-grade microservices architecture running on Kubernetes with auto-scaling.",
+      "grade": "DELETE",
+      "project": "portfolio (cross-cutting)",
+      "evidence": "none",
+      "metric": "no AKS, no ACR, no VNet; 3 Azure Container Apps on a consumption plan",
+      "why": "The deployment evidence is explicit that there is no ACR, AKS or VNet. Claiming Kubernetes is claiming infrastructure that does not exist, and it is trivially disproved by anyone who asks to see the cluster."
+    }
+  ]
+}

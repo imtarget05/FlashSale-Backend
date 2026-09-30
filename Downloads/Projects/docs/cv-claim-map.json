@@ -1,0 +1,140 @@
+{
+  "generated_at": "2026-09-30T05:44:41.455851+00:00",
+  "policy": "a CV bullet that cannot be mapped to a measured run will not survive an interview question, so unmappable claims are marked for deletion rather than dressed up",
+  "summary": {
+    "total": 13,
+    "keep": 6,
+    "weaken": 4,
+    "delete": 3,
+    "unresolved_commits": 0
+  },
+  "claims": [
+    {
+      "claim": "Built a flash-sale commerce platform on .NET 10 with 234 automated tests passing (172 unit + 62 integration, 0 failures).",
+      "grade": "KEEP",
+      "project": "FlashSale-Backend",
+      "evidence": "dotnet test, 2026-09-30",
+      "metric": "172 unit + 62 integration passed, 0 failed",
+      "note": "Also state the gates. This is the project carrying Gates 1-7, which is a more interesting claim than the test count.",
+      "commit": "c6f7b3e"
+    },
+    {
+      "claim": "Designed and shipped an 8-gate acceptance suite where each gate is proven by a negative control, not just a passing assertion.",
+      "grade": "KEEP",
+      "project": "portfolio (cross-cutting)",
+      "evidence": "docs/gate8-ai-ml-eval.json plus the per-gate evidence files",
+      "metric": "7/8 gates VERIFIED, 1 PARTIAL; every gate has a demonstrated failure mode",
+      "note": "Lead with this rather than any individual test count. The negative-control discipline is the transferable part.",
+      "commit": "portfolio (cross-cutting)"
+    },
+    {
+      "claim": "Demonstrated that a quality gate keyed on accuracy alone would have shipped a regression: a decision-threshold change raised accuracy 0.8373 to 0.872 while business cost rose 0.3227 to 0.4853 and recall fell 0.70 to 0.33.",
+      "grade": "KEEP",
+      "project": "CreditFlow",
+      "evidence": "docs/evidence/e2e/gate8a-creditflow-model-quality.json",
+      "metric": "accuracy +3.5pp, normalised business cost +50.5%, recall -37pp",
+      "note": "The single most defensible bullet here. It is a reasoned result about metric design, not a stack list.",
+      "commit": "8965cd4"
+    },
+    {
+      "claim": "Separated retrieval evaluation from generation so a broken retriever cannot hide behind a fluent answer, and proved the gate rejects the exact regression a refactor causes: removing the BM25 leg drops recall@3 from 0.4000 to 0.3059.",
+      "grade": "KEEP",
+      "project": "MAIA",
+      "evidence": "docs/evidence/e2e/gate8b-maia-rag-quality.json",
+      "metric": "recall@3 0.4000 to 0.3059, MRR 0.3000 to 0.2078, gate rejects",
+      "note": "Always pair with the measured oracle ceiling of 0.80, because 17 of 85 answerable questions have no supporting text in the corpus. Quoting 0.40 alone invites 'that seems low', and the honest answer is more interesting than the number.",
+      "commit": "3dbd4b8"
+    },
+    {
+      "claim": "Deployed three services to Azure Container Apps on a consumption plan and verified the endpoints answer.",
+      "grade": "KEEP",
+      "project": "portfolio (cross-cutting)",
+      "evidence": "docs/evidence/e2e/azure-live-state.json",
+      "metric": "3/3 Container Apps HTTP 200, 1 replica each, no ACR or AKS",
+      "note": "Say 'verified reachable' rather than 'production deployment'. These are scale-to-zero consumption apps for a portfolio, and inflating that is the easiest thing for an interviewer to unpick.",
+      "commit": "portfolio (cross-cutting)"
+    },
+    {
+      "claim": "Built a manufacturing data platform processing 1M+ rows through a medallion pipeline with 212 passing tests.",
+      "grade": "WEAKEN",
+      "project": "Factory-Data-Automation-v-AI-Reporting-Platform",
+      "evidence": "docs/evidence/e2e/factory-canonical-audit.json",
+      "metric": "212 passed on 458,166 production rows (1,064,166 generated total)",
+      "rewrite_to": "Manufacturing medallion pipeline (Raw/Silver/Gold/Mart) verified on 458k production rows, 212 tests passing. Quarantine DLQ and rerun idempotency both proven; the contract-gate fail-open path is a known open defect.",
+      "why": "The dataset is synthetic, and 212/212 only reproduces after running the generator because data/raw/* is gitignored. Naming the open defect unprompted is stronger than being asked about it.",
+      "commit": "be9e5d3"
+    },
+    {
+      "claim": "Real-time ONNX inference at 22 fps with sub-50ms latency.",
+      "grade": "WEAKEN",
+      "project": "ApexInspect-AI",
+      "evidence": "docs/evidence/e2e/apex-canonical-audit.json",
+      "metric": "P50 43.8ms / P95 81.6ms / P99 174.8ms; per-camera cost 44.1ms to 41.0ms from 1 to 8 cameras",
+      "rewrite_to": "ONNX/YOLOv8 defect detection at 640x640: measured P50 43.8ms, P99 174.8ms on CPU, with per-camera cost flat from 1 to 8 cameras. Corrupt-model fail-closed behaviour verified.",
+      "why": "Real-time and sub-50ms are not supported. P50 is 43.8ms but P99 is 174.8ms, so quoting only P50 hides a 4x tail. The multi-camera figure is a sequential microbenchmark and must be labelled as one.",
+      "commit": "e8e42da"
+    },
+    {
+      "claim": "Implemented enterprise SLA management for IT service desk.",
+      "grade": "WEAKEN",
+      "project": "Enterprise-IT-Helpdesk-Lab",
+      "evidence": "docs/evidence/e2e/helpdesk-canonical-audit.json",
+      "metric": "SLA targets exact to the second; 336 tests passing; tampered-backup restore refused",
+      "rewrite_to": "ITSM platform with 336 passing tests: exact SLA target computation, enforced ticket state machine with terminal states, and checksum-verified backup restore that refuses a tampered archive. All SLA accounting is 24x7 wall-clock; there is no business calendar.",
+      "why": "Enterprise SLA implies business-hours awareness, and there is none: a P1 opened Friday 23:00 breaches before anyone is on shift. Naming the 24x7 limitation is required for the claim to be true.",
+      "commit": "f320d59"
+    },
+    {
+      "claim": "Implemented secret rotation, SBOM generation and supply-chain attestation across the deployment pipeline.",
+      "grade": "WEAKEN",
+      "project": "FlashSale-Backend",
+      "evidence": "Gate 6 and Gate 7 evidence files",
+      "metric": "Gate 7 VERIFIED; Gate 6 is 16 PASS / 2 NOT_RUN",
+      "rewrite_to": "Secret rotation with observability verification (16 of 18 checks passed; 2 not run because Log Analytics was unavailable) plus SBOM and image attestation (Gate 7, fully verified).",
+      "why": "Saying 18/18 would be false. The 2 NOT_RUN are a real gap and presenting them costs less than being caught on it.",
+      "commit": "c6f7b3e"
+    },
+    {
+      "claim": "Implemented FEFO lot allocation with deterministic tie-breaking for multi-warehouse inventory traceability.",
+      "grade": "KEEP",
+      "project": "MiniERP-Manufacturing-Warehouse",
+      "evidence": "tests/MiniErp.LogicAudit (21 tests, 21 passing)",
+      "metric": "21/21 including input-order stability, quantity excluded from the sort key, and the hash field separator preventing replay collisions",
+      "note": "Be ready to say that 81 of 305 tests in the main suite need an Oracle DSN and were not run. Saying that first is better than being asked.",
+      "commit": "4107e51"
+    },
+    {
+      "claim": "Built an AI vision system for PCB defect detection with 99% accuracy.",
+      "grade": "DELETE",
+      "project": "ApexInspect-AI",
+      "evidence": "none",
+      "metric": "no accuracy measurement exists anywhere in the repository",
+      "why": "Latency was measured on random-noise frames (P50 43.8ms, P95 81.6ms, P99 174.8ms), which bounds compute cost and says nothing about detection accuracy. There is no labelled-frame evaluation, so any accuracy figure would be invented. Replace with the latency and fail-closed numbers, which are real.",
+      "commit": "e8e42da"
+    },
+    {
+      "claim": "Built a hallucination-safe RAG assistant that prevents the model from answering when evidence is insufficient.",
+      "grade": "DELETE",
+      "project": "MAIA",
+      "evidence": "docs/evidence/e2e/gate8b-abstention.json",
+      "metric": "MEASURED AND FAILS: 8 of 9 labeled no-answer queries are authorised on the production path",
+      "why": "The opposite of the claim is true, and it is measured. The evidence gate's no-answer and answerable score distributions overlap (0.6957 vs 0.3140) so no threshold value separates them. Keep the retrieval bullet; drop this one entirely rather than softening it.",
+      "commit": "3dbd4b8"
+    },
+    {
+      "claim": "Production-grade microservices architecture running on Kubernetes with auto-scaling.",
+      "grade": "DELETE",
+      "project": "portfolio (cross-cutting)",
+      "evidence": "none",
+      "metric": "no AKS, no ACR, no VNet; 3 Azure Container Apps on a consumption plan",
+      "why": "The deployment evidence is explicit that there is no ACR, AKS or VNet. Claiming Kubernetes is claiming infrastructure that does not exist, and it is trivially disproved by anyone who asks to see the cluster.",
+      "commit": "portfolio (cross-cutting)"
+    }
+  ],
+  "interview_risk": [
+    "MAIA abstention fails. The first follow-up to any groundedness claim should be 'what happens when there is no answer', and the honest answer is that it usually generates one. Lead with retrieval quality and gate methodology.",
+    "Factory's 212/212 needs a generated fixture; a clean clone fails 2 tests. Say the fixture is generated and how.",
+    "MiniERP's 81 blocked tests are a deliberate safety guard, not a broken environment, but it needs saying before it is asked.",
+    "ApexInspect has no accuracy number at all. Anyone asking how accurate the detector is is asking for something that was never measured."
+  ]
+}
