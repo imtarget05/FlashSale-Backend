@@ -1,0 +1,210 @@
+{
+  "generated_at": "2026-09-30T05:42:56.864687+00:00",
+  "provenance": {
+    "policy": "every cell is read from a file produced by an actual run; README claims are not used and unknown values are NOT_RUN",
+    "sources": {
+      "apex": "docs/evidence/e2e/apex-canonical-audit.json",
+      "factory": "docs/evidence/e2e/factory-canonical-audit.json",
+      "helpdesk": "docs/evidence/e2e/helpdesk-canonical-audit.json",
+      "azure": "docs/evidence/e2e/azure-live-state.json",
+      "gate8": "docs/gate8-ai-ml-eval.json"
+    },
+    "not_rerun": "the audits are read, not re-executed, so the matrix cannot disagree with what produced it"
+  },
+  "acceptance_gates": [
+    {
+      "gate": 1,
+      "title": "Migration + app rollback",
+      "status": "VERIFIED",
+      "evidence": "25/25; EXPAND migration and app-rollback compatibility proven"
+    },
+    {
+      "gate": 2,
+      "title": "RTO/RPO",
+      "status": "VERIFIED",
+      "evidence": "measured against a local PostgreSQL restore, not a managed cloud database"
+    },
+    {
+      "gate": 3,
+      "title": "Overload / backpressure",
+      "status": "VERIFIED",
+      "evidence": "5/5; bounded queue, accounting balance held, recovery verified"
+    },
+    {
+      "gate": 4,
+      "title": "Poison message / DLQ",
+      "status": "VERIFIED",
+      "evidence": "12/12; bounded retry, persistent DLQ, replay idempotency"
+    },
+    {
+      "gate": 5,
+      "title": "Revision rollback",
+      "status": "VERIFIED",
+      "evidence": "9/9; a failed Container Apps revision received no traffic"
+    },
+    {
+      "gate": 6,
+      "title": "Secret rotation",
+      "status": "VERIFIED WITH EXCEPTION",
+      "evidence": "16 PASS / 2 NOT_RUN because Log Analytics was unavailable. Not 18/18 and must not be rewritten as such."
+    },
+    {
+      "gate": 7,
+      "title": "SBOM / attestation",
+      "status": "VERIFIED",
+      "evidence": "SBOM generated and image attestation verified"
+    },
+    {
+      "gate": 8,
+      "title": "AI/ML evaluation",
+      "status": "PARTIAL",
+      "evidence": "8A PASS / 8B PARTIAL / 8B-C FAIL. 1 open gap."
+    }
+  ],
+  "acceptance_summary": "7/8 gates VERIFIED, 1 PARTIAL. Gate 6 carries a documented observability exception (16 PASS / 2 NOT_RUN). Gate 8 is PARTIAL on a measured defect, not an unrun check: 1 open gap.",
+  "projects": [
+    {
+      "project": "FlashSale-Backend",
+      "domain": "Flash-sale commerce (.NET 10)",
+      "commit": "c6f7b3e",
+      "tests": "172 unit + 62 integration, 0 failed (dotnet test, 2026-09-30)",
+      "e2e": "NOT_RUN",
+      "failure_recovery": "VERIFIED \u2014 Gates 1-5 (migration/RTO-RPO/overload/DLQ/revision rollback)",
+      "security": "VERIFIED \u2014 Gates 6 (secret rotation) and 7 (SBOM/attestation)",
+      "observability": "correlated spans per request, 7-stage tracer",
+      "azure": "NOT_RUN \u2014 no Container App deployed for this repo",
+      "enterprise_score": null,
+      "limitations": [
+        "Gate 2 RTO/RPO was measured against a local PostgreSQL restore, not a managed cloud database. The number is a local-drill figure.",
+        "Gate 6 is 16 PASS / 2 NOT_RUN because Log Analytics was unavailable. It is not 18/18 and must not be rewritten as such."
+      ]
+    },
+    {
+      "project": "CreditFlow",
+      "domain": "Credit-risk model quality (.NET/Python)",
+      "commit": "8965cd4",
+      "tests": "Gate 8A model-quality gate, 13/13 checks",
+      "e2e": "full harness exit code verified on both a bad and an approved candidate",
+      "failure_recovery": "NOT_RUN",
+      "security": "AUTHZ test suite (test_auth_boundary.py) in the 212/212 run",
+      "observability": "NOT_RUN",
+      "azure": "ca-creditflow-api \u2014 HTTP 200 on /health",
+      "enterprise_score": null,
+      "limitations": [
+        "The model is LogisticRegression on a synthetic 5,000-row dataset. Evidence covers regression detection, not production credit risk.",
+        "The negative candidate is a decision-threshold change on the same model: business cost 0.3227 -> 0.4853 while accuracy rose 0.8373 -> 0.872. Any gate keyed on accuracy alone would have shipped it."
+      ]
+    },
+    {
+      "project": "MAIA",
+      "domain": "Enterprise RAG assistant (Python/FastAPI)",
+      "commit": "3dbd4b8",
+      "tests": "Gate 8B retrieval 14/15; Gate 8B-C abstention 9/11",
+      "e2e": "full harness exit code verified on both a bad and an approved candidate",
+      "failure_recovery": "retrieval falls back to dense-only; generation retried once then abstains",
+      "security": "multi-tenant isolation: cross-tenant retrieval refused (B8B5 PASS)",
+      "observability": "7-stage tracer with correlation_id, per-query reliability registry",
+      "azure": "ca-maia-api \u2014 HTTP 200 on /health",
+      "enterprise_score": null,
+      "limitations": [
+        "ABSTENTION IS MEASURED AND FAILS. The production query() path authorises 8 of 9 labeled no-answer queries, and the no-answer vs answerable score distributions overlap (0.6957 vs 0.3140), so no SIMILARITY_THRESHOLD value separates them. Cosine similarity of the top chunk measures topical similarity, not answerability.",
+        "Retrieval recall@3 is 0.4 against a measured oracle ceiling of 0.8, because 17 of 85 answerable questions have no supporting text anywhere in the corpus. Quoting the raw recall as a quality score would be misleading.",
+        "This project does not claim to eliminate hallucinations and no test here attempts to."
+      ]
+    },
+    {
+      "project": "ApexInspect-AI",
+      "domain": "Industrial PCB defect vision (ONNX/YOLOv8 + FastAPI)",
+      "commit": "e8e42da",
+      "tests": "150 passed / 1 skipped (the skip needs a VCR cassette or live GROQ key)",
+      "e2e": "NOT_RUN",
+      "failure_recovery": "corrupt model -> degraded=True, use_onnx=False (A4 PASS); PLC bridge 7 tests pass once pymodbus is installed",
+      "security": "api_auth_hardening, db_isolation, db_guard, approval_safety, security_audit suites all in the 150",
+      "observability": "correlation IDs + structured request logging (HEAD commit)",
+      "azure": "NOT_RUN",
+      "enterprise_score": null,
+      "limitations": [
+        "A5b FAILS and it is a product defect. src/vision/detector.py:313 returns [] on the quality-reject branch, but infer() documents None as 'no verdict' and [] as 'inspected, no defects found'. A frame rejected for low laplacian variance is therefore reported to the caller as a clean board. In defect inspection that is a false negative: a blank frame or camera fault reads as a part with no defects.",
+        "Latency was measured on random-noise frames: P50 43.781ms, P95 81.637ms, P99 174.772ms. That bounds compute cost and says nothing about detection accuracy, which needs labelled frames.",
+        "The multi-camera figure is a sequential microbenchmark, so it does not establish behaviour under thread or process contention."
+      ]
+    },
+    {
+      "project": "Factory-Data-Automation-v-AI-Reporting-Platform",
+      "domain": "Manufacturing data pipeline (medallion + marts)",
+      "commit": "be9e5d3",
+      "tests": "212 passed / 5 skipped, on a 458,166-row generated dataset",
+      "e2e": "Raw->Silver->Gold->Mart exercised end to end in the suite",
+      "failure_recovery": "quarantine DLQ, dedupe, parquet fallback; rerun on identical input is .equals() identical (F1 PASS)",
+      "security": "auth_boundary, csv_injection suites in the 212",
+      "observability": "structured JSON log events per ETL stage",
+      "azure": "ca-factory-api \u2014 HTTP 200 on /",
+      "enterprise_score": null,
+      "limitations": [
+        "F3 FAILS and it is a defect in the shipped pipeline. Applied directly, apply_contract_gate rejects a malformed record 1/1. In the order the pipeline actually uses, clean_dataframe coerces Target_Qty='abc' to a float NaN while keeping the row; the validator then raises TypeError(\"'float' object cannot be interpreted as an integer\") on that NaN; and because the gate is documented to fail open on validator error, the exception is swallowed, logged as action=failing_open, and the unvalidated row reaches KPI math as a missing quantity.",
+        "data/raw/* is gitignored, so the fixture is not in the commit. The 212/212 figure requires running the generator first. A clean clone cannot reproduce it, and a 30-row local stub fails 2 tests.",
+        "No Airflow or Spark execution was performed. The DAG file and parity tests are covered, but no scheduler or cluster actually ran."
+      ]
+    },
+    {
+      "project": "MiniERP-Manufacturing-Warehouse",
+      "domain": "ERP/WMS (.NET 8, Oracle)",
+      "commit": "4107e51",
+      "tests": "224 passed / 81 environment-blocked by the Oracle DSN guard, plus 21/21 in the new DB-free logic audit",
+      "e2e": "NOT_RUN",
+      "failure_recovery": "Helpdesk integration is fail-soft by design: unavailable downstream yields DELIVERY_UNAVAILABLE with the ERP result unchanged",
+      "security": "Phase2Rbac, SecurityContract, authz mutation guard (DSN-blocked here)",
+      "observability": "AuditMiddleware writes an APP_AUDIT_EVENT row per mutating request",
+      "azure": "NOT_RUN",
+      "enterprise_score": null,
+      "limitations": [
+        "81 of 305 tests cannot run without an Oracle DSN. The guard is working as designed and is a good thing: without it a plain `dotnet test` would write audit rows into a developer's or production Oracle. The cost is that 26% of the suite is unverified in this environment, which is not the same as those tests passing.",
+        "FEFO, the idempotency hash and trace-direction parsing are now covered by 21 DB-free tests including input-order stability, quantity being excluded from the sort key, and the field separator preventing two different requests from colliding into one replay."
+      ]
+    },
+    {
+      "project": "Enterprise-IT-Helpdesk-Lab",
+      "domain": "ITSM + asset management (Node 26)",
+      "commit": "f320d59",
+      "tests": "336 passed / 1 skipped (live LLM adversarial test needs LIVE_TESTS=1); audit adds 6/7",
+      "e2e": "agent-runtime, factory-delivery, e2e/ directory in the 336",
+      "failure_recovery": "restore refuses a tampered archive with an explicit integrity error (H6 PASS, tamper case)",
+      "security": "auth-boundary, api-csv injection, XSS escaping, ps1 lint+syntax, 4-shape dynamic-evaluation scan with 0 hits (H7)",
+      "observability": "metrics.test.js in the 336",
+      "azure": "NOT_RUN",
+      "enterprise_score": null,
+      "limitations": [
+        "NO BUSINESS CALENDAR. addMinutes (itsm.js:22) is plain wall-clock arithmetic and no business-hours, working-day or holiday helper is exported. A P1 opened Friday 23:00 gets a 15-minute acknowledge target and is breached before anyone is on shift. Every SLA number is 24x7. Recorded as a capability gap rather than a bug, because 24x7 may be the intended policy and the audit cannot tell intent from defect. What it can say is that business-hours SLA support cannot be claimed from here.",
+        "No offboarding-workflow test exists, though offboarding appears in 2 other test files."
+      ]
+    }
+  ],
+  "open_defects": [
+    {
+      "project": "MAIA",
+      "id": "B8B1/B8B3",
+      "defect": "evidence gate authorises 8 of 9 labeled no-answer queries on the production path; no-answer and answerable score distributions overlap so no threshold value separates them",
+      "fix_direction": "a different decision signal (answer-span verification or an NLI entailment check), explicitly NOT threshold tuning",
+      "severity": "high for a system whose value proposition is grounded answers"
+    },
+    {
+      "project": "ApexInspect-AI",
+      "id": "A5b",
+      "defect": "quality-rejected frames return [] which infer() defines as a clean board, so a camera fault reads as a defect-free part",
+      "fix_direction": "return None (no verdict) on the quality-reject branch",
+      "severity": "high: false negative in defect inspection"
+    },
+    {
+      "project": "Factory-Data-Automation-v-AI-Reporting-Platform",
+      "id": "F3",
+      "defect": "clean_dataframe produces NaN that makes the contract validator raise, and the gate fails open, so malformed rows reach KPI math",
+      "fix_direction": "either stop producing the NaN or treat NaN as a violation instead of letting the validator raise",
+      "severity": "high: a silent numeric gap in a production ledger"
+    }
+  ],
+  "honest_limits": [
+    "enterprise_score is null for every project. A single score across a vision system, an ETL pipeline and an ERP would hide exactly the differences that matter, and no rubric was agreed before the data was collected.",
+    "Four of seven projects have no Azure deployment. The Azure column is NOT_RUN for them rather than assumed.",
+    "No project in this matrix is claimed to be production-ready. Each row's limitations are the operative statement about that project."
+  ]
+}
