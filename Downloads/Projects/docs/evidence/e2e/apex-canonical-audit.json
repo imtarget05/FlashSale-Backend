@@ -1,0 +1,88 @@
+{
+  "project": "ApexInspect-AI",
+  "audit": "canonical revalidation",
+  "status": "FAIL",
+  "generated_at": "2026-09-30T05:14:58.214130+00:00",
+  "commit": "e8e42daed8a9997e6d98d1dd8ac7772eb5d76da6",
+  "working_tree_dirty": true,
+  "model": {
+    "path": "yolov8n_pcb_defect.onnx",
+    "sha256": "aa2cc103b481af065d09d0b0262630fec382d189a4f40ec82e97cc7c7c3fd011",
+    "bytes": 12269712,
+    "sha256_note": "model artifact is NOT covered by the git commit unless tracked; verify separately"
+  },
+  "latency_ms": {
+    "p50": 43.781,
+    "p95": 81.637,
+    "p99": 174.772,
+    "max": 174.772,
+    "n_frames": 30,
+    "warmup_discarded": 5,
+    "input": "random noise 640x640x3 \u2014 measures compute cost, not detection accuracy"
+  },
+  "multi_camera": {
+    "1": {
+      "total_ms": 44.12,
+      "ms_per_camera": 44.12
+    },
+    "4": {
+      "total_ms": 165.06,
+      "ms_per_camera": 41.27
+    },
+    "8": {
+      "total_ms": 327.56,
+      "ms_per_camera": 40.95
+    }
+  },
+  "checks": [
+    {
+      "id": "A1",
+      "description": "real ONNX model loads and reports non-degraded",
+      "status": "PASS",
+      "detail": "use_onnx=True degraded=False conf_threshold=0.5 model=yolov8n_pcb_defect.onnx sha256=aa2cc103b481af06",
+      "oracle_source": "onnxruntime InferenceSession on the committed .onnx artifact"
+    },
+    {
+      "id": "A2",
+      "description": "ONNX inference runs on real frames and reports latency percentiles",
+      "status": "PASS",
+      "detail": "30 frames of 640x640x3, 5 warmup discarded. P50=43.781ms P95=81.637ms P99=174.772ms max=174.772ms. Percentiles are nearest-rank over per-frame wall time, not a mean.",
+      "oracle_source": "time.perf_counter around det.detect(), nearest-rank percentile"
+    },
+    {
+      "id": "A3",
+      "description": "confidence threshold is a real parameter on the production detector",
+      "status": "PASS",
+      "detail": "threshold sweep on the real ONNX detector over 10 frames: [{'threshold': 0.0, 'detections_over_10_frames': 13214}, {'threshold': 0.5, 'detections_over_10_frames': 0}, {'threshold': 0.95, 'detections_over_10_frames': 0}]. Detections monotonically non-increasing in threshold=True; conf_threshold configurable in __init__=True. On random-noise frames the absolute counts are low, so this confirms the trigger is wired and monotone, NOT that detection accuracy is good; that would need labelled frames.",
+      "oracle_source": "real PCBDefectDetector threshold sweep, no stub subclass"
+    },
+    {
+      "id": "A4",
+      "description": "corrupt model degrades instead of returning confident output",
+      "status": "PASS",
+      "detail": "corrupt model -> use_onnx=False degraded=True. A detector that reports healthy on an unreadable model would let a broken deploy pass as a working one.",
+      "oracle_source": "PCBDefectDetector on a non-protobuf .onnx file"
+    },
+    {
+      "id": "A5b",
+      "description": "quality-rejected frame reports no-verdict, not a clean pass",
+      "status": "FAIL",
+      "detail": "a 1x1 frame is rejected by check_frame (laplacian variance 0.0) yet infer() returns detections=[]. infer() documents None as 'no verdict' and [] as 'inspected, no defects found', so a rejected frame is currently reported to the caller as a PASS. For a defect inspection system that is a false negative: a camera fault or blank frame reads as a board with no defects. Source: src/vision/detector.py:313 returns [] on the quality-reject branch.",
+      "oracle_source": "real detector on a frame that check_frame rejects"
+    },
+    {
+      "id": "A5",
+      "description": "invalid frames are rejected rather than silently mis-detected",
+      "status": "PARTIAL",
+      "detail": "3/4 malformed frames raised instead of returning a detection: {'empty_array': 'error', 'wrong_dtype': 'error', 'grayscale_2d': 'error', 'single_pixel': 'returned normally'}. Any frame that returns normally is reported here rather than counted as handled. See A5b for the case that returns normally without raising.",
+      "oracle_source": "real detector on empty / float32 / 2-D / 1x1 frames"
+    },
+    {
+      "id": "A6",
+      "description": "per-camera inference cost stays flat as camera count rises",
+      "status": "PASS",
+      "detail": "sequential load: {1: {'total_ms': 44.12, 'ms_per_camera': 44.12}, 4: {'total_ms': 165.06, 'ms_per_camera': 41.27}, 8: {'total_ms': 327.56, 'ms_per_camera': 40.95}}. Per-camera cost 44.12ms -> 40.95ms across 1->8 cameras (within 1.5x: True); implied throughput {1: 22.67, 4: 24.23, 8: 24.42} fps. Flat cost means one board does not slow the others. This is a SEQUENTIAL microbenchmark, not a real concurrent line test, so it does not establish behaviour under thread or process contention.",
+      "oracle_source": "real detector, 640x640 frame, sequential"
+    }
+  ]
+}
