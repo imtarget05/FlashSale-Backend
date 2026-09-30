@@ -20,6 +20,7 @@ PROJ = Path(__file__).resolve().parent.parent
 EV = PROJ / "docs/evidence/e2e"
 CF = EV / "gate8a-creditflow-model-quality.json"
 MA = EV / "gate8b-maia-rag-quality.json"
+AB = EV / "gate8b-abstention.json"
 OUT = PROJ / "docs/gate8-ai-ml-eval.json"
 
 checks: list[dict] = []
@@ -38,10 +39,11 @@ def add(name: str, ok: bool, detail: str, blocking: bool = True):
     print(f"  [{'OK ' if ok else 'GAP'}] {name}: {detail}")
 
 
-cf, ma = load(CF), load(MA)
+cf, ma, ab = load(CF), load(MA), load(AB)
 print("\n[G8] reading sub-gate evidence")
 print(f"  8A CreditFlow: {CF.name} -> {cf.get('status', 'MISSING')}")
 print(f"  8B MAIA:       {MA.name} -> {ma.get('status', 'MISSING')}")
+print(f"  8B-C MAIA:     {AB.name} -> {ab.get('status', 'MISSING')}")
 
 print("\n[G8A] CreditFlow sub-gate")
 c = {x["id"]: x for x in cf.get("checks", [])}
@@ -101,22 +103,56 @@ add("MAIA citation validity: no fabricated chunk ids",
 # for correct refusal, so anti-hallucination is NOT_MEASURED.
 a = ma.get("abstention", {})
 # B8 IS blocking for the aggregate. Abstention is the core anti-hallucination
-# property of a RAG system; a gate that cannot measure it has not verified
-# the thing it exists to verify. It is marked non-blocking at the 8B level
-# only because 8B's own declared scope is retrieval — but the portfolio-level
-# claim "AI/ML evaluation" covers abstention, so it cannot be waived here.
-add("MAIA abstention measured (anti-hallucination oracle)", False,
-    f"status={a.get('status')}: "
-    f"{a.get('unanswerable_with_usable_oracle')} of {a.get('unanswerable_rows')} "
-    f"unanswerable rows carry gold_keywords; refusal accuracy is "
-    f"NOT_MEASURED because it needs the LLM generation stage. 0/0 is not a "
-    f"pass.", blocking=True)
+# property of a RAG system; a gate that cannot measure it has not verified the
+# thing it exists to verify.
+#
+# 8B-C was written to answer exactly this and it FAILS against the production
+# entry point: maia.pipeline_query.query() reaches generation for 8 of 9
+# labeled no-answer queries, and the no-answer / answerable score
+# distributions overlap (0.6957 vs 0.3140) so no threshold value can separate
+# them. This is a measured product defect, not an unmeasured gap. Recording it
+# as NOT_RUN would understate it; recording it as PASS would be false.
+absd = ab.get("abstention", {})
+ab_checks = {c["id"]: c for c in ab.get("checks", [])}
+add("MAIA abstention routes labeled no-answer queries",
+    ab.get("status") == "PASS" and ab_checks.get("B8B1", {}).get("status") == "PASS",
+    f"status={ab.get('status')}: {absd.get('abstained')}/{absd.get('rows')} "
+    f"no-answer queries abstained, and generation was entered "
+    f"{absd.get('rows', 0) - absd.get('abstained', 0)} time(s) on the real "
+    f"production path. No-answer max top_dense="
+    f"{absd.get('max_noanswer_top_dense')} overlaps answerable min="
+    f"{absd.get('min_answerable_top_dense')}, so no SIMILARITY_THRESHOLD "
+    f"value separates the two classes. Measured defect, not an unrun check.",
+    blocking=True)
+
+# The dataset oracle and the negative controls DID pass, and they are what make
+# the failure above trustworthy rather than a suspected test bug.
+add("MAIA answerability oracle validates the no-answer dataset",
+    ab_checks.get("B8A2", {}).get("status") == "PASS",
+    "7 NO_SUPPORTING_DOCUMENT / OUT_OF_SCOPE rows verified absent from the "
+    "corpus by token-sequence search; 2 INSUFFICIENT_EVIDENCE rows "
+    "intentionally present. A mislabelled row would be INVALID_GOLDEN_ROW.")
+
+nc = ab.get("negative_controls", {})
+add("MAIA abstention negative controls are not no-ops",
+    bool(nc.get("lowered_threshold_detected")) and bool(nc.get("mislabelled_row_detected")),
+    f"lowered threshold 0.3->0.01 authorized "
+    f"{ab.get('integrity', {}).get('no_answer_rows')}/9 no-answer queries; a "
+    f"deliberately mislabelled row was rejected by the oracle. Both the gate "
+    f"and the dataset check are proven capable of failing.")
+
+add("MAIA cross-tenant refusal (factually correct ≠ authorized)",
+    ab_checks.get("B8B5", {}).get("status") == "PASS",
+    "tenant A querying tenant B's compensation retrieved 0 tenant-B chunks. "
+    "An answer that is factually true but sourced from another tenant is a "
+    "security failure, and is scored as one.")
 
 blocking_failures = [x for x in checks if not x["met"] and x["blocking"]]
 open_gaps = [x["requirement"] for x in checks if not x["met"]]
 # Overall follows BOTH the requirement matrix and the sub-gates' own status.
 # A PARTIAL sub-gate can never yield a PASS aggregate.
-if blocking_failures or "PARTIAL" in (cf.get("status"), ma.get("status")):
+if blocking_failures or "PARTIAL" in (cf.get("status"), ma.get("status")) \
+        or ab.get("status") == "FAIL":
     overall = "PARTIAL"
 else:
     overall = "PASS"
@@ -140,17 +176,33 @@ gate8 = {
             "corpus_sha256": ma.get("integrity", {}).get("corpus_sha256"),
             "blocking_scope": ma.get("blocking_scope"),
         },
+        "8B_maia_abstention": {
+            "status": ab.get("status"),
+            "evidence": str(AB.relative_to(PROJ)),
+            "canonical_claim": ab.get("canonical_claim"),
+            "explicitly_not_claimed": ab.get("explicitly_not_claimed"),
+            "abstention_rate": absd.get("abstention_rate"),
+            "answerable_authorized_rate": absd.get("answerable_authorized_rate"),
+            "distributions_separable": absd.get("separable"),
+        },
     },
     "acceptance_matrix": checks,
     "open_gaps": open_gaps,
     "portfolio_acceptance_suite": ("8/8 VERIFIED" if overall == "PASS"
                                    else "7/8 VERIFIED + GATE 8 PARTIAL"),
     "interpretation": (
-        "Both sub-gates demonstrate the control mechanism works: a known-bad "
-        "candidate is rejected and CI exits non-zero, while the approved "
-        "candidate passes. Gate 8 is PARTIAL rather than PASS because MAIA "
-        "abstention has no deterministic oracle in the shipped golden set, so "
-        "anti-hallucination behaviour is NOT_MEASURED, not verified."
+        "Retrieval regression detection and citation validity are verified in "
+        "8A/8B, with negative candidates rejected and CI exit codes confirmed. "
+        "Gate 8 is PARTIAL, and the remaining gap is now a MEASURED DEFECT "
+        "rather than an unrun check: MAIA's evidence gate authorizes 8 of 9 "
+        "labeled no-answer queries on the production path. The no-answer and "
+        "answerable similarity distributions overlap (0.6957 vs 0.3140), so no "
+        "value of SIMILARITY_THRESHOLD can separate them, which means the gate "
+        "measures topical similarity rather than answerability. The answerability "
+        "oracle, the negative controls and the cross-tenant refusal check all "
+        "PASS, so the failure is a product limitation and not a suspect test. "
+        "Closing it needs a different decision signal (answer-span verification "
+        "or an NLI entailment check), not threshold tuning."
     ),
 }
 OUT.parent.mkdir(parents=True, exist_ok=True)

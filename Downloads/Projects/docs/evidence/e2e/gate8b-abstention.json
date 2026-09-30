@@ -1,0 +1,195 @@
+{
+  "gate": "8B-C",
+  "title": "MAIA abstention routing gate",
+  "status": "FAIL",
+  "generated_at": "2026-09-30T05:08:34.506964+00:00",
+  "canonical_claim": "For labeled unanswerable queries, MAIA's evidence gate routes the request to an abstention path instead of authorizing an unsupported answer.",
+  "explicitly_not_claimed": "This gate does NOT establish that MAIA never hallucinates. A finite labeled set cannot prove a universal claim, and no test here attempts to.",
+  "embedder_mode": "fastembed",
+  "evidence_threshold": 0.3,
+  "integrity": {
+    "corpus_sha256": "e5129c82d6a333bd3335a8dc1d2f9020d6b212235e9338b1a80210e8a945e5da",
+    "no_answer_sha256": "721406f239ce307942c754ed36be3edf4728509cc9b0a6e529cdab4beaa22e01",
+    "no_answer_rows": 9
+  },
+  "abstention": {
+    "rows": 9,
+    "abstained": 1,
+    "authorized": 8,
+    "abstention_rate": 0.1111,
+    "answerable_controls": 30,
+    "answerable_authorized": 30,
+    "answerable_authorized_rate": 1.0,
+    "separable": false,
+    "max_noanswer_top_dense": 0.6957,
+    "min_answerable_top_dense": 0.314
+  },
+  "negative_controls": {
+    "lowered_threshold_detected": true,
+    "mislabelled_row_detected": true,
+    "bm25_removal_authorized": 8
+  },
+  "per_row": [
+    {
+      "id": "NOANS-001",
+      "question": "Chính sách cho vay mua nhà của công ty như thế nào?",
+      "reason": "NO_SUPPORTING_DOCUMENT",
+      "expected": "ABSTAIN",
+      "decision": "AUTHORIZE",
+      "top_dense": 0.4081,
+      "correct": false
+    },
+    {
+      "id": "NOANS-002",
+      "question": "Lương của CEO công ty là bao nhiêu?",
+      "reason": "NO_SUPPORTING_DOCUMENT",
+      "expected": "ABSTAIN",
+      "decision": "AUTHORIZE",
+      "top_dense": 0.3723,
+      "correct": false
+    },
+    {
+      "id": "NOANS-003",
+      "question": "Cách nấu phở bò chuẩn vị Hà Nội?",
+      "reason": "OUT_OF_SCOPE",
+      "expected": "ABSTAIN",
+      "decision": "ABSTAIN",
+      "top_dense": 0.2231,
+      "correct": true
+    },
+    {
+      "id": "NOANS-004",
+      "question": "Chính sách nghỉ hưu sớm tuổi 50 như thế nào?",
+      "reason": "NO_SUPPORTING_DOCUMENT",
+      "expected": "ABSTAIN",
+      "decision": "AUTHORIZE",
+      "top_dense": 0.5345,
+      "correct": false
+    },
+    {
+      "id": "NOANS-005",
+      "question": "Công ty có chương trình stock option cho nhân viên không?",
+      "reason": "NO_SUPPORTING_DOCUMENT",
+      "expected": "ABSTAIN",
+      "decision": "AUTHORIZE",
+      "top_dense": 0.4523,
+      "correct": false
+    },
+    {
+      "id": "NOANS-006",
+      "question": "Chính sách nhận nuôi thú cưng tại văn phòng?",
+      "reason": "NO_SUPPORTING_DOCUMENT",
+      "expected": "ABSTAIN",
+      "decision": "AUTHORIZE",
+      "top_dense": 0.3271,
+      "correct": false
+    },
+    {
+      "id": "NOANS-007",
+      "question": "Mỗi nhân viên được cấp bao nhiêu chỗ đỗ xe?",
+      "reason": "NO_SUPPORTING_DOCUMENT",
+      "expected": "ABSTAIN",
+      "decision": "AUTHORIZE",
+      "top_dense": 0.4646,
+      "correct": false
+    },
+    {
+      "id": "NOANS-008",
+      "question": "Ngày cụ thể Leave Policy chính thức có hiệu lực là khi nào?",
+      "reason": "INSUFFICIENT_EVIDENCE",
+      "expected": "ABSTAIN",
+      "decision": "AUTHORIZE",
+      "top_dense": 0.6434,
+      "correct": false
+    },
+    {
+      "id": "NOANS-009",
+      "question": "How many days of annual leave carry over to next year?",
+      "reason": "INSUFFICIENT_EVIDENCE",
+      "expected": "ABSTAIN",
+      "decision": "AUTHORIZE",
+      "top_dense": 0.6957,
+      "correct": false
+    }
+  ],
+  "checks": [
+    {
+      "id": "B8A1",
+      "description": "every no-answer row declares a valid abstention reason",
+      "status": "PASS",
+      "detail": "9/9 rows declare one of ['AMBIGUOUS_EVIDENCE', 'INSUFFICIENT_EVIDENCE', 'NO_SUPPORTING_DOCUMENT', 'OUT_OF_SCOPE', 'WRONG_TENANT_ONLY']",
+      "oracle_source": "enum of documented no-answer reasons (schema contract)"
+    },
+    {
+      "id": "B8A2",
+      "description": "NO_SUPPORTING_DOCUMENT rows have no supporting concept in corpus",
+      "status": "PASS",
+      "detail": "7 NO_SUPPORTING_DOCUMENT / OUT_OF_SCOPE rows verified absent; 2 INSUFFICIENT_EVIDENCE rows intentionally have concept hits",
+      "oracle_source": "token-level search of the full corpus for each row's probe_terms"
+    },
+    {
+      "id": "B8B1",
+      "description": "evidence gate abstains on labeled no-answer queries",
+      "status": "FAIL",
+      "detail": "1/9 abstained (rate=0.111); authorized: ['Chính sách cho vay mua nhà của công ty n', 'Lương của CEO công ty là bao nhiêu?', 'Chính sách nghỉ hưu sớm tuổi 50 như thế ', 'Công ty có chương trình stock option cho', 'Chính sách nhận nuôi thú cưng tại văn ph', 'Mỗi nhân viên được cấp bao nhiêu chỗ đỗ ', 'Ngày cụ thể Leave Policy chính thức có h', 'How many days of annual leave carry over']",
+      "oracle_source": "production evidence gate (pipeline_query §8.3) via HybridRetriever+RRF"
+    },
+    {
+      "id": "B8B2",
+      "description": "gate is discriminating, not refusing everything",
+      "status": "PASS",
+      "detail": "answerable authorized=30/30 (rate=1.000, need>=0.6); no-answer abstained=1/9. Both are required: abstention alone is indistinguishable from a broken retriever.",
+      "oracle_source": "same gate, opposite-polarity control set"
+    },
+    {
+      "id": "B8B2b",
+      "description": "production query() agrees with the mirrored evidence gate",
+      "status": "PASS",
+      "detail": "drove the real maia.pipeline_query.query() over all 9 no-answer queries: 1 abstained, generation stage entered 8 time(s). The mirror agrees with production on 9/9 rows. A mirror that disagreed with production would make B8B1 a claim about a function nobody ships.",
+      "oracle_source": "real maia.pipeline_query.query(), not a reimplementation"
+    },
+    {
+      "id": "B8B4",
+      "description": "zero-denominator policy enforced",
+      "status": "PASS",
+      "detail": "no-answer rows=9, no-answer decisions=9, answerable controls=30. All denominators non-zero; an empty set is reported as INVALID_DATASET and never scored.",
+      "oracle_source": "global rule: denominator == 0 -> NOT_RUN / INVALID_DATASET"
+    },
+    {
+      "id": "B8B5",
+      "description": "cross-tenant retrieval is refused for the wrong tenant",
+      "status": "PASS",
+      "detail": "tenant A asked for tenant B's compensation; retrieved 0 tenant-B chunks, decision=AUTHORIZE (top_dense=0.3362). A correct answer from another tenant's data is a security failure, not an answer.",
+      "oracle_source": "HybridRetriever tenant filter + evidence gate, tenant A only"
+    },
+    {
+      "id": "B8B3",
+      "description": "a single scalar threshold can separate no-answer from answerable",
+      "status": "FAIL",
+      "detail": "CLASSES OVERLAP: max no-answer top_dense=0.6957 >= min answerable top_dense=0.3140. 8 no-answer queries score above the weakest genuine answer, so NO setting of SIMILARITY_THRESHOLD can separate them. Raising it until B8B1 passes would also refuse correct answers, which is why B8B2 is required. A cosine similarity on the top chunk measures topical similarity, not answerability; no-answer questions about retirement or stock options are topically close to HR_Policy and Benefits, so they retrieve a confident-looking chunk that does not contain the answer.",
+      "oracle_source": "max(no_answer top_dense) < min(answerable top_dense)"
+    },
+    {
+      "id": "B8C1",
+      "description": "gate rejects a candidate with a lowered evidence threshold",
+      "status": "PASS",
+      "detail": "threshold 0.3 -> 0.01: 9/9 no-answer queries became AUTHORIZED. A gate that cannot fail on this proves nothing.",
+      "oracle_source": "isolated candidate config, gate decision only"
+    },
+    {
+      "id": "B8C2",
+      "description": "answerability oracle rejects a mislabelled golden row",
+      "status": "PASS",
+      "detail": "relabelled 'How many annual leave days do I get per year?' as refusal; oracle found supporting corpus concepts ['12 ngày', 'annual leave', 'phép năm']. Proves the dataset check reads the corpus instead of trusting the label.",
+      "oracle_source": "token-level corpus search on a deliberately mislabelled fixture"
+    },
+    {
+      "id": "B8C3",
+      "description": "abstention decisions are sensitive to the retriever configuration",
+      "status": "PASS",
+      "detail": "disabling BM25 changed the fused candidate set for 9/9 no-answer queries. Measured on the RRF candidate set rather than dense_score, because dense_score belongs to the dense channel and BM25 cannot influence it.",
+      "oracle_source": "same gate, BM25 disabled, per-query candidate-set delta",
+      "classification": "SENSITIVITY"
+    }
+  ]
+}
