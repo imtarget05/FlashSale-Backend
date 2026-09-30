@@ -1,0 +1,104 @@
+{
+  "gate": 8,
+  "title": "AI/ML Evaluation Gate (CreditFlow model quality + MAIA RAG)",
+  "status": "PARTIAL",
+  "generated_at": "2026-09-30T04:54:14.766965+00:00",
+  "sub_gates": {
+    "8A_creditflow_model_quality": {
+      "status": "PASS",
+      "commit": "8965cd49799503fd15f6cfde92f594b0b65e8fa2",
+      "repo": "CreditFlow (git remote: imtarget05/CreditFlow)",
+      "evidence": "docs/evidence/e2e/gate8a-creditflow-model-quality.json",
+      "dataset_sha256": "b65728f853cad72e3ce51a639ac96c7f04e935170e79acda637b4e5eec2f5d80",
+      "model_sha256": "119f3b3c9c7f3e0c8260b7955cd0b5ba169edd5545d54e6f9c4cea2b36e48774"
+    },
+    "8B_maia_rag_quality": {
+      "status": "PARTIAL",
+      "commit": "47110b8013ca222aa30533b76b08423e0b1b1356",
+      "repo": "MAIA (git remote: imtarget05/MAIA)",
+      "evidence": "docs/evidence/e2e/gate8b-maia-rag-quality.json",
+      "dataset_sha256": "f2c033df6380465eb0986c7c39e6038c2141ac4ab34030e0d850e38c1ae1988d",
+      "corpus_sha256": "90d01fdae5239b8ce90b3d0648d1474e8345a400ce7d825f22ea2132a7dd198b",
+      "blocking_scope": "retrieval + citation validity only. Abstention and generation quality are NOT covered \u2014 see abstention.status and open_gaps."
+    }
+  },
+  "acceptance_matrix": [
+    {
+      "requirement": "CreditFlow dataset integrity verified",
+      "met": true,
+      "detail": "dataset sha256=b65728f853cad72e",
+      "blocking": true
+    },
+    {
+      "requirement": "CreditFlow approved candidate PASS",
+      "met": true,
+      "detail": "norm_cost=0.3227, recall=0.7",
+      "blocking": true
+    },
+    {
+      "requirement": "CreditFlow negative candidate REJECTED",
+      "met": true,
+      "detail": "threshold 0.50 -> norm_cost=0.4853",
+      "blocking": true
+    },
+    {
+      "requirement": "CI exits non-zero on CreditFlow quality failure",
+      "met": true,
+      "detail": "gate-decision exit!=0; full-harness exit=1",
+      "blocking": true
+    },
+    {
+      "requirement": "CreditFlow train/eval leakage guard passed",
+      "met": true,
+      "detail": "overlap=0, train=3500, eval=750",
+      "blocking": true
+    },
+    {
+      "requirement": "MAIA dataset integrity verified",
+      "met": true,
+      "detail": "golden sha256=f2c033df6380465e, corpus sha256=90d01fdae5239b8c",
+      "blocking": true
+    },
+    {
+      "requirement": "MAIA approved candidate PASS (retrieval scope)",
+      "met": true,
+      "detail": "recall@3=0.4, mrr=0.3 (ceiling=0.8)",
+      "blocking": true
+    },
+    {
+      "requirement": "MAIA negative candidate REJECTED",
+      "met": true,
+      "detail": "dense-only -> recall@3=0.3059",
+      "blocking": true
+    },
+    {
+      "requirement": "CI exits non-zero on MAIA retrieval failure",
+      "met": true,
+      "detail": "gate-decision exit!=0; full-harness exit on bad candidate=1",
+      "blocking": true
+    },
+    {
+      "requirement": "MAIA deterministic metrics repeatable",
+      "met": true,
+      "detail": "second retrieval pass produced identical recall/mrr/citation set",
+      "blocking": true
+    },
+    {
+      "requirement": "MAIA citation validity: no fabricated chunk ids",
+      "met": true,
+      "detail": "97 citations, 0 unresolvable",
+      "blocking": true
+    },
+    {
+      "requirement": "MAIA abstention measured (anti-hallucination oracle)",
+      "met": false,
+      "detail": "status=NOT_RUN: 0 of 10 unanswerable rows carry gold_keywords; refusal accuracy is NOT_MEASURED because it needs the LLM generation stage. 0/0 is not a pass.",
+      "blocking": true
+    }
+  ],
+  "open_gaps": [
+    "MAIA abstention measured (anti-hallucination oracle)"
+  ],
+  "portfolio_acceptance_suite": "7/8 VERIFIED + GATE 8 PARTIAL",
+  "interpretation": "Both sub-gates demonstrate the control mechanism works: a known-bad candidate is rejected and CI exits non-zero, while the approved candidate passes. Gate 8 is PARTIAL rather than PASS because MAIA abstention has no deterministic oracle in the shipped golden set, so anti-hallucination behaviour is NOT_MEASURED, not verified."
+}
