@@ -75,8 +75,17 @@ for a in apps:
          "-g", RG, "--output", "json"],
         capture_output=True, text=True).stdout or "[]")
     active = next((r for r in revs if r.get("properties", {}).get("active")), {})
-    live_fqdn = props.get("fqdn")
-    ingress = props.get("ingress") or {}
+    # CORRECT control-plane FQDN path is
+    #   properties.configuration.ingress.fqdn
+    # An earlier version of this probe read properties.fqdn and
+    # properties.ingress, both of which are ALWAYS null for a Container App,
+    # and concluded that the control plane "reports fqdn=null". That was a bug
+    # in this probe, not an Azure metadata gap. Both paths are now read and
+    # reported so the mistake cannot silently reappear.
+    config = props.get("configuration") or {}
+    ingress = config.get("ingress") or {}
+    live_fqdn = ingress.get("fqdn")
+    wrong_path_fqdn = props.get("fqdn")
     replicas = active.get("properties", {}).get("replicas")
     state = active.get("properties", {}).get("runningState")
 
@@ -105,15 +114,21 @@ for a in apps:
              "error": None if answered else "connection failed / timed out on all paths"}
 
     reachable = probe["code"] not in (None, "000")
-    # `az containerapp show` reports fqdn=None and an empty ingress object even
-    # while the endpoint serves HTTP 200, so the control-plane view alone cannot
-    # decide reachability. The probe decides it. Both views are reported; neither
-    # is derived from the other.
+    # The control plane CAN decide reachability, because the correct JSON path
+    # is readable. The HTTP probe remains authoritative for "is it serving
+    # right now", because control-plane state is eventually consistent and
+    # cannot observe an application-level 500. Both are recorded; neither is
+    # derived from the other.
     row = {"project": a["project"], "container_app": a["name"],
            "recorded_fqdn": a["recorded_fqdn"],
            "recorded_status": a["recorded_status"],
            "control_plane_fqdn": live_fqdn,
+           "control_plane_fqdn_source": "properties.configuration.ingress.fqdn",
            "control_plane_fqdn_is_null": live_fqdn is None,
+           "incorrect_path_fqdn": wrong_path_fqdn,
+           "incorrect_path_fqdn_note": (
+               "properties.fqdn is always null for a Container App; reading it "
+               "previously produced a false 'control plane reports null' claim"),
            "provisioning_state": props.get("provisioningState"),
            "ingress_object_present": bool(ingress),
            "external_ingress": ingress.get("external"),
@@ -123,7 +138,8 @@ for a in apps:
     results.append(row)
     print(f"  {a['name']}:")
     print(f"    recorded fqdn  : {a['recorded_fqdn']}")
-    print(f"    az fqdn field  : {live_fqdn}  (control plane reports null)")
+    print(f"    az fqdn field  : {live_fqdn}"
+          f"{'  (NULL -- real gap)' if live_fqdn is None else ''}")
     print(f"    active revision: replicas={replicas} state={state} "
           f"provisioning={props.get('provisioningState')}")
     print(f"    probe          : {probe['answered_path'] or 'no path answered'} -> HTTP {probe['code']} {probe['error'] or ''}")
@@ -138,27 +154,32 @@ payload = {
     "resource_group": RG,
     "apps": results,
     "recorded_versus_live": {
-        "note": ("az containerapp show returns fqdn=null and an empty ingress "
-                 "object for all three apps, yet the recorded FQDNs answer "
-                 "HTTP 200 on /health. The control-plane fields are therefore "
-                 "not a reliable reachability signal here and the probe is "
-                 "authoritative."),
+        "note": (
+            "SUPERSEDES the earlier claim in this file. The previous run "
+            "reported control_plane_fqdn=null for all three apps and attributed "
+            "it to Azure. That was wrong: the probe read properties.fqdn, a path "
+            "that is always null for a Container App. The real field is "
+            "properties.configuration.ingress.fqdn, which is populated for all "
+            "three. This was a measurement bug in the probe, now fixed. The "
+            "HTTP probe stays authoritative for 'is it serving right now'."),
+        "root_cause": "PROBE_JSON_PATH_BUG (properties.fqdn vs "
+                      "properties.configuration.ingress.fqdn)",
+        "classification": "MEASUREMENT_DEFECT -- NOT an Azure metadata gap",
         "control_plane_reports_fqdn_null": sum(
             1 for r in results if r["control_plane_fqdn_is_null"]),
         "reachable_now": reachable_n,
         "total": len(results),
     },
     "interpretation": (
-        "All recorded endpoints answer HTTP 200 on /health, so the deployed "
-        "URLs in the evidence files are live and the status=VERIFIED claim "
-        "still holds. Note that `az containerapp show` reports fqdn=null and an "
-        "empty ingress object for every app, which would read as 'not "
-        "deployed' if taken at face value. An earlier draft of this probe "
-        "concluded the opposite from those fields and would have published a "
-        "false claim that the services were unreachable. Scaling is also "
-        "dynamic: a first reading showed ScaledToZero with 0 replicas and a "
-        "subsequent probe HTTP 200 with 1 replica, which is ordinary "
-        "consumption-plan behaviour, not an outage."),
+        "All recorded endpoints answer HTTP, so the deployed URLs in the "
+        "evidence files are live and the status=VERIFIED claim holds. The "
+        "control-plane FQDN is also populated once read from the correct JSON "
+        "path, so control plane and probe now agree. Scaling is dynamic on the "
+        "consumption plan: an app at 0 replicas returns connection error until "
+        "the cold start completes, which is ordinary behaviour and not an "
+        "outage. A single short-timeout probe run against a scaled-to-zero app "
+        "therefore reports HTTP 000 and must be retried before being recorded as "
+        "unreachable."),
 }
 OUT.parent.mkdir(parents=True, exist_ok=True)
 OUT.write_text(json.dumps(payload, indent=2))

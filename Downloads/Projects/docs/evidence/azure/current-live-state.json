@@ -1,0 +1,127 @@
+{
+  "generated_at": "2026-09-30T09:06:38.061174+00:00",
+  "resource_group": "rg-portfolio-evidence",
+  "azure_environment": "eastasia",
+  "sku": "Consumption (scales to zero; see ERRATA erratum 2)",
+  "method": {
+    "probe": "SEQUENTIAL requests, 90s timeout, up to 3 retries",
+    "why_not_parallel": "Parallel short-timeout probes returned HTTP 000 against healthy apps because they hit the cold start. See ERRATA erratum 2.",
+    "body_fingerprinting": "sha256 prefix of the response body pins what was actually returned, not merely the status code.",
+    "fqdn_json_path": "properties.configuration.ingress.fqdn",
+    "fqdn_path_bug_note": "An earlier probe read properties.fqdn, which is always null, and wrongly concluded the control plane reported no FQDN. Corrected; see docs/evidence/azure/ERRATA.md."
+  },
+  "apps": [
+    {
+      "project": "maia",
+      "container_app": "ca-maia-api",
+      "fqdn": "ca-maia-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+      "fqdn_source": "properties.configuration.ingress.fqdn",
+      "external_ingress": true,
+      "provisioning_state": "Succeeded",
+      "active_revision": "ca-maia-api--0000003",
+      "running_state": "RunningAtMaxScale",
+      "image": "ghcr.io/imtarget05/maia-maia-api:47110b8013ca222aa30533b76b08423e0b1b1356",
+      "commit_sha_in_image_tag": "47110b8013ca222aa30533b76b08423e0b1b1356",
+      "probes": {
+        "health": {
+          "url": "https://ca-maia-api.wittysand-b748274c.eastasia.azurecontainerapps.io/health",
+          "http_status": "200",
+          "seconds": 0.28,
+          "body_bytes": 33,
+          "body_sha256_prefix": "82e530f7dc4baa2f",
+          "body_excerpt": "{\"status\":\"ok\",\"version\":\"0.4.0\"}",
+          "attempts_used": 1,
+          "reached_after_retry": false
+        },
+        "docs": {
+          "url": "https://ca-maia-api.wittysand-b748274c.eastasia.azurecontainerapps.io/docs",
+          "http_status": "200",
+          "seconds": 0.205,
+          "body_bytes": 1035,
+          "body_sha256_prefix": "f485b6ef931089e5",
+          "body_excerpt": "<!DOCTYPE html>\n    <html>\n    <head>\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <link type=\"text/css\" rel=\"stylesheet\"",
+          "attempts_used": 1,
+          "reached_after_retry": false
+        }
+      }
+    },
+    {
+      "project": "creditflow",
+      "container_app": "ca-creditflow-api",
+      "fqdn": "ca-creditflow-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+      "fqdn_source": "properties.configuration.ingress.fqdn",
+      "external_ingress": true,
+      "provisioning_state": "Succeeded",
+      "active_revision": "ca-creditflow-api--0000005",
+      "running_state": "RunningAtMaxScale",
+      "image": "ghcr.io/imtarget05/creditflow-creditflow-api:b36e28934deaf6ff8ef2235287c3b74290c4a3ea",
+      "commit_sha_in_image_tag": "b36e28934deaf6ff8ef2235287c3b74290c4a3ea",
+      "probes": {
+        "health": {
+          "url": "https://ca-creditflow-api.wittysand-b748274c.eastasia.azurecontainerapps.io/health",
+          "http_status": "200",
+          "seconds": 0.296,
+          "body_bytes": 113,
+          "body_sha256_prefix": "aa5c315c219f6022",
+          "body_excerpt": "{\"status\":\"ok\",\"model_loaded\":true,\"model_version\":\"logistic_regression_v001\",\"model_name\":\"logistic_regression\"}",
+          "attempts_used": 1,
+          "reached_after_retry": false
+        },
+        "docs": {
+          "url": "https://ca-creditflow-api.wittysand-b748274c.eastasia.azurecontainerapps.io/docs",
+          "http_status": "200",
+          "seconds": 0.26,
+          "body_bytes": 1027,
+          "body_sha256_prefix": "1481e81f8b6075ec",
+          "body_excerpt": "<!DOCTYPE html>\n    <html>\n    <head>\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <link type=\"text/css\" rel=\"stylesheet\"",
+          "attempts_used": 1,
+          "reached_after_retry": false
+        }
+      }
+    },
+    {
+      "project": "factory",
+      "container_app": "ca-factory-api",
+      "fqdn": "ca-factory-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+      "fqdn_source": "properties.configuration.ingress.fqdn",
+      "external_ingress": true,
+      "provisioning_state": "Succeeded",
+      "active_revision": "ca-factory-api--y17yozr",
+      "running_state": "RunningAtMaxScale",
+      "image": "ghcr.io/imtarget05/factory-data-automation-v-ai-reporting-platform-factory-api:12016c28c65665f8b4876ed543df26368395bb05",
+      "commit_sha_in_image_tag": "12016c28c65665f8b4876ed543df26368395bb05",
+      "probes": {
+        "health": {
+          "url": "https://ca-factory-api.wittysand-b748274c.eastasia.azurecontainerapps.io/",
+          "http_status": "200",
+          "seconds": 0.279,
+          "body_bytes": 211,
+          "body_sha256_prefix": "edfe18f6821de726",
+          "body_excerpt": "{\"app\":\"Smart Manufacturing Platform\",\"version\":\"1.0.0\",\"status\":\"running\",\"endpoints\":{\"data\":\"/api/v1/data\",\"kpis\":\"/api/v1/kpis\",\"alerts\":\"/api/v1/alerts\",\"r",
+          "attempts_used": 1,
+          "reached_after_retry": false
+        },
+        "docs": {
+          "url": "https://ca-factory-api.wittysand-b748274c.eastasia.azurecontainerapps.io/docs",
+          "http_status": "200",
+          "seconds": 0.262,
+          "body_bytes": 1031,
+          "body_sha256_prefix": "9ba7a190dbda13e9",
+          "body_excerpt": "<!DOCTYPE html>\n    <html>\n    <head>\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <link type=\"text/css\" rel=\"stylesheet\"",
+          "attempts_used": 1,
+          "reached_after_retry": false
+        }
+      }
+    }
+  ],
+  "reachability": {
+    "reachable": 3,
+    "total": 3
+  },
+  "docs_exposure": {
+    "finding": "All three public APIs serve Swagger UI at /docs (HTTP 200).",
+    "mechanism": "FastAPI is constructed with default docs_url in every service; there is no environment gate, so this is framework default behaviour, not a deliberate control.",
+    "decision": "DEMO ENVIRONMENT: intentionally exposed for portfolio review. Production hardening is a DOCUMENTED GAP, not an implemented control. Follow-up: gate docs_url behind an env flag, default on for demo / off for production. Not implemented now because no failure mode justifies breaking the demo."
+  },
+  "scope": "Read-only verification. No Azure resource was created, modified, or deleted. No historical evidence file was edited or removed."
+}

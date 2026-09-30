@@ -1,6 +1,6 @@
 {
   "probe": "azure container apps live state",
-  "generated_at": "2026-09-30T05:40:51.911990+00:00",
+  "generated_at": "2026-09-30T09:01:58.920766+00:00",
   "resource_group": "rg-portfolio-evidence",
   "apps": [
     {
@@ -8,11 +8,14 @@
       "container_app": "ca-creditflow-api",
       "recorded_fqdn": "https://ca-creditflow-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
       "recorded_status": "VERIFIED",
-      "control_plane_fqdn": null,
-      "control_plane_fqdn_is_null": true,
+      "control_plane_fqdn": "ca-creditflow-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+      "control_plane_fqdn_source": "properties.configuration.ingress.fqdn",
+      "control_plane_fqdn_is_null": false,
+      "incorrect_path_fqdn": null,
+      "incorrect_path_fqdn_note": "properties.fqdn is always null for a Container App; reading it previously produced a false 'control plane reports null' claim",
       "provisioning_state": "Succeeded",
-      "ingress_object_present": false,
-      "external_ingress": null,
+      "ingress_object_present": true,
+      "external_ingress": true,
       "active_replicas": 1,
       "running_state": "RunningAtMaxScale",
       "image": "ghcr.io/imtarget05/creditflow-creditflow-api:b36e28934deaf6ff8ef2235287c3b74290c4a3ea",
@@ -20,11 +23,11 @@
         "paths": {
           "/health": {
             "code": "200",
-            "seconds": "0.184573"
+            "seconds": "0.257514"
           },
           "/": {
             "code": "404",
-            "seconds": "0.226026"
+            "seconds": "0.263953"
           }
         },
         "answered_path": "/health",
@@ -38,11 +41,14 @@
       "container_app": "ca-factory-api",
       "recorded_fqdn": null,
       "recorded_status": null,
-      "control_plane_fqdn": null,
-      "control_plane_fqdn_is_null": true,
+      "control_plane_fqdn": "ca-factory-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+      "control_plane_fqdn_source": "properties.configuration.ingress.fqdn",
+      "control_plane_fqdn_is_null": false,
+      "incorrect_path_fqdn": null,
+      "incorrect_path_fqdn_note": "properties.fqdn is always null for a Container App; reading it previously produced a false 'control plane reports null' claim",
       "provisioning_state": "Succeeded",
-      "ingress_object_present": false,
-      "external_ingress": null,
+      "ingress_object_present": true,
+      "external_ingress": true,
       "active_replicas": 1,
       "running_state": "RunningAtMaxScale",
       "image": "ghcr.io/imtarget05/factory-data-automation-v-ai-reporting-platform-factory-api:12016c28c65665f8b4876ed543df26368395bb05",
@@ -50,7 +56,7 @@
         "paths": {
           "/": {
             "code": "200",
-            "seconds": "0.190319"
+            "seconds": "0.335800"
           }
         },
         "answered_path": "/",
@@ -64,11 +70,14 @@
       "container_app": "ca-maia-api",
       "recorded_fqdn": "https://ca-maia-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
       "recorded_status": "VERIFIED",
-      "control_plane_fqdn": null,
-      "control_plane_fqdn_is_null": true,
+      "control_plane_fqdn": "ca-maia-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+      "control_plane_fqdn_source": "properties.configuration.ingress.fqdn",
+      "control_plane_fqdn_is_null": false,
+      "incorrect_path_fqdn": null,
+      "incorrect_path_fqdn_note": "properties.fqdn is always null for a Container App; reading it previously produced a false 'control plane reports null' claim",
       "provisioning_state": "Succeeded",
-      "ingress_object_present": false,
-      "external_ingress": null,
+      "ingress_object_present": true,
+      "external_ingress": true,
       "active_replicas": 1,
       "running_state": "RunningAtMaxScale",
       "image": "ghcr.io/imtarget05/maia-maia-api:47110b8013ca222aa30533b76b08423e0b1b1356",
@@ -76,11 +85,11 @@
         "paths": {
           "/health": {
             "code": "200",
-            "seconds": "0.278846"
+            "seconds": "0.323696"
           },
           "/": {
             "code": "404",
-            "seconds": "0.183242"
+            "seconds": "0.240791"
           }
         },
         "answered_path": "/health",
@@ -91,10 +100,12 @@
     }
   ],
   "recorded_versus_live": {
-    "note": "az containerapp show returns fqdn=null and an empty ingress object for all three apps, yet the recorded FQDNs answer HTTP 200 on /health. The control-plane fields are therefore not a reliable reachability signal here and the probe is authoritative.",
-    "control_plane_reports_fqdn_null": 3,
+    "note": "SUPERSEDES the earlier claim in this file. The previous run reported control_plane_fqdn=null for all three apps and attributed it to Azure. That was wrong: the probe read properties.fqdn, a path that is always null for a Container App. The real field is properties.configuration.ingress.fqdn, which is populated for all three. This was a measurement bug in the probe, now fixed. The HTTP probe stays authoritative for 'is it serving right now'.",
+    "root_cause": "PROBE_JSON_PATH_BUG (properties.fqdn vs properties.configuration.ingress.fqdn)",
+    "classification": "MEASUREMENT_DEFECT -- NOT an Azure metadata gap",
+    "control_plane_reports_fqdn_null": 0,
     "reachable_now": 3,
     "total": 3
   },
-  "interpretation": "All recorded endpoints answer HTTP 200 on /health, so the deployed URLs in the evidence files are live and the status=VERIFIED claim still holds. Note that `az containerapp show` reports fqdn=null and an empty ingress object for every app, which would read as 'not deployed' if taken at face value. An earlier draft of this probe concluded the opposite from those fields and would have published a false claim that the services were unreachable. Scaling is also dynamic: a first reading showed ScaledToZero with 0 replicas and a subsequent probe HTTP 200 with 1 replica, which is ordinary consumption-plan behaviour, not an outage."
+  "interpretation": "All recorded endpoints answer HTTP, so the deployed URLs in the evidence files are live and the status=VERIFIED claim holds. The control-plane FQDN is also populated once read from the correct JSON path, so control plane and probe now agree. Scaling is dynamic on the consumption plan: an app at 0 replicas returns connection error until the cold start completes, which is ordinary behaviour and not an outage. A single short-timeout probe run against a scaled-to-zero app therefore reports HTTP 000 and must be retried before being recorded as unreachable."
 }
