@@ -177,6 +177,9 @@ namespace FlashSale.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("OriginalPrice")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int?>("OriginalStock")
+                        .HasColumnType("integer");
+
                     b.Property<int>("ReorderThreshold")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
