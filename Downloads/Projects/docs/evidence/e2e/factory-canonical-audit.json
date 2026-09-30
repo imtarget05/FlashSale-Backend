@@ -1,0 +1,43 @@
+{
+  "project": "Factory-Data-Automation-v-AI-Reporting-Platform",
+  "audit": "canonical revalidation",
+  "status": "FAIL",
+  "generated_at": "2026-09-30T05:27:31.252934+00:00",
+  "commit": "be9e5d3ae84f4ff024f412e9d07d79d4b4fb6620",
+  "dataset": {
+    "rows": 458166,
+    "sha256": "6fffdd67a3a8dcb04f44a21de473962b5e85bc871bd0d6c35447b03e0b321d97",
+    "generated_by": "scripts/generate_sample_data.py --days 3650",
+    "note": "data/raw/* is gitignored, so the fixture is NOT in the commit. Both scale/parquet tests FAIL against a 30-row local file and PASS only after generating the full dataset. A clean clone cannot reproduce these numbers."
+  },
+  "checks": [
+    {
+      "id": "F1",
+      "description": "pipeline rerun on identical input is byte-identical",
+      "status": "PASS",
+      "detail": "two runs: (453630, 12) vs (453630, 12), DataFrame.equals=True, 0.30s vs 0.40s. Equality of values is the assertion; row count alone would pass for a pipeline that silently reshuffles.",
+      "oracle_source": "clean_dataframe(df, 'production') twice, compared with .equals()"
+    },
+    {
+      "id": "F2",
+      "description": "late-arriving records are retained, not silently dropped",
+      "status": "PASS",
+      "detail": "injected 50 records with business dates ~400 days earlier. clean kept 453680 of 453680 (dropped 0, all attributable to the injected duplicates). 1/1 distinct backdated dates are present after cleaning. KPI total 621938255.0 -> 621982737.1. Retention is the assertion: a late row must exist somewhere, and this audit does NOT claim the aggregate was correctly recomputed for it, which would need a separate recompute path.",
+      "oracle_source": "50 backdated records appended, retention + date visibility after clean"
+    },
+    {
+      "id": "F3",
+      "description": "malformed records cannot reach KPI math via the shipped order",
+      "status": "FAIL",
+      "detail": "SERIES DEFECT. Applied directly, apply_contract_gate rejects 1/1 of the malformed record. But in the shipped order (clean_dataframe -> apply_contract_gate) it rejects 0/1 and lets 1 row through, with 1 NaN Target_Qty. Root cause: clean_dataframe coerces Target_Qty='abc' to float NaN while keeping the row, and the validator then raises TypeError(\"'float' object cannot be interpreted as an integer\") on the NaN. The gate is documented to fail open on validator error, so the exception is swallowed, logged as action=failing_open, and the unvalidated row flows into KPI math as a missing quantity. Either the NaN must not be produced, or the validator must handle NaN as a violation instead of raising. This is a correctness defect in the shipped pipeline, not in the test.",
+      "oracle_source": "clean_dataframe -> apply_contract_gate, the order the pipeline uses"
+    },
+    {
+      "id": "F4",
+      "description": "silver export and lineage capture a run over the real dataset",
+      "status": "PASS",
+      "detail": "silver export: production.parquet 5.69 MB parquet vs 42.31 MB csv (0.13x) from 453630 cleaned rows in 0.2s. Lineage recorded 2 edges; upstream('gold_oee')=['silver_production'], downstream('raw_production')=['silver_production']. Traversal is asserted, not just writing. The parquet/csv ratio is measured on this dataset only; at 30 rows parquet is larger than CSV because of fixed footer overhead, which is exactly why the two scale tests need a real fixture.",
+      "oracle_source": "export_silver_production + Lineage traversal, real 1.06M-row dataset"
+    }
+  ]
+}
