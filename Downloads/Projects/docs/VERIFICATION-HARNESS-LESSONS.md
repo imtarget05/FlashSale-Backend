@@ -66,6 +66,54 @@ vừa kiểm tra vừa đánh dấu — chính hành vi gây mất dữ liệu. 
 giờ sửa test". Nghĩa là **phải phân loại** test sai trước khi đổi nó. Ở đây
 đã ghi lại lý do trong docstring của test thay vì xoá assertion.
 
+## H9 — `tr -d '[:space:]'` phá tên cột
+
+| | |
+|---|---|
+| **Giả định sai** | Bỏ whitespace trong output SQL là vô hại |
+| **Chế độ lỗi** | Báo "column does not exist" — trông y hệt schema hỏng |
+| **Phát hiện** | 5 assertion GATE 1 fail với `missing-row`, trong khi hàng thật vẫn còn |
+| **Oracle đúng** | Chỉ bỏ CR/LF. `tr -d '[:space:]'` xoá cả space *giữa các từ* |
+
+Đây là loại lỗi tệ nhất trong harness: thông báo lỗi trỏ sang đúng tầng sai
+(schema) trong khi nguyên nhân nằm ở tầng harness (parse output).
+
+## H10 — Identifier Postgres không nhấn mạnh bị hạ chữ thường
+
+`SELECT AvailableStock ...` → Postgres hiểu là `availablestock` → không tồn
+tại. Cột thật là `"AvailableStock"`. Phải quote identifier mixed-case.
+
+Hai lỗi H9 và H10 cùng tạo ra thông báo giống hệt nhau (`column ... does not
+exist`). Khi hai nguyên nhân khác nhau cho ra cùng một thông báo, phải kiểm
+tra tầng harness trước khi kết luận về hệ thống.
+
+## H11 — Harness không tự dựng dependency
+
+Postgres container bị xoá ở cuối lần chạy trước, nên lần sau mọi assertion về
+database fail trong khi migration hoàn toàn ổn. Harness phải coi dependency
+là **tài nguyên của chính nó**: tự dựng nếu thiếu.
+
+Tương tự: `dotnet run` build lại mỗi lần gọi, 4 lần × 90s vượt giới hạn shell.
+Build một lần, chạy DLL.
+
+## H12 — Environment issue bị đổ tội cho migration
+
+App fail lúc khởi động vì `Messaging:Provider` chưa set (repo cố ý **không**
+auto-detect) và thiếu Redis. Cả hai đều là environment issue. Kết luận
+"migration phá app" sẽ hoàn toàn sai.
+
+Phân loại trước khi sửa:
+
+```
+test fail
+   ↓
+classify
+   ├─ implementation defect → sửa production code
+   ├─ test defect           → sửa test + document reason
+   ├─ environment defect    → sửa harness/environment
+   └─ requirement changed   → update specification first
+```
+
 ## Nguyên tắc rút ra
 
 > Test/probe không phải truth nến chính oracle của nó chưa được sanity-check.
