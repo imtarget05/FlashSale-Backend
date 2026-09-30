@@ -1,0 +1,72 @@
+{
+  "project": "Enterprise-IT-Helpdesk-Lab",
+  "audit": "canonical revalidation",
+  "status": "PARTIAL",
+  "generated_at": "2026-09-30T05:35:45.326Z",
+  "commit": "f320d59a002d2baed505fc53406f46ea1a267f5e",
+  "suite": {
+    "command": "npm test (node --test)",
+    "passed": 336,
+    "failed": 0,
+    "skipped": 1,
+    "total": 337,
+    "skip_reason": "ai-adversarial live gateway prompt-injection test requires LIVE_TESTS=1"
+  },
+  "capability_gaps": [
+    {
+      "id": "H3",
+      "gap": "SLA accounting supports a business calendar"
+    }
+  ],
+  "checks": [
+    {
+      "id": "H1",
+      "description": "SLA targets are computed from the policy table",
+      "status": "PASS",
+      "detail": "P1 opened 09:00Z -> ack 2026-03-02T09:15:00.000Z, resolve 2026-03-02T13:00:00.000Z (policy 15/240 min); P4 -> 2026-03-07T09:00:00.000Z (7200 min). Exact equality is asserted, not \"close to\", because an off-by-one in the arithmetic is exactly the bug this catches.",
+      "oracle_source": "calculateSla against a fixed ISO input, exact timestamp equality"
+    },
+    {
+      "id": "H2",
+      "description": "unknown priority falls back to a default rather than losing the SLA",
+      "status": "PASS",
+      "detail": "priority 'NONSENSE' -> P3 (ack 2026-03-02T13:00:00.000Z). A ticket with an unrecognised priority still gets a deadline instead of an undefined one.",
+      "oracle_source": "calculateSla with an unknown priority label"
+    },
+    {
+      "id": "H3",
+      "description": "SLA accounting supports a business calendar",
+      "status": "PARTIAL",
+      "detail": "NOT IMPLEMENTED. No business-hours, working-day or holiday helper is exported from src/itsm.js, and addMinutes is plain wall-clock arithmetic (itsm.js:22). Consequence: a P1 opened 2026-03-06T23:00:00.000Z (Friday 23:00) gets ackTargetAt 2026-03-06T23:15:00.000Z and is breached true before anyone is on shift. Every SLA number in this project is 24x7. This is recorded as a capability gap, not a bug: 24x7 may well be the intended policy, but the code cannot express business-hours targets, so no one can claim business-hours SLA support from it.",
+      "oracle_source": "exported symbol scan + calculateSla at a Friday 23:00 boundary"
+    },
+    {
+      "id": "H4",
+      "description": "closed and cancelled are genuinely terminal, and illegal moves throw",
+      "status": "PASS",
+      "detail": "CLOSED outgoing transitions = none (true), CANCELLED -> IN_PROGRESS refused = true, CLOSED->IN_PROGRESS throws = true, legal NEW->ASSIGNED accepted = true. canTransition alone would pass on a state machine nobody enforces, so the throwing path is asserted too.",
+      "oracle_source": "canTransition + assertTransition over terminal and legal transitions"
+    },
+    {
+      "id": "H5",
+      "description": "legacy asset statuses map to canonical values, unknown degrades safely",
+      "status": "PASS",
+      "detail": "Active->ASSIGNED, In Storage->IN_STOCK, Maintenance->REPAIR, Retired->RETIRED, Lost->LOST (all expected: true); unknown status 'FROBNICATED' -> IN_STOCK, which is a member of ASSET_STATUSES = true. An unknown input falls back to IN_STOCK rather than inventing a value outside the enum.",
+      "oracle_source": "normalizeAssetRecord over all legacy + one unknown status"
+    },
+    {
+      "id": "H6",
+      "description": "restore refuses an archive whose payload no longer matches its checksum",
+      "status": "PASS",
+      "detail": "sha256 sidecar fa7743601b4a; clean archive restored = true; tampered payload with the ORIGINAL sidecar -> raised Backup integrity check failed: file snapshot.json does not match its .sha256 sidecar. Refusing to restore a tampered or corrupt backup., classified as an integrity refusal = true. Accepting a tampered archive is worse than having no restore at all, because it reports a clean recovery that never happened.",
+      "oracle_source": "real sha256 sidecar + tampered payload through src/backup.js"
+    },
+    {
+      "id": "H7",
+      "description": "PowerShell scripts contain no dynamic-evaluation injection shape",
+      "status": "PASS",
+      "detail": "scanned 8 .ps1 files against 4 concrete injection shapes (Invoke-Expression/iex, Start-Process -ArgumentList, cmd /c, powershell -Command, ExecutionPolicy Bypass): 0 hits. The suite also runs ps1-lint.js and ps1-syntax.js, both passing. Deliberately NOT counted: unquoted $var in a plain argument, which an earlier naive scan reported 95 of and all were safe forms like Join-Path $DataDir.",
+      "oracle_source": "4-shape dynamic-evaluation scan over every .ps1 outside node_modules"
+    }
+  ]
+}
