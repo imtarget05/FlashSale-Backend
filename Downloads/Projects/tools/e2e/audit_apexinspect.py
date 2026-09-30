@@ -159,17 +159,48 @@ raised = sum(1 for v in invalid.values() if v != "returned normally")
 one_px = np.zeros((1, 1, 3), dtype=np.uint8)
 res_1px = det.infer(one_px)
 dets_1px = res_1px[1]
-rejected_but_empty = dets_1px == []
-check("A5b", "quality-rejected frame reports no-verdict, not a clean pass",
-      "FAIL" if rejected_but_empty else "PASS",
-      f"a 1x1 frame is rejected by check_frame (laplacian variance 0.0) yet "
-      f"infer() returns detections={dets_1px!r}. infer() documents None as "
-      f"'no verdict' and [] as 'inspected, no defects found', so a rejected "
-      f"frame is currently reported to the caller as a PASS. For a defect "
-      f"inspection system that is a false negative: a camera fault or blank "
-      f"frame reads as a board with no defects. "
-      f"{'Source: src/vision/detector.py:313 returns [] on the quality-reject branch.' if rejected_but_empty else 'Returns None as documented.'}",
-      "real detector on a frame that check_frame rejects")
+
+# One rejected frame is a single anecdote. check_frame rejects for three
+# distinct reasons -- resolution, blur, brightness -- and P0-02 was a single
+# shared return statement, so all three must be exercised. A fix that handled
+# only the 1x1 case (say by special-casing the resolution branch) would pass a
+# one-frame oracle and still report a black frame as a clean board.
+_rng = np.random.default_rng(3)
+_sharp = np.full((640, 640, 3), 120, dtype=np.uint8)
+for _ in range(40):
+    _x, _y = _rng.integers(0, 632, size=2)
+    _sharp[_y:_y + 8, _x:_x + 8] = _rng.integers(0, 255, size=(8, 8, 3), dtype=np.uint8)
+
+_reject_cases = {
+    "resolution": np.zeros((1, 1, 3), dtype=np.uint8),
+    "blur": np.full((640, 640, 3), 120, dtype=np.uint8),          # zero variance
+    "brightness_dark": np.zeros((640, 640, 3), dtype=np.uint8),   # black
+    "brightness_bright": np.full((640, 640, 3), 255, dtype=np.uint8),
+}
+from src.vision.quality import check_frame as _check_frame  # noqa: E402
+
+_reject_results = {}
+for _name, _frame in _reject_cases.items():
+    _q = _check_frame(_frame)
+    _d = det.infer(_frame)[1]
+    _reject_results[_name] = {"reason": _q["reason"], "ok": _q["ok"], "detections": _d}
+
+# Only frames the gate actually rejects belong in this oracle; a frame the gate
+# accepted must NOT be expected to return None.
+_still_empty = [n for n, r in _reject_results.items() if not r["ok"] and r["detections"] == []]
+rejected_but_empty = dets_1px == [] or bool(_still_empty)
+_wrongly_none = [n for n, r in _reject_results.items() if r["ok"] and r["detections"] is None]
+check("A5b", "every quality-rejected frame reports no-verdict, not a clean pass",
+      "FAIL" if (rejected_but_empty or _wrongly_none) else "PASS",
+      f"all {len(_reject_results)} rejection reasons exercised: {_reject_results}. "
+      f"infer() documents None as 'no verdict' and [] as 'inspected, no defects "
+      f"found'. Before P0-02 this branch returned [], so a camera fault or blank "
+      f"frame reached the caller as a defect-free board -- a false negative "
+      f"produced by the failure of the evidence-gathering step itself. "
+      f"Rejected-but-empty cases: {_still_empty or 'none'}. Accepted-but-None "
+      f"cases (over-correction): {_wrongly_none or 'none'}. "
+      f"{'PRE-FIX: src/vision/detector.py returned [] on the quality-reject branch.' if rejected_but_empty else 'POST-FIX: returns None for every rejection reason, and still returns a real verdict for accepted frames.'}",
+      "real detector on frames rejected for resolution, blur and both brightness bounds")
 
 check("A5", "invalid frames are rejected rather than silently mis-detected",
       "PASS" if raised == len(bad_frames) else "PARTIAL",

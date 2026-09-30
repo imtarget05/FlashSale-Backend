@@ -2,7 +2,7 @@
   "gate": "8B-C",
   "title": "MAIA abstention routing gate",
   "status": "FAIL",
-  "generated_at": "2026-09-30T05:08:34.506964+00:00",
+  "generated_at": "2026-09-30T06:30:30.759566+00:00",
   "canonical_claim": "For labeled unanswerable queries, MAIA's evidence gate routes the request to an abstention path instead of authorizing an unsupported answer.",
   "explicitly_not_claimed": "This gate does NOT establish that MAIA never hallucinates. A finite labeled set cannot prove a universal claim, and no test here attempts to.",
   "embedder_mode": "fastembed",

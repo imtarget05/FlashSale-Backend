@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-09-30T05:44:41.455851+00:00",
+  "generated_at": "2026-09-30T06:36:07.773043+00:00",
   "policy": "a CV bullet that cannot be mapped to a measured run will not survive an interview question, so unmappable claims are marked for deletion rather than dressed up",
   "summary": {
-    "total": 13,
-    "keep": 6,
+    "total": 16,
+    "keep": 9,
     "weaken": 4,
     "delete": 3,
     "unresolved_commits": 0
@@ -53,6 +53,33 @@
       "metric": "3/3 Container Apps HTTP 200, 1 replica each, no ACR or AKS",
       "note": "Say 'verified reachable' rather than 'production deployment'. These are scale-to-zero consumption apps for a portfolio, and inflating that is the easiest thing for an interviewer to unpick.",
       "commit": "portfolio (cross-cutting)"
+    },
+    {
+      "claim": "Fixed a vision-inspection defect where a quality-rejected camera frame was reported as a defect-free board, and where the existing no-verdict path crashed instead of degrading gracefully.",
+      "grade": "KEEP",
+      "project": "ApexInspect-AI",
+      "evidence": "docs/defects/P0-02-apexinspect-rejected-frame.md + ApexInspect-AI/tests/test_quality_gate_no_verdict.py",
+      "metric": "rejected frame returned [] pre-fix, None post-fix; 13 regression tests (honest RED 4 failed / 9 passed); full suite 210 passed; audit A5b FAIL -> PASS",
+      "commit": "6e0475c",
+      "note": "Sanctioned wording: 'Implemented explicit no-verdict handling for low-quality inspection frames to prevent invalid camera input from being misclassified as defect-free output.' Also mention that fixing it exposed a second bug: the no-verdict branch fell through into len(None) and raised TypeError, so the graceful path was a crash."
+    },
+    {
+      "claim": "Changed a data-contract gate from fail-open to fail-closed after proving a validator exception was silently converting unvalidated rows into approved KPI inputs.",
+      "grade": "KEEP",
+      "project": "Factory-Data-Automation-v-AI-Reporting-Platform",
+      "evidence": "docs/defects/P0-03-factory-validation-fail-open.md + Factory-Data-Automation-v-AI-Reporting-Platform/tests/test_contract_gate_fail_closed.py",
+      "metric": "invariant VALIDATION_INFRA_FAILURE != DATA_ACCEPTANCE; 19 regression tests (RED 7 failed / 12 passed); full suite 212 -> 231 passed; audit F3 FAIL -> PASS, now 4/4",
+      "commit": "483a648",
+      "note": "Sanctioned wording: 'Added fail-closed data validation and quarantine handling to prevent malformed numeric records from entering production KPI calculations.' The stronger framing is that the fail-open was a DELIBERATE, documented decision that turned out to be wrong at the wrong layer -- and that a negative control preserves its valid intent, so one bad row still quarantines rather than aborting the whole file."
+    },
+    {
+      "claim": "Demonstrated that a single similarity threshold cannot express answerability, by measuring four candidate evidence-sufficiency signals and declining to ship any of them.",
+      "grade": "KEEP",
+      "project": "MAIA",
+      "evidence": "MAIA/docs/eval/proto_answerability_signals.py + docs/ACCEPTANCE-HISTORY.md",
+      "metric": "4 signals measured on 9 no-answer / 85 answerable rows. Best reached 0.000 on all 9 no-answer rows but accepted only 55.0% of answerable rows, so it was not shipped",
+      "commit": "93f5788",
+      "note": "A NEGATIVE result, claimable precisely because it is measured and it changed a decision. Framing: distinguished relevance from answerability, proved the conflation with a measured score overlap, prototyped four replacements, and rejected the best one because it would have refused 45% of valid questions. NOT claimable: any statement that the system abstains correctly. Honest status is 1/9."
     },
     {
       "claim": "Built a manufacturing data platform processing 1M+ rows through a medallion pipeline with 212 passing tests.",

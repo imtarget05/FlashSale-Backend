@@ -32,6 +32,12 @@ for fname in ("cv-claims-keeper.json", "cv-claims-weaken.json", "cv-claims-delet
     CLAIMS.extend(payload["CLAIMS"])
 
 for c in CLAIMS:
+    # A claim that names its own commit keeps it. The post-remediation claims
+    # cite the fix commit (6e0475c / 483a648 / 93f5788), which is NEWER than the
+    # commit recorded in the portfolio matrix, so joining blindly would silently
+    # re-point them at the pre-fix code they describe fixing.
+    if c.get("commit"):
+        continue
     if c["project"] in commit:
         c["commit"] = commit[c["project"]]
     elif "cross-cutting" in c["project"]:

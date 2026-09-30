@@ -2,7 +2,7 @@
   "gate": 8,
   "title": "AI/ML Evaluation Gate (CreditFlow model quality + MAIA RAG)",
   "status": "PARTIAL",
-  "generated_at": "2026-09-30T05:09:42.354358+00:00",
+  "generated_at": "2026-09-30T06:34:34.918127+00:00",
   "sub_gates": {
     "8A_creditflow_model_quality": {
       "status": "PASS",
@@ -14,10 +14,10 @@
     },
     "8B_maia_rag_quality": {
       "status": "PARTIAL",
-      "commit": "47110b8013ca222aa30533b76b08423e0b1b1356",
+      "commit": "93f5788c270e18fb2770077d1fe699573b16b704",
       "repo": "MAIA (git remote: imtarget05/MAIA)",
       "evidence": "docs/evidence/e2e/gate8b-maia-rag-quality.json",
-      "dataset_sha256": "f2c033df6380465eb0986c7c39e6038c2141ac4ab34030e0d850e38c1ae1988d",
+      "dataset_sha256": "4fba4ab85dfde24801e7b779344a19eb0021b02f9264d8c04ecc3179d9387394",
       "corpus_sha256": "90d01fdae5239b8ce90b3d0648d1474e8345a400ce7d825f22ea2132a7dd198b",
       "blocking_scope": "retrieval + citation validity only. Abstention and generation quality are NOT covered \u2014 see abstention.status and open_gaps."
     },
@@ -65,7 +65,7 @@
     {
       "requirement": "MAIA dataset integrity verified",
       "met": true,
-      "detail": "golden sha256=f2c033df6380465e, corpus sha256=90d01fdae5239b8c",
+      "detail": "golden sha256=4fba4ab85dfde248, corpus sha256=90d01fdae5239b8c",
       "blocking": true
     },
     {

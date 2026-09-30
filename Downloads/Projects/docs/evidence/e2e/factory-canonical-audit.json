@@ -1,8 +1,8 @@
 {
   "project": "Factory-Data-Automation-v-AI-Reporting-Platform",
   "audit": "canonical revalidation",
-  "status": "FAIL",
-  "generated_at": "2026-09-30T05:27:31.252934+00:00",
+  "status": "PASS",
+  "generated_at": "2026-09-30T06:21:21.764935+00:00",
   "commit": "be9e5d3ae84f4ff024f412e9d07d79d4b4fb6620",
   "dataset": {
     "rows": 458166,
@@ -15,7 +15,7 @@
       "id": "F1",
       "description": "pipeline rerun on identical input is byte-identical",
       "status": "PASS",
-      "detail": "two runs: (453630, 12) vs (453630, 12), DataFrame.equals=True, 0.30s vs 0.40s. Equality of values is the assertion; row count alone would pass for a pipeline that silently reshuffles.",
+      "detail": "two runs: (453630, 12) vs (453630, 12), DataFrame.equals=True, 0.18s vs 0.18s. Equality of values is the assertion; row count alone would pass for a pipeline that silently reshuffles.",
       "oracle_source": "clean_dataframe(df, 'production') twice, compared with .equals()"
     },
     {
@@ -28,8 +28,8 @@
     {
       "id": "F3",
       "description": "malformed records cannot reach KPI math via the shipped order",
-      "status": "FAIL",
-      "detail": "SERIES DEFECT. Applied directly, apply_contract_gate rejects 1/1 of the malformed record. But in the shipped order (clean_dataframe -> apply_contract_gate) it rejects 0/1 and lets 1 row through, with 1 NaN Target_Qty. Root cause: clean_dataframe coerces Target_Qty='abc' to float NaN while keeping the row, and the validator then raises TypeError(\"'float' object cannot be interpreted as an integer\") on the NaN. The gate is documented to fail open on validator error, so the exception is swallowed, logged as action=failing_open, and the unvalidated row flows into KPI math as a missing quantity. Either the NaN must not be produced, or the validator must handle NaN as a violation instead of raising. This is a correctness defect in the shipped pipeline, not in the test.",
+      "status": "PASS",
+      "detail": "direct=1/1 rejected, shipped order=1/1 rejected, 0 survived, 0 NaN Target_Qty remaining, 1 quarantine artefact(s) written. POST-FIX: the pydantic TypeError on a coerced NaN is now caught in validate_rows and recorded as a __coercion__ violation, so the row is quarantined through the normal contract path instead of escaping to a fail-open handler. This check asserts the shipped ORDER (clean_dataframe -> apply_contract_gate), not the gate in isolation, because the ordering is what produced the defect: testing apply_contract_gate alone reports a healthy gate.",
       "oracle_source": "clean_dataframe -> apply_contract_gate, the order the pipeline uses"
     },
     {

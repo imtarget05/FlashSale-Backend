@@ -3,8 +3,8 @@
   "title": "MAIA RAG Quality Gate (retrieval, no LLM)",
   "status": "PARTIAL",
   "blocking_scope": "retrieval + citation validity only. Abstention and generation quality are NOT covered \u2014 see abstention.status and open_gaps.",
-  "generated_at": "2026-09-30T04:52:16.576055+00:00",
-  "commit": "47110b8013ca222aa30533b76b08423e0b1b1356",
+  "generated_at": "2026-09-30T06:30:34.042682+00:00",
+  "commit": "93f5788c270e18fb2770077d1fe699573b16b704",
   "commit_repo": "MAIA (git remote: imtarget05/MAIA)",
   "environment": {
     "python": "3.14.7",
@@ -13,13 +13,13 @@
     "llm_in_gate": false
   },
   "integrity": {
-    "golden_set_sha256": "f2c033df6380465eb0986c7c39e6038c2141ac4ab34030e0d850e38c1ae1988d",
+    "golden_set_sha256": "4fba4ab85dfde24801e7b779344a19eb0021b02f9264d8c04ecc3179d9387394",
     "corpus_sha256": "90d01fdae5239b8ce90b3d0648d1474e8345a400ce7d825f22ea2132a7dd198b",
     "golden_groups": 10,
     "corpus_files": 8,
     "corpus_chunks": 134,
     "answerable_rows": 85,
-    "unanswerable_rows": 10
+    "unanswerable_rows": 13
   },
   "thresholds_precommitted": {
     "min_recall_at_3": 0.36,
@@ -243,7 +243,7 @@
     "mode": "dense_only"
   },
   "abstention": {
-    "unanswerable_rows": 10,
+    "unanswerable_rows": 13,
     "unanswerable_with_usable_oracle": 0,
     "false_lexical_support": null,
     "status": "NOT_RUN",
@@ -377,7 +377,7 @@
       "id": "B1",
       "description": "eval golden set is frozen and fingerprinted",
       "status": "PASS",
-      "detail": "10 groups, 95 rows (answerable=85, unanswerable=10), sha256=f2c033df6380465e",
+      "detail": "10 groups, 98 rows (answerable=85, unanswerable=13), sha256=4fba4ab85dfde248",
       "oracle_source": "SHA-256 over sorted (group name + file bytes)",
       "classification": "PRODUCT"
     },
@@ -385,7 +385,7 @@
       "id": "B2",
       "description": "golden set contains an unanswerable subset",
       "status": "PASS",
-      "detail": "10 expect_refusal rows available as the abstention oracle",
+      "detail": "13 expect_refusal rows available as the abstention oracle",
       "oracle_source": "count of rows carrying expect_refusal=true",
       "classification": "PRODUCT"
     },
@@ -409,7 +409,7 @@
       "id": "B5",
       "description": "recall is reported against a measured oracle ceiling",
       "status": "PASS",
-      "detail": "ceiling=0.8 (questions answerable from THIS corpus); hybrid reaches 0.4 = 50% of it; 10 unanswerable rows excluded",
+      "detail": "ceiling=0.8 (questions answerable from THIS corpus); hybrid reaches 0.4 = 50% of it; 13 unanswerable rows excluded",
       "oracle_source": "keyword presence across the entire ingested corpus",
       "classification": "HARNESS"
     },
@@ -433,7 +433,7 @@
       "id": "B8",
       "description": "abstention: unanswerable questions carry a usable oracle",
       "status": "FAIL",
-      "detail": "NOT_RUN: 0 of 10 expect_refusal rows define gold_keywords, so abstention cannot be measured here. A 0/0 result is NOT evidence of correct refusal.",
+      "detail": "NOT_RUN: 0 of 13 expect_refusal rows define gold_keywords, so abstention cannot be measured here. A 0/0 result is NOT evidence of correct refusal.",
       "oracle_source": "count of expect_refusal rows with a non-empty gold_keywords",
       "classification": "HARNESS"
     },

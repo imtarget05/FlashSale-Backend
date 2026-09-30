@@ -147,19 +147,19 @@ n_files = 1 if Path(qpath).exists() else 0
 if direct_rejected == len(bad) and rejected == 0 and survived > 0:
     f3_status = "FAIL"
     f3_detail = (
-        f"SERIES DEFECT. Applied directly, apply_contract_gate rejects "
-        f"{direct_rejected}/{len(bad)} of the malformed record. But in the "
-        f"shipped order (clean_dataframe -> apply_contract_gate) it rejects "
+        f"SERIES DEFECT (pre-fix signature). Applied directly, "
+        f"apply_contract_gate rejects {direct_rejected}/{len(bad)} of the "
+        f"malformed record. But in the shipped order "
+        f"(clean_dataframe -> apply_contract_gate) it rejects "
         f"{rejected}/{len(bad)} and lets {survived} row through, with "
         f"{nan_surviving} NaN Target_Qty. Root cause: clean_dataframe coerces "
-        f"Target_Qty='abc' to float NaN while keeping the row, and the "
-        f"validator then raises TypeError(\"'float' object cannot be "
-        f"interpreted as an integer\") on the NaN. The gate is documented to "
-        f"fail open on validator error, so the exception is swallowed, logged "
-        f"as action=failing_open, and the unvalidated row flows into KPI math "
-        f"as a missing quantity. Either the NaN must not be produced, or the "
-        f"validator must handle NaN as a violation instead of raising. This is "
-        f"a correctness defect in the shipped pipeline, not in the test."
+        f"Target_Qty='abc' to float NaN while keeping the row, pydantic then "
+        f"raises TypeError(\"'float' object cannot be interpreted as an "
+        f"integer\") -- NOT ValidationError -- on the NaN, so the row-level "
+        f"handler never saw it. That TypeError unwound past validate_rows and "
+        f"was swallowed by apply_contract_gate's `except Exception: return df`, "
+        f"logging action=failing_open and passing the unvalidated row into KPI "
+        f"math as a missing quantity."
     )
 else:
     f3_status = "PASS" if rejected == len(bad) else "PARTIAL"
@@ -167,7 +167,13 @@ else:
         f"direct={direct_rejected}/{len(bad)} rejected, "
         f"shipped order={rejected}/{len(bad)} rejected, {survived} survived, "
         f"{nan_surviving} NaN Target_Qty remaining, {n_files} quarantine "
-        f"artefact(s) written."
+        f"artefact(s) written. POST-FIX: the pydantic TypeError on a coerced "
+        f"NaN is now caught in validate_rows and recorded as a "
+        f"__coercion__ violation, so the row is quarantined through the normal "
+        f"contract path instead of escaping to a fail-open handler. This check "
+        f"asserts the shipped ORDER (clean_dataframe -> apply_contract_gate), "
+        f"not the gate in isolation, because the ordering is what produced the "
+        f"defect: testing apply_contract_gate alone reports a healthy gate."
     )
 check("F3", "malformed records cannot reach KPI math via the shipped order",
       f3_status, f3_detail,
