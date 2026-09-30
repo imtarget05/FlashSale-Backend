@@ -1,0 +1,100 @@
+{
+  "probe": "azure container apps live state",
+  "generated_at": "2026-09-30T05:40:51.911990+00:00",
+  "resource_group": "rg-portfolio-evidence",
+  "apps": [
+    {
+      "project": "creditflow",
+      "container_app": "ca-creditflow-api",
+      "recorded_fqdn": "https://ca-creditflow-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+      "recorded_status": "VERIFIED",
+      "control_plane_fqdn": null,
+      "control_plane_fqdn_is_null": true,
+      "provisioning_state": "Succeeded",
+      "ingress_object_present": false,
+      "external_ingress": null,
+      "active_replicas": 1,
+      "running_state": "RunningAtMaxScale",
+      "image": "ghcr.io/imtarget05/creditflow-creditflow-api:b36e28934deaf6ff8ef2235287c3b74290c4a3ea",
+      "probe": {
+        "paths": {
+          "/health": {
+            "code": "200",
+            "seconds": "0.184573"
+          },
+          "/": {
+            "code": "404",
+            "seconds": "0.226026"
+          }
+        },
+        "answered_path": "/health",
+        "code": "200",
+        "error": null
+      },
+      "reachable_now": true
+    },
+    {
+      "project": "factory",
+      "container_app": "ca-factory-api",
+      "recorded_fqdn": null,
+      "recorded_status": null,
+      "control_plane_fqdn": null,
+      "control_plane_fqdn_is_null": true,
+      "provisioning_state": "Succeeded",
+      "ingress_object_present": false,
+      "external_ingress": null,
+      "active_replicas": 1,
+      "running_state": "RunningAtMaxScale",
+      "image": "ghcr.io/imtarget05/factory-data-automation-v-ai-reporting-platform-factory-api:12016c28c65665f8b4876ed543df26368395bb05",
+      "probe": {
+        "paths": {
+          "/": {
+            "code": "200",
+            "seconds": "0.190319"
+          }
+        },
+        "answered_path": "/",
+        "code": "200",
+        "error": null
+      },
+      "reachable_now": true
+    },
+    {
+      "project": "maia",
+      "container_app": "ca-maia-api",
+      "recorded_fqdn": "https://ca-maia-api.wittysand-b748274c.eastasia.azurecontainerapps.io",
+      "recorded_status": "VERIFIED",
+      "control_plane_fqdn": null,
+      "control_plane_fqdn_is_null": true,
+      "provisioning_state": "Succeeded",
+      "ingress_object_present": false,
+      "external_ingress": null,
+      "active_replicas": 1,
+      "running_state": "RunningAtMaxScale",
+      "image": "ghcr.io/imtarget05/maia-maia-api:47110b8013ca222aa30533b76b08423e0b1b1356",
+      "probe": {
+        "paths": {
+          "/health": {
+            "code": "200",
+            "seconds": "0.278846"
+          },
+          "/": {
+            "code": "404",
+            "seconds": "0.183242"
+          }
+        },
+        "answered_path": "/health",
+        "code": "200",
+        "error": null
+      },
+      "reachable_now": true
+    }
+  ],
+  "recorded_versus_live": {
+    "note": "az containerapp show returns fqdn=null and an empty ingress object for all three apps, yet the recorded FQDNs answer HTTP 200 on /health. The control-plane fields are therefore not a reliable reachability signal here and the probe is authoritative.",
+    "control_plane_reports_fqdn_null": 3,
+    "reachable_now": 3,
+    "total": 3
+  },
+  "interpretation": "All recorded endpoints answer HTTP 200 on /health, so the deployed URLs in the evidence files are live and the status=VERIFIED claim still holds. Note that `az containerapp show` reports fqdn=null and an empty ingress object for every app, which would read as 'not deployed' if taken at face value. An earlier draft of this probe concluded the opposite from those fields and would have published a false claim that the services were unreachable. Scaling is also dynamic: a first reading showed ScaledToZero with 0 replicas and a subsequent probe HTTP 200 with 1 replica, which is ordinary consumption-plan behaviour, not an outage."
+}
