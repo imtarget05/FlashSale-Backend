@@ -1,5 +1,11 @@
 > # ⛔ HISTORICAL — DO NOT EXECUTE
 >
+> **HISTORICAL, NON-CANONICAL — superseded by `PORTFOLIO-DECISION-2026-10-01.md`.**
+> Any score, tier or percentage in this file is a superseded historical artifact
+> retained for the record. It is not the current portfolio position and must not
+> be cited as one. Current status vocabulary is VERIFIED / PARTIAL / NOT VERIFIED /
+> NOT_RUN; the per-project completion scores below are not part of it.
+>
 > **This file is a historical record, not a runnable prompt.**
 >
 > Its philosophy is still correct and still binding on how work gets done:
