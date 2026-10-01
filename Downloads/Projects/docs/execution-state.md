@@ -1,5 +1,13 @@
 # Execution State
 
+> **Historical, non-canonical on scoring.** This log is retained as a record of
+> what happened and when. Where it contains a portfolio score, rubric total or
+> average — for example the frozen `tests 13→15, correctness 11→12 = 86` entry
+> below — those numbers are **superseded and non-canonical**, per
+> `PORTFOLIO-DECISION-2026-10-01.md`. Do not quote them as the current position.
+> Test counts, commit SHAs and probe results in this file are historical facts at
+> the SHA named; verify against a current run before repeating any of them.
+
 Cập nhật sau mỗi capability hoàn tất. File này là nguồn sự thật khi context
 dài hoặc phiên làm việc bị ngắt — đọc file này để biết chính xác cần làm gì tiếp.
 
@@ -423,7 +431,10 @@ Canonical base = `MAIA-clean` worktree (HEAD `54b87d89ef350fc24a31427fa265f5942f
   state (2 đỏ / 2 xanh), KHÔNG phải product bug → P0 rỗng, blockers 0 (MODEL A giữ).
   Thêm P1 `maia-citation-flake` (impact_class TEST_RELIABILITY) để quarantine/root-cause.
 - MAIA recompute rubric frozen: tests 13→15, correctness 11→12 (gate8 vẫn PARTIAL) = **86**.
-  Portfolio: average **80.6** (máy bắt 2 lỗi tay mới: 83.4 sai, ≥82 6/7 sai → đúng 5/7),
+  *(Score non-canonical, retired — see the banner at the top of this file. The two
+  sub-counts are kept because they are countable facts; the `86` and the portfolio
+  average are not a current position.)*
+  Portfolio: average **80.6** *(retired)* (máy bắt 2 lỗi tay mới: 83.4 sai, ≥82 6/7 sai → đúng 5/7),
   P0=0/P1=10/P2=6. Breakdown từng project đã sửa thành điểm thật + assertion sum==score.
 - Venv classification (không xóa): Factory/.venv 590M + .venv-fixture 591M (fixture NOT-ignored),
   Apex/.venv 1.6G, MAIA/.venv 705M — untracked + isolated + unreferenced = cleanup candidates.
