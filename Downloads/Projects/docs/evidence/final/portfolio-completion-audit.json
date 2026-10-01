@@ -486,7 +486,7 @@
         "provenance": "VERIFIED. Fetched the in-toto attestation blob from GHCR rather than trusting the build log, because the build log printed two different sha256 values. predicateType https://slsa.dev/provenance/v1; subject digest sha256:e080968afdbda67cd5f8095c46d24fd5afb0cf713b214700496b18341205ad79 matches the deployed platform manifest exactly; buildDefinition records vcs:revision=68e7d15f506de2497183af659087e611af560f79 and vcs:source=https://github.com/imtarget05/MAIA, from Dockerfile.api.",
         "resource_group": "rg-portfolio-evidence",
         "revision": "ca-maia-api--0000005",
-        "sse_on_azure": "AUTH_BLOCKED -- NOT VERIFIED",
+        "sse_on_azure": "NOT VERIFIED -- no authenticated success-stream artifact",
         "traffic_weight": 100,
         "url": "https://ca-maia-api.wittysand-b748274c.eastasia.azurecontainerapps.io"
       },
@@ -614,6 +614,26 @@
         }
       },
       "score": 86,
+      "sse_reconciliation_2026_10_01": {
+        "conclusion": "NOT RECOVERED. The audit status is therefore left NOT VERIFIED rather than promoted on the strength of a narrative report. A conversation report is not a canonical evidence artifact, and reconstructing the record after the fact would recreate exactly the provenance gap this work exists to close.",
+        "cv_wording_rule": "Claim streaming as an implemented, tested, deployed capability. Do NOT claim it was verified end to end on Azure until an artifact exists.",
+        "important_disambiguation": "The phrase 'live-probed' in CV-EVIDENCE-MAP.md refers to the Qdrant NEGATIVE probe -- the one that surfaced the llm.mode crash in the error path and produced a82f24b. It does NOT refer to an authenticated SSE success stream. Do not read it as evidence that streaming was verified end to end on Azure.",
+        "question": "Was the authenticated SSE success stream (meta -> token -> citations -> done) observed on Azure?",
+        "reported_by": "A parallel process stated it ran such a probe against revision ca-maia-api--0000006 and observed meta, token x5, citations, done x1.",
+        "searched": [
+          "/tmp in full -- no probe artifact",
+          "MAIA repo tracked evidence -- none for revision 0000006",
+          "docs/evidence/e2e/azure/ -- contains Factory gate1-7 evidence only",
+          "docs/CV-EVIDENCE-MAP.md -- says only 'live-probed', no event sequence",
+          "ACA console logs -- not retrievable at reconciliation time"
+        ],
+        "what_is_actually_evidence_backed": [
+          "Unauthenticated /chat/stream returns HTTP 401 (probed by this session).",
+          "SSE implementation has 16 automated tests (tests/test_chat_stream_sse.py) passing in CI.",
+          "The stream is deployed: revision ca-maia-api--0000006 carries the SSE code at 100% traffic.",
+          "The error/degradation path was live-probed on Azure and found faulty, then fixed in a82f24b with a regression test."
+        ]
+      },
       "streaming": {
         "adjacent": "47 passed (stream + p1a rate-limit + session_registry + approval)",
         "ci": "run 36819947283 green 13/13 (incl. 16 streaming tests + error-path regression)",
