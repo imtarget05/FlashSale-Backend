@@ -158,7 +158,7 @@ here so it cannot be quietly dropped later.
 | Python suite | 156 passed, 4 xfailed (6.23s) |
 | Node portal | 336 passed, 1 skipped (337 cases) — `npm test` |
 | API smoke | 68/68 passed — `./test-api.sh` |
-| Azure | not public — internal IT portal, by design |
+| Azure | **VERIFIED REACHABLE** — public Azure Container App `ca-helpdesk-portal`, revision `ca-helpdesk-portal--0000001`, `GET /api/health` → `200 OK` in 0.31s on 2026-10-01. Committed artifact: `Enterprise-IT-Helpdesk-Lab/docs/evidence/azure/health-probe-2026-10-01.json`. See §2.6 for the full disclosure and the boundary. |
 
 The three suites are separate runners and are **not summable**. The earlier
 `336/337` header badge implied otherwise and was removed.
@@ -425,7 +425,7 @@ Derived from this map, not from the completion score.
 
 | Repo | CV usable | Why |
 |---|---|---|
-| MAIA | **PARTIAL** | 5 of 8 claims YES; the Azure claim is health-endpoint only, the abstention metric is unmeasured, and citation reliability is an unresolved flake |
+| MAIA | **PARTIAL** | 5 of 8 claims YES; the Azure claim is health-endpoint only, the abstention gate is a **MEASURED DEFECT** (1 of 9 labelled no-answer queries refused, n=9, distributions overlap so no similarity threshold separates the classes), and citation reliability is an unresolved flake. See `../MAIA/eval/README.md:16-40` and `evidence/e2e/gate8b-abstention.json` |
 | Enterprise-IT-Helpdesk-Lab | **PARTIAL** | Safe automation, RBAC and API surface are strong; three capability gaps are documented. A live Azure Container App is verified reachable (`ca-helpdesk-portal--0000001`, probe artifact `Enterprise-IT-Helpdesk-Lab/docs/evidence/azure/health-probe-2026-10-01.json`), but `authMode` is `"lab"`, the webhook is `"mock"`, the PowerShell / AD paths are NOT_RUN, and the automation gateway is not HTTP-wired in the running portal |
 | Factory | **PARTIAL** | Deployment, health semantics and the quality gate are all VERIFIED on the live Azure revision, and the API-key guard is verified to REJECT unauthenticated requests there (401 on a business endpoint and on a non-existent path, 2026-10-01 probe). Still not claimable: an authenticated round-trip against the live secret, Kubernetes is NOT DEPLOYED, the gate's *blocking* branch was not triggered against live data, and `generation_mode` is FALLBACK rather than a real model |
 
