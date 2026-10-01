@@ -278,7 +278,7 @@ and the docs HEAD all differ, and that difference is the honest state:
 
 | Scope | Identity | Status |
 |---|---|---|
-| Azure runtime availability (container, data load, health, business endpoints, metrics) | `4ea75e5` / `ca-factory-api--gate` / `sha256:e792a653…` **or** `be4ace3` / `ca-factory-api--0000002` / `sha256:7c3e81b7…` — not reconciled | **VERIFIED** (that a live revision serves); **NOT VERIFIED** (which one) |
+| Azure runtime availability (container, data load, health, business endpoints, metrics) | `be4ace3` / `ca-factory-api--0000002` / `sha256:7c3e81b7…`, SLSA v1 attestation; stated in both `Factory-.../README.md` and `Factory-.../docs/RECRUITER-EVIDENCE.md`. The earlier `4ea75e5` / `ca-factory-api--gate` / `sha256:e792a653…` was the superseded record of the same gate's earlier deployment; `be4ace3` is its descendant. | **VERIFIED** — one identity serves. Publish as the three-part tuple; a bare `be4ace3` without revision or digest is not canonical. See `PORTFOLIO-DECISION-2026-10-01.md` §5. |
 | Phase C quality gate (gate, quarantine authorization, grounded evidence, provenance, blocked-report semantics, JSON-safe boundary) | `9192da1` (gate `2477cf8`) | **VERIFIED local + test HTTP surface** |
 | The same gate on the live Azure revision | — | **NOT VERIFIED** |
 
