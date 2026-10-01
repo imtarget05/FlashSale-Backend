@@ -38,9 +38,20 @@ Factory   How do I stop AI from reasoning over untrustworthy business data?
 > execution, backed by automated regression tests and running on Azure
 > Container Apps.
 
-> Established a traceable release chain from Git commit through CI and an
-> attested immutable container image to an Azure revision, then verified the
-> deployed service through authenticated and unauthenticated runtime probes.
+> Established a traceable CI/CD release path from Git commit through
+> automated quality gates and an attested immutable container image to an
+> Azure Container Apps revision.
+
+_CI wording is deliberately qualitative and names no job count._ `13/13` would
+go stale the moment a job is added, and the figure `998` belongs to a CI skip
+profile that is not comparable with the `1008` eval milestone. This bullet is
+defensible end to end instead: source SHA → CI run → digest → attestation →
+revision. Gate types named in the evidence: unit tests, lint/type checks,
+prompt and evaluation gates, threshold regression, container delivery.
+
+_"Secret scanning" and "container smoke" are NOT claimed for MAIA._ The audit
+does not carry evidence for those as named MAIA gates. Factory has the stronger
+evidence for that phrasing.
 
 ### Helpdesk — enterprise AI automation
 
