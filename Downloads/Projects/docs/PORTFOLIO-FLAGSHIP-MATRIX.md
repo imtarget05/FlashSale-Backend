@@ -2,6 +2,14 @@
 
 _Derived. Source: `docs/portfolio-matrix.json` + `docs/cv-claim-map.json` · generator: `docs/_gen_flagship_matrix.py` · matrix generated 2026-09-30_
 
+> **Note on quoted claims.** Sections titled *Claims removed from the CV* and
+> *Claims rewritten to match the evidence* quote the old wording **in order to
+> record that it was deleted or weakened**. A number appearing there (for example
+> the removed ApexInspect "99% accuracy") is the retired claim, not a current
+> claim. For what may be said now, see `CV-EVIDENCE-MAP.md` and
+> `PORTFOLIO-DECISION-2026-10-01.md`. No portfolio score is published in this
+> file — `enterprise_score` is null for every project, deliberately.
+
 No number on this page is typed by hand. Regenerate with `python3 docs/_gen_flagship_matrix.py`; if a cell disagrees with the evidence files, the generator fails rather than publishing a softer version.
 
 ## Portfolio at a glance
