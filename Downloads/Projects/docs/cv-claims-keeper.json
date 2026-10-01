@@ -1,12 +1,13 @@
 {
-  "CLAIMS": [
+  "claims": [
     {
       "claim": "Built a flash-sale commerce platform on .NET 10 with 234 automated tests passing (172 unit + 62 integration, 0 failures).",
       "grade": "KEEP",
       "project": "FlashSale-Backend",
       "evidence": "dotnet test, 2026-09-30",
       "metric": "172 unit + 62 integration passed, 0 failed",
-      "note": "Also state the gates. This is the project carrying Gates 1-7, which is a more interesting claim than the test count."
+      "note": "Also state the gates. This is the project carrying Gates 1-7, which is a more interesting claim than the test count.",
+      "commit": "c6f7b3e (archived)"
     },
     {
       "claim": "Designed and shipped an 8-gate acceptance suite where each gate is proven by a negative control, not just a passing assertion.",
@@ -14,7 +15,8 @@
       "project": "portfolio (cross-cutting)",
       "evidence": "docs/gate8-ai-ml-eval.json plus the per-gate evidence files",
       "metric": "7/8 gates VERIFIED, 1 PARTIAL; every gate has a demonstrated failure mode",
-      "note": "Lead with this rather than any individual test count. The negative-control discipline is the transferable part."
+      "note": "Lead with this rather than any individual test count. The negative-control discipline is the transferable part.",
+      "commit": "portfolio (cross-cutting)"
     },
     {
       "claim": "Demonstrated that a quality gate keyed on accuracy alone would have shipped a regression: a decision-threshold change raised accuracy 0.8373 to 0.872 while business cost rose 0.3227 to 0.4853 and recall fell 0.70 to 0.33.",
@@ -22,7 +24,8 @@
       "project": "CreditFlow",
       "evidence": "docs/evidence/e2e/gate8a-creditflow-model-quality.json",
       "metric": "accuracy +3.5pp, normalised business cost +50.5%, recall -37pp",
-      "note": "The single most defensible bullet here. It is a reasoned result about metric design, not a stack list."
+      "note": "The single most defensible bullet here. It is a reasoned result about metric design, not a stack list.",
+      "commit": "f9f8625 (archived)"
     },
     {
       "claim": "Separated retrieval evaluation from generation so a broken retriever cannot hide behind a fluent answer, and proved the gate rejects the exact regression a refactor causes: removing the BM25 leg drops recall@3 from 0.4000 to 0.3059.",
@@ -30,7 +33,8 @@
       "project": "MAIA",
       "evidence": "docs/evidence/e2e/gate8b-maia-rag-quality.json",
       "metric": "recall@3 0.4000 to 0.3059, MRR 0.3000 to 0.2078, gate rejects",
-      "note": "Always pair with the measured oracle ceiling of 0.80, because 17 of 85 answerable questions have no supporting text in the corpus. Quoting 0.40 alone invites 'that seems low', and the honest answer is more interesting than the number."
+      "note": "Always pair with the measured oracle ceiling of 0.80, because 17 of 85 answerable questions have no supporting text in the corpus. Quoting 0.40 alone invites 'that seems low', and the honest answer is more interesting than the number.",
+      "commit": "e566cef"
     },
     {
       "claim": "Deployed three services to Azure Container Apps on a consumption plan and verified the endpoints answer.",
@@ -38,7 +42,8 @@
       "project": "portfolio (cross-cutting)",
       "evidence": "docs/evidence/e2e/azure-live-state.json",
       "metric": "3/3 Container Apps HTTP 200, 1 replica each, no ACR or AKS",
-      "note": "Say 'verified reachable' rather than 'production deployment'. These are scale-to-zero consumption apps for a portfolio, and inflating that is the easiest thing for an interviewer to unpick."
+      "note": "Say 'verified reachable' rather than 'production deployment'. These are scale-to-zero consumption apps for a portfolio, and inflating that is the easiest thing for an interviewer to unpick.",
+      "commit": "portfolio (cross-cutting)"
     },
     {
       "claim": "Fixed a vision-inspection defect where a quality-rejected camera frame was reported as a defect-free board, and where the existing no-verdict path crashed instead of degrading gracefully.",
@@ -56,7 +61,25 @@
       "evidence": "docs/defects/P0-03-factory-validation-fail-open.md + Factory-Data-Automation-v-AI-Reporting-Platform/tests/test_contract_gate_fail_closed.py",
       "metric": "invariant VALIDATION_INFRA_FAILURE != DATA_ACCEPTANCE; 19 regression tests (RED 7 failed / 12 passed); full suite 212 -> 231 passed; audit F3 FAIL -> PASS, now 4/4",
       "commit": "483a648",
-      "note": "Sanctioned wording: 'Added fail-closed data validation and quarantine handling to prevent malformed numeric records from entering production KPI calculations.' The stronger framing is that the fail-open was a DELIBERATE, documented decision that turned out to be wrong at the wrong layer -- and that a negative control preserves its valid intent, so one bad row still quarantines rather than aborting the whole file."
+      "note": "Sanctioned wording: 'Added fail-closed data validation and quarantine handling to prevent malformed numeric records from entering production KPI calculations.' The stronger framing is that the fail-open was a DELIBERATE, documented decision that turned out to be wrong at the wrong layer -- and that a negative control preserves its valid intent, so one bad row still quarantines rather than aborting the whole file. Separately, the same gate found a fourth defect: the quarantine-rate metric divided the append-only DLQ's lifetime row count by the current run's rows, so the rate climbed every run until it blocked reporting on clean data (fixed at be4ace3). None of the three earlier verification layers could have caught it, because it needed a real 33-run-old DLQ meeting a real ETL run."
+    },
+    {
+      "claim": "Removed the LLM from the execution path of an enterprise automation service: the model may only propose a typed action ID plus structured parameters, while authorization, risk classification, human approval and execution remain deterministic application code.",
+      "grade": "KEEP",
+      "project": "Enterprise-IT-Helpdesk-Lab",
+      "evidence": "Enterprise-IT-Helpdesk-Lab/llm-gateway/automation/{models,policy,gateway,executor}.py + llm-gateway/tests/test_automation_gateway.py + llm-gateway/tests/test_automation_mutations.py + docs/SAFE-AUTOMATION.md",
+      "metric": "71 passed / 4 xfailed in llm-gateway/tests at commit 37c5c0d (re-run 2026-09-30, 3.22s). The proposal schema has no command/powershell/script field at all; 9 known smuggling field names are rejected explicitly; the executor builds pwsh argv lists with shell=False and takes the script path from an allowlist, never from the model. RBAC maps to the real portal roles, and authorization is not approval: a HIGH_RISK action still needs a human even for IT_ADMIN. 4 mutation controls (M1-M4) xfail by design, proving the safety tests have teeth (demoting HIGH_RISK, defaulting unknown actions to ALLOW, widening RBAC to VIEWER, accepting a raw command path).",
+      "commit": "37c5c0d",
+      "note": "Sanctioned wording: 'Designed an automation gateway where the LLM can only propose typed business actions; authorization, risk classification, human approval and execution remain deterministic code, with a schema that has no field for a shell command.' NOT claimable, and say it before being asked: live Active Directory mutation was never executed — verification on this host covers gateway policy, RBAC, approval binding, parameter validation, argv construction, PowerShell AST parsing of all 8 scripts, and test doubles for the executor; the AD runtime paths in Disable-ADAccount/New-CompanyUser.ps1 are NOT_RUN."
+    },
+    {
+      "claim": "Implemented a deterministic data-quality gate that authorizes AI report generation only from validated KPI evidence, with quarantine-aware blocking and reproducible provenance.",
+      "grade": "KEEP",
+      "project": "Factory-Data-Automation-v-AI-Reporting-Platform",
+      "evidence": "Factory-Data-Automation-v-AI-Reporting-Platform/app/data_contracts/quality_gate.py + app/ai/reporting.py + tests/test_ai_quality_gate.py + tests/test_reporting_boundary.py + docs/evidence/final/portfolio-completion-audit.json",
+      "metric": "GOOD/BAD/UNKNOWN with UNKNOWN blocking; 28 new tests (19 gate + 9 HTTP boundary); 0 LLM calls asserted when blocked at unit AND HTTP level; evidence snapshot_id snap-38c77a0e903797c5 and canonical payload sha256 68649edbce3c30f3a06c900d12a182d2 identical across two runs on the real 26,119-row dataset; 4 mutation controls (M1-M4) xfail as designed; canonical suite 290 passed / 5 skipped / 4 xfailed at deployed SHA be4ace3 (288 at earlier verified-test SHA 70509fc); verified live on Azure (TWO recorded deployment identities, not merged: revision ca-factory-api--gate at commit 4ea75e5 / digest sha256:e792a653... per this map, and revision ca-factory-api--0000002 at commit be4ace3 / digest sha256:7c3e81b7... per the repo README identities table; which revision serves traffic now is NOT VERIFIED from committed material) where the report response returns generation_mode=FALLBACK, quality.status=GOOD with 5/5 checks ok, evidence snapshot_id snap-61f9a0a3b61dbcc3 and 13 provenance ids with provenance_rejected=0, stable across two consecutive live calls",
+      "commit": "be96306",
+      "note": "Sanctioned wording: 'Implemented and verified a deterministic data-quality gate that authorizes AI reporting only from validated KPI evidence, with quarantine-aware blocking and reproducible provenance. Verified on Azure Container Apps: the live report endpoint returns a deterministic gate decision with grounded KPI evidence and validated provenance.' Say these before being asked: the BAD/UNKNOWN fail-closed branch was never triggered in the cloud (test-covered at unit and HTTP level, but no bad data was pushed into a deployed container); REAL_MODEL is unverified on Azure because no LLM endpoint is reachable from the container, so it correctly reports FALLBACK; The cloud API-key guard IS enforcing: re-probed 2026-10-01, an unauthenticated business endpoint returns 401 and a non-existent path returns 401 rather than 404, which is only possible when a key is configured (app/api/security.py:35-36 passes through when none is), so the secret is provisioned. The authenticated success path against the live secret is NOT VERIFIED because the probe sent no credential; it is covered in tests/test_api_key_auth.py only. Strongest interview angle is not the gate count but that green tests missed three real defects: a serialization boundary failure (numpy.int64 -> HTTP 500), a metric-semantics error (a fallback with no citations scored as a provenance violation), and a deployment-version mismatch (documented scope ahead of the running artifact, later closed by redeploying and re-probing). Separately, the same gate found a fourth defect: the quarantine-rate metric divided the append-only DLQ's lifetime row count by the current run's rows, so the rate climbed every run until it blocked reporting on clean data (fixed at be4ace3). None of the three earlier verification layers could have caught it, because it needed a real 33-run-old DLQ meeting a real ETL run."
     },
     {
       "claim": "Demonstrated that a single similarity threshold cannot express answerability, by measuring four candidate evidence-sufficiency signals and declining to ship any of them.",
@@ -66,6 +89,15 @@
       "metric": "4 signals measured on 9 no-answer / 85 answerable rows. Best reached 0.000 on all 9 no-answer rows but accepted only 55.0% of answerable rows, so it was not shipped",
       "commit": "93f5788",
       "note": "A NEGATIVE result, claimable precisely because it is measured and it changed a decision. Framing: distinguished relevance from answerability, proved the conflation with a measured score overlap, prototyped four replacements, and rejected the best one because it would have refused 45% of valid questions. NOT claimable: any statement that the system abstains correctly. Honest status is 1/9."
+    },
+    {
+      "claim": "Implemented FEFO lot allocation with deterministic tie-breaking for multi-warehouse inventory traceability.",
+      "grade": "KEEP",
+      "project": "MiniERP-Manufacturing-Warehouse",
+      "evidence": "tests/MiniErp.LogicAudit (21 tests, 21 passing)",
+      "metric": "21/21 including input-order stability, quantity excluded from the sort key, and the hash field separator preventing replay collisions",
+      "note": "Be ready to say that 81 of 305 tests in the main suite need an Oracle DSN and were not run. Saying that first is better than being asked.",
+      "commit": "97bb361 (archived)"
     }
   ]
 }

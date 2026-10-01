@@ -147,7 +147,7 @@
         "F3 now PASSES (PASS) — the contract gate was made fail-closed, so the validator no longer lets a malformed row reach KPI math. The earlier 'F3 FAILS' defect entry in this matrix was stale and has been removed rather than kept as a live defect.",
         "Deployed by digest, not tag: revision ca-factory-api--0000002 references sha256:7c3e81b7… and the SLSA attestation resolves to git commit be4ace3, so commit -> workflow run -> digest -> revision -> probe is a closed chain.",
         "The quality gate is VERIFIED on the live Azure revision: the probed report response carries generation_mode=FALLBACK, quality.status=GOOD with 5/5 checks ok, an evidence snapshot_id and 13 provenance ids with provenance_rejected=0. Defect Q1 (cumulative-DLQ quarantine rate, fixed at be4ace3) is closed and re-verified in the cloud: 10 consecutive ETL refreshes, each {'success': true}, left the rate flat at 0.009 with scope=current_etl_run, where the old code would have climbed every run.",
-        "FACTORY_API_KEY is not provisioned in the deployed container, so the cloud revision runs the API-key middleware in its documented open mode. The enforced path is test-covered; production enforcement is not.",
+        "The API-key guard IS enforcing on the live revision (re-probed 2026-10-01): an unauthenticated business endpoint returns 401 and a non-existent path returns 401 rather than 404, which is only possible when a key is configured (app/api/security.py:35-36 passes through when none is), so FACTORY_API_KEY is provisioned. NOT VERIFIED: the authenticated success path against the live secret, because the probe sent no credential. It is covered in tests/test_api_key_auth.py only. Never write 'the production API is protected'.",
         "NOT verified against the live revision: the BAD/UNKNOWN fail-closed branch was never triggered in the cloud. It is covered at unit and HTTP test level, but no bad data was pushed into a deployed container. REAL_MODEL is also unverified on Azure because no LLM endpoint is reachable from the container, which is why it correctly reports FALLBACK.",
         "No cold-start SLA is claimed: probes timed out at 15s and 60s on scale-from-zero before a 90s-budget warm run succeeded, and the revision template configures no probes.",
         "data/raw/* is gitignored, so the fixture is not in the commit. The 290 figure requires running the generator first. A clean clone cannot reproduce it without that step.",
@@ -179,9 +179,10 @@
       "failure_recovery": "restore refuses a tampered archive with an explicit integrity error (H6 PASS, tamper case)",
       "security": "auth-boundary, api-csv injection, XSS escaping, ps1 lint+syntax, 4-shape dynamic-evaluation scan with 0 hits (H7)",
       "observability": "metrics.test.js in the 336",
-      "azure": "NOT_RUN",
+      "azure": "ca-helpdesk-portal — HTTP 200 on /api/health; revision ca-helpdesk-portal--0000001, pod host ca-helpdesk-portal--0000001-576cb78d77-pv2k5, probed 2026-10-01T19:47:00Z in 0.31s. Committed artifact: Enterprise-IT-Helpdesk-Lab/docs/evidence/azure/health-probe-2026-10-01.json. Boundary: authMode \"lab\" (not production identity), webhook \"mock\" (delivery stubbed).",
       "enterprise_score": null,
       "limitations": [
+        "LIVE DEPLOYMENT, NARROWLY BOUNDED. A public Azure Container App is verified reachable, but the probe is health-only and sent no credential, so say 'verified reachable on a live revision' and disclose authMode \"lab\" and the mock webhook whenever the deployment is described. The PowerShell / AD paths are NOT_RUN and the Python automation gateway is proven by pytest only — it is NOT wired to any HTTP route in the running portal.",
         "NO BUSINESS CALENDAR. addMinutes (itsm.js:22) is plain wall-clock arithmetic and no business-hours, working-day or holiday helper is exported. A P1 opened Friday 23:00 gets a 15-minute acknowledge target and is breached before anyone is on shift. Every SLA number is 24x7. Recorded as a capability gap rather than a bug, because 24x7 may be the intended policy and the audit cannot tell intent from defect. What it can say is that business-hours SLA support cannot be claimed from here.",
         "No offboarding-workflow test exists, though offboarding appears in 2 other test files."
       ]
@@ -240,7 +241,7 @@
   ],
   "honest_limits": [
     "enterprise_score is null for every project. A single score across a vision system, an ETL pipeline and an ERP would hide exactly the differences that matter, and no rubric was agreed before the data was collected.",
-    "Four of seven projects have no Azure deployment. The Azure column is NOT_RUN for them rather than assumed.",
+    "Three of seven projects have no Azure deployment. The Azure column is NOT_RUN for them rather than assumed. A fourth (Helpdesk) was added as live on 2026-10-01 on the strength of a committed read-only probe, but its boundary is narrow: authMode \"lab\", mock webhook, no credential in the probe.",
     "No project in this matrix is claimed to be production-ready. Each row's limitations are the operative statement about that project."
   ]
 }

@@ -2,14 +2,22 @@
   "gate": "8B-C",
   "title": "MAIA abstention routing gate",
   "status": "FAIL",
-  "generated_at": "2026-09-30T06:30:30.759566+00:00",
+  "blocking_failures": [
+    "B8B1",
+    "B8B3"
+  ],
+  "generated_at": "2026-10-01T15:15:14.085832+00:00",
+  "production_embedder": true,
+  "overrides_active": [],
+  "real_dataset": true,
   "canonical_claim": "For labeled unanswerable queries, MAIA's evidence gate routes the request to an abstention path instead of authorizing an unsupported answer.",
   "explicitly_not_claimed": "This gate does NOT establish that MAIA never hallucinates. A finite labeled set cannot prove a universal claim, and no test here attempts to.",
   "embedder_mode": "fastembed",
   "evidence_threshold": 0.3,
+  "thresholds_read_from": "gate8b_thresholds.yaml (unmodified)",
   "integrity": {
     "corpus_sha256": "e5129c82d6a333bd3335a8dc1d2f9020d6b212235e9338b1a80210e8a945e5da",
-    "no_answer_sha256": "721406f239ce307942c754ed36be3edf4728509cc9b0a6e529cdab4beaa22e01",
+    "no_answer_sha256": "7f4f1ce44d077f2232160eba1919b2cc880db19a626269ac37313b8c1b3a130a",
     "no_answer_rows": 9
   },
   "abstention": {
@@ -23,6 +31,16 @@
     "separable": false,
     "max_noanswer_top_dense": 0.6957,
     "min_answerable_top_dense": 0.314
+  },
+  "conclusion": {
+    "headline": "MEASURED DEFECT",
+    "abstention": "1/9 labelled no-answer queries were refused by the evidence gate (abstention rate 0.1111, n=9). The denominator is stated because 0.1111 on its own is not a result -- with n=9 one row moves it by 0.1111.",
+    "separable_by_similarity": false,
+    "separability_evidence": "max no-answer top_dense=0.6957 vs min answerable top_dense=0.3140. The classes overlap, so NO value of SIMILARITY_THRESHOLD separates them: any threshold low enough to refuse every no-answer query also refuses the weakest genuine answer. A cosine score on the top chunk measures topical similarity, not answerability.",
+    "why_not_a_threshold_change": "This verdict was NOT reached by tuning a threshold. The gate's only YAML threshold is ABSTENTION.min_answerable_authorized, it was read from gate8b_thresholds.yaml unmodified, and the similarity threshold is the configured SIMILARITY_THRESHOLD, also unmodified. No abstention_rate target was chosen and then satisfied.",
+    "why_not_a_data_change": "No golden row was relabelled to make this gate report a better number. Corpus labels were decided by reading the documents in data/enterprise and recording what was checked in each row's `verification` block. Where a label was contradicted by the corpus the row was marked REJECTED (NOANS-009); where the corpus supports the row the label was left alone.",
+    "consequence": "Closing this gap requires a DIFFERENT DECISION SIGNAL, not threshold tuning: answer-span verification (does the retrieved chunk contain a value of the type the question asks for) or an NLI entailment check (does this passage support this claim). docs/eval/proto_answerability_signals.py reached the same conclusion before this gate was run.",
+    "cross_reference": "docs/eval/proto_answerability_signals.py:7-8"
   },
   "negative_controls": {
     "lowered_threshold_detected": true,

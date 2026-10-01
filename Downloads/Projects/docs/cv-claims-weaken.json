@@ -1,13 +1,14 @@
 {
-  "CLAIMS": [
+  "claims": [
     {
       "claim": "Built a manufacturing data platform processing 1M+ rows through a medallion pipeline with 212 passing tests.",
       "grade": "WEAKEN",
       "project": "Factory-Data-Automation-v-AI-Reporting-Platform",
       "evidence": "docs/evidence/e2e/factory-canonical-audit.json",
-      "metric": "212 passed on 458,166 production rows (1,064,166 generated total)",
-      "rewrite_to": "Manufacturing medallion pipeline (Raw/Silver/Gold/Mart) verified on 458k production rows, 212 tests passing. Quarantine DLQ and rerun idempotency both proven; the contract-gate fail-open path is a known open defect.",
-      "why": "The dataset is synthetic, and 212/212 only reproduces after running the generator because data/raw/* is gitignored. Naming the open defect unprompted is stronger than being asked about it."
+      "metric": "medallion audit: 212 passed on 458,166 production rows (1,064,166 generated total). Canonical suite at deployed SHA be4ace3: 290 passed / 5 skipped / 4 xfailed; 288 passed / 5 skipped / 4 xfailed at the earlier verified-test SHA 70509fc, whose descendant be4ace3 added the 2 cumulative-DLQ regression tests. 288 is history, not a rival figure.",
+      "rewrite_to": "Manufacturing medallion pipeline (Raw/Silver/Gold/Mart) verified on 458k production rows. Canonical suite: 290 passing tests plus 5 skipped and 4 xfailed mutation controls at the deployed commit be4ace3 (the earlier verified-test SHA 70509fc measured 288 before the 2 cumulative-DLQ regression tests were added, so the figure is always published with its SHA). Quarantine DLQ and rerun idempotency both proven; the contract gate is fail-closed and its audit check F3 passes.",
+      "why": "The dataset is synthetic, and the counts only reproduce after running the generator because data/raw/* is gitignored. The 212 figure is historical: it predates the fail-closed fix and the Phase C quality gate, so quoting it as today's number is stale. The earlier 'known open defect' wording must go — F3 is fixed. Naming the gitignored-fixture caveat up front is stronger than being asked about it.",
+      "commit": "2d4fd07"
     },
     {
       "claim": "Real-time ONNX inference at 22 fps with sub-50ms latency.",
@@ -16,7 +17,8 @@
       "evidence": "docs/evidence/e2e/apex-canonical-audit.json",
       "metric": "P50 43.8ms / P95 81.6ms / P99 174.8ms; per-camera cost 44.1ms to 41.0ms from 1 to 8 cameras",
       "rewrite_to": "ONNX/YOLOv8 defect detection at 640x640: measured P50 43.8ms, P99 174.8ms on CPU, with per-camera cost flat from 1 to 8 cameras. Corrupt-model fail-closed behaviour verified.",
-      "why": "Real-time and sub-50ms are not supported. P50 is 43.8ms but P99 is 174.8ms, so quoting only P50 hides a 4x tail. The multi-camera figure is a sequential microbenchmark and must be labelled as one."
+      "why": "Real-time and sub-50ms are not supported. P50 is 43.8ms but P99 is 174.8ms, so quoting only P50 hides a 4x tail. The multi-camera figure is a sequential microbenchmark and must be labelled as one.",
+      "commit": "6e0475c (archived)"
     },
     {
       "claim": "Implemented enterprise SLA management for IT service desk.",
@@ -25,7 +27,8 @@
       "evidence": "docs/evidence/e2e/helpdesk-canonical-audit.json",
       "metric": "SLA targets exact to the second; 336 tests passing; tampered-backup restore refused",
       "rewrite_to": "ITSM platform with 336 passing tests: exact SLA target computation, enforced ticket state machine with terminal states, and checksum-verified backup restore that refuses a tampered archive. All SLA accounting is 24x7 wall-clock; there is no business calendar.",
-      "why": "Enterprise SLA implies business-hours awareness, and there is none: a P1 opened Friday 23:00 breaches before anyone is on shift. Naming the 24x7 limitation is required for the claim to be true."
+      "why": "Enterprise SLA implies business-hours awareness, and there is none: a P1 opened Friday 23:00 breaches before anyone is on shift. Naming the 24x7 limitation is required for the claim to be true.",
+      "commit": "37c5c0d"
     },
     {
       "claim": "Implemented secret rotation, SBOM generation and supply-chain attestation across the deployment pipeline.",
@@ -34,15 +37,8 @@
       "evidence": "Gate 6 and Gate 7 evidence files",
       "metric": "Gate 7 VERIFIED; Gate 6 is 16 PASS / 2 NOT_RUN",
       "rewrite_to": "Secret rotation with observability verification (16 of 18 checks passed; 2 not run because Log Analytics was unavailable) plus SBOM and image attestation (Gate 7, fully verified).",
-      "why": "Saying 18/18 would be false. The 2 NOT_RUN are a real gap and presenting them costs less than being caught on it."
-    },
-    {
-      "claim": "Implemented FEFO lot allocation with deterministic tie-breaking for multi-warehouse inventory traceability.",
-      "grade": "KEEP",
-      "project": "MiniERP-Manufacturing-Warehouse",
-      "evidence": "tests/MiniErp.LogicAudit (21 tests, 21 passing)",
-      "metric": "21/21 including input-order stability, quantity excluded from the sort key, and the hash field separator preventing replay collisions",
-      "note": "Be ready to say that 81 of 305 tests in the main suite need an Oracle DSN and were not run. Saying that first is better than being asked."
+      "why": "Saying 18/18 would be false. The 2 NOT_RUN are a real gap and presenting them costs less than being caught on it.",
+      "commit": "c6f7b3e (archived)"
     }
   ]
 }

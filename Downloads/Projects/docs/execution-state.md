@@ -402,3 +402,147 @@ Canonical base = `MAIA-clean` worktree (HEAD `54b87d89ef350fc24a31427fa265f5942f
   (`M .gitignore` + `?? k8s/` chờ chủ repo commit), stub `k8s-manifests/`, mọi `docs/_*.py`.
 - Root hiện tại: 10 repo + `docs/` + stub `k8s-manifests/`. Chi tiết: `docs/_HANDOFF-2026-09-29-cleanup3.md`.
 
+## 2026-09-30 — REPORT INTEGRITY PASS (audit the audit, không sửa code/điểm)
+
+- Source of truth: `docs/evidence/final/portfolio-completion-audit.json`
+- Generator: `docs/_gen_portfolio_audit_v2.py` (assert mọi tổng; `--self-test` 5 negative controls PASS)
+- Báo cáo: `docs/PORTFOLIO-COMPLETION-AUDIT-v2.md` (toàn bộ số tổng hợp derive từ JSON)
+- Kết quả: average **80.0** (v1 ghi 79.6 sai), ≥82 **5/7**, Azure live **3/7** (3/5 top-five),
+  P0=1/P1=9/P2=6, MODEL A → critical blockers=1. Badge về P2 duy nhất.
+- MAIA: `CANONICAL_RESOLVED_WITH_DIVERGENCE` — 1 repo duy nhất; đã audit worktree
+  `MAIA-clean@47110b8` (= deployed image); main `MAIA/@93f5788` mới hơn 3+ commits
+  (answerability evals, collect 932 tests) chưa audit full. Điểm 82 gắn với SHA đã audit.
+- Apex wording guard: accuracy `NOT FULLY MEASURED`; "2/15 QC" chỉ là board-level
+  observation, cấm gọi recall/miss-rate/precision/F1/mAP.
+
+## 2026-09-30 — MAIA canonical re-audit @93f5788 (detached worktree, đã xóa sau audit)
+
+- Full suite @93f5788 (venv-maia, worktree CLEAN): **929 passed, 0 failed, 3 skipped, 152.67s**.
+  Drift 860→932 do 3 file test MCP prompts/session-registry mới (không phải gate8 tests).
+- P0 citation test: xanh tại 93f5788 VÀ xanh khi re-run tại 47110b8 → flake phụ thuộc
+  state (2 đỏ / 2 xanh), KHÔNG phải product bug → P0 rỗng, blockers 0 (MODEL A giữ).
+  Thêm P1 `maia-citation-flake` (impact_class TEST_RELIABILITY) để quarantine/root-cause.
+- MAIA recompute rubric frozen: tests 13→15, correctness 11→12 (gate8 vẫn PARTIAL) = **86**.
+  Portfolio: average **80.6** (máy bắt 2 lỗi tay mới: 83.4 sai, ≥82 6/7 sai → đúng 5/7),
+  P0=0/P1=10/P2=6. Breakdown từng project đã sửa thành điểm thật + assertion sum==score.
+- Venv classification (không xóa): Factory/.venv 590M + .venv-fixture 591M (fixture NOT-ignored),
+  Apex/.venv 1.6G, MAIA/.venv 705M — untracked + isolated + unreferenced = cleanup candidates.
+- Baseline freeze: json `6074b47e`, generator `a76cefa9`, v2md `6b2c2541` (sha256).
+
+## 2026-09-30 — P1 helpdesk-flask-env RESOLVED (secondary executor, verified)
+
+- Vấn đề: 2 isolation tests BLOCKED (flask thiếu) + ~42 tests bị importorskip âm thầm.
+- Làm: venv mới `.venv-helpdesk` theo đúng requirements của repo
+  (portal requirements.txt + gateway requirements-dev.txt) + `.venv*/` ignore.
+  Không sửa app code.
+- Evidence: `137 passed, 0 failed, 0 skipped` (trước: 82+2blocked+11skip).
+- JSON + v2 regen, self-tests A-E PASS. Helpdesk 68→71 (tests 11→13, correctness 11→12).
+- Portfolio: 567/7 = **81.0**, P1 10→9. Lock file giữ baseline cũ (không sửa lịch sử).
+
+## 2026-09-30 — P1 helpdesk-restore-drill RESOLVED (secondary executor, verified)
+
+- Drill thật trên /tmp fixture (pwsh 7.6.5, không đụng live data):
+  backup+sha256+retention PASS; restore IDENTICAL + evidence PASS;
+  N1 (target tồn tại) / N2b (tamper valid-JSON) / N3 (missing) / N4 (corrupt)
+  đều từ chối ghi. 5/5 scripts parse 0 lỗi.
+- AD cmdlets (Disable/New-CompanyUser): NOT_RUN — cần ActiveDirectory module,
+  không fake. Backup-ADConfiguration: honest degradation (code-read).
+- Evidence: `docs/evidence/helpdesk/restore-drill/`. Không sửa app code.
+- JSON + v2 regen, self-tests PASS. Helpdesk 71→72 (reliability 7→8).
+- Portfolio: 568/7 = **81.1**, P1 9→8.
+
+## 2026-09-30 — P1 fac-api-auth RESOLVED (secondary executor, verified)
+
+- Recon: FastAPI + single shared API key (`X-Factory-API-Key`), no JWT/roles
+  (roles/expiry N/A by design — key holder = full access).
+- TDD: 11 request-level tests qua TestClient thật; test prefix-bypass ĐỎ
+  trước fix (`/metrics-evil` lọt qua middleware → 404 thay vì 401).
+- Fix tối thiểu: exact-or-boundary safe-path matching (`is_safe_path`) trong
+  `app/api/security.py`. Không đụng route/CORS/lifespan.
+- Full suite: 231→242 passed, 0 failed. Factory 84→85 (security 7→8).
+- Portfolio: 569/7 = **81.3**, P1 8→7. JSON + v2 regen, self-tests PASS.
+
+## 2026-09-30 — WORKSPACE ARCHIVE (non-flagship freeze)
+
+- XÓA LOCAL (remote-verify + tag + clean-clone, ~2.6GB): MiniERP, CreditFlow,
+  FlashSale (fast-forward main), ApexInspect (3 archive branch — remote main
+  DIVERGED, không force; push sang `archive/local-20260930`).
+- Tag `portfolio-freeze-2026-09-30` trên cả 4, ls-remote khớp SHA.
+- GIỮ (no remote, không xóa): manufacturing-contracts, spark-benchmark,
+  k8s-manifests (xóa stub README của tôi vì repo đã re-add manifests).
+- MAIA-clean worktree XÓA sau khi giữ `k8s/10-maia-api.yaml` + `.venv-maia`
+  sang MAIA/ (+1 dòng .gitignore). MAIA main đã tiến (Cline active).
+- plans/tasks/tools: workspace của Cline, không đụng.
+
+## 2026-09-30 — FINAL ARCHIVE CLEANUP (3 repo no-origin)
+
+- Tạo 3 PRIVATE repo mới (gh auth imtarget05 OK): manufacturing-contracts,
+  spark-benchmark, k8s-manifests. Push main (no force) + tag freeze + ls-remote
+  khớp SHA + clean-clone verify (k8s YAML parse 4/4 OK).
+- Xóa local cả 3 (~1MB). Manifest: `docs/archive-deletion-manifest.json`.
+- Workspace còn đúng: MAIA, Helpdesk, Factory, docs, plans, tasks, tools.
+- WORKSPACE_CLEANUP = COMPLETE. Freeze policy: 7 repo archived không phát
+  triển tiếp trừ khi JD yêu cầu.
+
+## 2026-09-30 — VENV LOCK + FLAGSHIP CLOSEOUT KICKOFF
+
+- Venv: KHÓA, không xóa thêm. `Factory/.venv`, `Apex/.venv`, `MAIA/.venv` là
+  IN_USE_EVIDENCE_ENV (có TEST_EXECUTION_REPORT dùng tới). Chỉ xóa
+  `Factory/.venv-fixture` (591M, zero ref). Recreate-then-delete để đợt riêng.
+- Cline closeout 3 flagship (Helpdesk→Factory→MAIA) theo block lệnh user.
+  OpenCode (tôi): verifier + secondary P1 NGOÀI flagship (tránh overlap MAIA/Cline).
+- Claim hiện tại của tôi: `cf-metrics-evidence` (CreditFlow).
+
+## 2026-09-30 — FACTORY PHASE C CLOSEOUT (quality gate, frozen)
+
+Final Phase C SHA: **`9192da1ab9897f46787c4b49692a199e19d0e183`** (main, clean).
+Gate implementation commit: `2477cf80466d62aad8f769b486856afb72c10454`. Hai commit
+sau đó (`b0358ba`, `9192da1`) chỉ sửa wording/docs, không đổi hành vi. Suite
+giống nhau ở cả ba.
+Canonical suite: **288 passed / 5 skipped / 4 xfailed**. Con supersession: 213,
+231, 242, 258 — those đều là historical evidence của các phase trước.
+
+4 xfailed = M1–M4 mutation controls, PHẢI xfail. Chúng monkeypatch từng gate
+check thành no-op rồi assert gate lọt data xấu; nếu chúng pass thì mutation
+chưa thật sự bị vô hiệu hoá. Không được gộp vào passed, cũng không được tính
+là failed.
+
+Hai identity VERIFIED, tách bạch, không gộp:
+
+| Scope | Identity | Status |
+|---|---|---|
+| Azure runtime availability | `ca-factory-api--0000001` / commit `4e4e8b58` / digest `sha256:675fd4f2…` | VERIFIED (health, data, kpis, report, metrics 200; `/metrics-evil` 404) |
+| Phase C quality gate | commit `9192da1` (gate: `2477cf8`) | VERIFIED local + test HTTP surface |
+| Quality gate **trên Azure live** | — | **NOT VERIFIED** (live revision chạy `4e4e8b58`, có trước gate) |
+| Cloud AuthN enforcement | `X-Factory-API-Key` (`app/api/security.py:40`) | **REJECT verified live** (re-probe 2026-10-01: `/api/v1/kpis` → 401, `/api/v1/metrics-evil` → 401 chứ không phải 404 ⇒ guard enforcing ⇒ secret ĐÃ provision). **Chưa verify**: success path với secret thật (probe cố tình không gửi credential), và cơ chế secret được provision. Xem `docs/PORTFOLIO-DECISION-2026-10-01.md` |
+| RBAC | — | NOT RUN (không có role model, không bịa) |
+| Cold-start SLA | — | NOT CLAIMED (probe timeout 15s/60s khi scale-from-zero; template `probes: []`) |
+| Prometheus alert firing | — | NOT RUN (có 6 rule + 16 alerts, chưa quan sát alert nào fire) |
+| Kubernetes | — | NOT DEPLOYED (108 file dưới `k8s/`, không có cluster) |
+
+Bằng chứng Azure cho gate chưa deploy: probe live `/api/v1/report` trả về keys
+`date, key_metrics, problems, recommendations, risks, root_causes, summary,
+title` và **không có** `generation_mode`, `quality`, `evidence`, `provenance`.
+Đây là fact kiểm chứng được, không phải suy đoán.
+
+Determinism: 2 run liên tiếp trên dataset thật 26 119 dòng → `snapshot_id`
+`snap-38c77a0e903797c5` và payload sha256 `68649edbce3c30f3a06c900d12a182d2`
+giống hệt. Field duy nhất biến động là `quality.evaluated_at_epoch` (wall
+clock, cố ý đặt tên riêng để không ai nhầm là nội dung deterministic).
+
+Ba lỗi thật mà test xanh không bắt được, đây là giá trị lớn nhất của phase này:
+
+1. **Serialization boundary** — `GET /api/v1/report` trả 500 vì `jsonable_encoder`
+   không serialize được `numpy.int64` nằm trong nested KPI dict. 19 test gate
+   không bắt vì fixture dùng Python int thuần. Fix ở boundary + regression test
+   duyệt từng leaf.
+2. **Metric semantics** — `provenance_rejected` đếm thiếu key provenance là
+   violation, nên mọi deterministic fallback đều bị phạt 1 điểm. Sửa thành
+   "no provenance emitted" ≠ "provenance violation".
+3. **Deployment-version mismatch** — tài liệu mô tả scope vượt trước artifact
+   đang chạy.
+
+Sau closeout: Factory FROZEN. Không mở thêm feature. `factory-gate-azure-deploy`
+ghi là P2 OPTIONAL, không phải apply blocker — redeploy chỉ để mở khả năng claim
+mạnh hơn, không phải để giữ APPLY_READY.
+
