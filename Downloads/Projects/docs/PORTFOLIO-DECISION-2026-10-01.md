@@ -131,11 +131,15 @@ two cloud claims, by the read-only probes of 2026-10-01.
 - No cold-start SLA is claimed; the revision template configures no probes.
 - `data/raw/*` is gitignored, so the suite count holds only against the blessed
   generated fixture. A clean clone cannot reproduce it without that step.
-- **Which deployed SHA is currently serving traffic is NOT reconciled.** The
-  committed material records two: `4ea75e5` / `ca-factory-api--gate` /
-  `sha256:e792a653…` and `be4ace3` / `ca-factory-api--0000002` /
-  `sha256:7c3e81b7…`. Both contain the gate. Re-probe the revision name before
-  publishing either. Recorded rather than smoothed over.
+- **Deployed identity — RESOLVED, not reconciled.** One identity serves and it is
+  stated in both repo-B files (`README.md` and `docs/RECRUITER-EVIDENCE.md`):
+  commit `be4ace3`, revision `ca-factory-api--0000002`, image digest
+  `sha256:7c3e81b7…`, with a SLSA v1 attestation. The earlier
+  `4ea75e5` / `ca-factory-api--gate` / `sha256:e792a653…` line was a superseded
+  record of the same gate's earlier deployment, not a rival identity: both
+  revisions contain the gate, and `be4ace3` is the descendant that supersedes.
+  Publish the identity as the three-part tuple above; a bare `be4ace3` without the
+  revision or the digest is not the canonical form.
 
 ### The 290 / 288 test-count ambiguity — RESOLVED
 
@@ -156,7 +160,30 @@ than inherited.
 
 ### MAIA
 
-- The abstention metric is **unmeasured**. 0 usable no-answer rows.
+- **Abstention is now MEASURED, and the measurement is a defect — not a score.**
+  Earlier drafts of this section said "unmeasured, 0 usable no-answer rows"; both
+  halves were wrong and are corrected here. Gate 8B-C reports `status: "FAIL"` and
+  exits non-zero. **That failure is the finding** — nothing was tuned to change it,
+  and the gate's thresholds were read from `gate8b_thresholds.yaml` unmodified.
+  - **1 of 9** labelled no-answer queries was refused by the evidence gate
+    (abstention rate 0.1111, n=9). The denominator is stated because 0.1111 alone
+    is not a result: with n=9 a single row moves it by 0.1111.
+  - The corpus is labelled with **7 usable rows of 9**
+    (7 usable + 1 pending NOANS-008 + 1 rejected NOANS-009).
+  - The classes are **not separable by similarity**: max no-answer `top_dense`
+    0.6957 is **above** min answerable 0.3140, so the distributions overlap and
+    **no value of `SIMILARITY_THRESHOLD` separates them**. Closing this needs a
+    different decision signal (answer-span verification or an NLI entailment
+    check), not threshold tuning.
+  - Honest status: **MEASURED DEFECT / PARTIAL.** This is a stated pass/fail
+    against a gate, not a score, a grade, or a percentage of capability. Authoritative
+    sources: `Projects/MAIA/eval/README.md:16-40` and
+    `Projects/docs/evidence/e2e/gate8b-abstention.json`.
+- **Azure revision ambiguity: NOT VERIFIED.** Two committed MAIA docs name
+  different Container App revisions, and **which of them actually serves traffic
+  is NOT VERIFIED** — this document did not resolve it and does not assert an
+  answer. Until a probe pins the serving revision, MAIA's Azure claim stays
+  health-endpoint only and no revision number may be published.
 - The Azure claim is health-endpoint only.
 - Citation reliability is an unresolved flake.
 - "One final remediation wave" means closing those, then freezing.
