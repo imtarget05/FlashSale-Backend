@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-30T05:42:56.864687+00:00",
+  "generated_at": "2026-09-30T17:32:22.037843+00:00",
   "provenance": {
     "policy": "every cell is read from a file produced by an actual run; README claims are not used and unknown values are NOT_RUN",
     "sources": {
@@ -66,13 +66,13 @@
     {
       "project": "FlashSale-Backend",
       "domain": "Flash-sale commerce (.NET 10)",
-      "commit": "c6f7b3e",
+      "commit": "c6f7b3e (archived)",
       "tests": "172 unit + 62 integration, 0 failed (dotnet test, 2026-09-30)",
       "e2e": "NOT_RUN",
-      "failure_recovery": "VERIFIED \u2014 Gates 1-5 (migration/RTO-RPO/overload/DLQ/revision rollback)",
-      "security": "VERIFIED \u2014 Gates 6 (secret rotation) and 7 (SBOM/attestation)",
+      "failure_recovery": "VERIFIED — Gates 1-5 (migration/RTO-RPO/overload/DLQ/revision rollback)",
+      "security": "VERIFIED — Gates 6 (secret rotation) and 7 (SBOM/attestation)",
       "observability": "correlated spans per request, 7-stage tracer",
-      "azure": "NOT_RUN \u2014 no Container App deployed for this repo",
+      "azure": "NOT_RUN — no Container App deployed for this repo",
       "enterprise_score": null,
       "limitations": [
         "Gate 2 RTO/RPO was measured against a local PostgreSQL restore, not a managed cloud database. The number is a local-drill figure.",
@@ -82,13 +82,13 @@
     {
       "project": "CreditFlow",
       "domain": "Credit-risk model quality (.NET/Python)",
-      "commit": "8965cd4",
+      "commit": "f9f8625 (archived)",
       "tests": "Gate 8A model-quality gate, 13/13 checks",
       "e2e": "full harness exit code verified on both a bad and an approved candidate",
       "failure_recovery": "NOT_RUN",
       "security": "AUTHZ test suite (test_auth_boundary.py) in the 212/212 run",
       "observability": "NOT_RUN",
-      "azure": "ca-creditflow-api \u2014 HTTP 200 on /health",
+      "azure": "ca-creditflow-api — HTTP 200 on /health",
       "enterprise_score": null,
       "limitations": [
         "The model is LogisticRegression on a synthetic 5,000-row dataset. Evidence covers regression detection, not production credit risk.",
@@ -98,24 +98,27 @@
     {
       "project": "MAIA",
       "domain": "Enterprise RAG assistant (Python/FastAPI)",
-      "commit": "3dbd4b8",
-      "tests": "Gate 8B retrieval 14/15; Gate 8B-C abstention 9/11",
+      "commit": "68e7d15",
+      "tests": "canonical suite 1008 passed / 3 skipped / 3 xfailed / 0 failed at 68e7d15, reproduced in a clean worktree with -rsxX and independently confirmed by GitHub Actions run 36804255801 (13/13 jobs) on the same SHA. The 3 skips are opt-in integrations by design: live LLM (LIVE_TESTS=1) and two Postgres cases (MAIA_POSTGRES_DSN). The 3 xfails are mutation controls NC1-NC3 that must never pass. SUPERSEDED, do not publish: 983/7/3 (a80e330), 987 (2d2eaf9), 997 (dirty tree). All predate the _canonical_texts measurement fix, so any context_precision / faithfulness_proxy / faithfulness_embed / contact_in_ctx figure recorded before 68e7d15 is stale.",
       "e2e": "full harness exit code verified on both a bad and an approved candidate",
       "failure_recovery": "retrieval falls back to dense-only; generation retried once then abstains",
       "security": "multi-tenant isolation: cross-tenant retrieval refused (B8B5 PASS)",
       "observability": "7-stage tracer with correlation_id, per-query reliability registry",
-      "azure": "ca-maia-api \u2014 HTTP 200 on /health",
+      "azure": "ca-maia-api — HTTP 200 on /health",
       "enterprise_score": null,
       "limitations": [
-        "ABSTENTION IS MEASURED AND FAILS. The production query() path authorises 8 of 9 labeled no-answer queries, and the no-answer vs answerable score distributions overlap (0.6957 vs 0.3140), so no SIMILARITY_THRESHOLD value separates them. Cosine similarity of the top chunk measures topical similarity, not answerability.",
-        "Retrieval recall@3 is 0.4 against a measured oracle ceiling of 0.8, because 17 of 85 answerable questions have no supporting text anywhere in the corpus. Quoting the raw recall as a quality score would be misleading.",
-        "This project does not claim to eliminate hallucinations and no test here attempts to."
-      ]
+        "minReplicas=0, so a cold start is expected and no cold-start SLA is claimed",
+        "Abstention metric UNMEASURED: audit reports usable=0 of 9 no-answer rows, so no refusal-accuracy percentage may be published",
+        "3 skips are opt-in integrations (live LLM, Postgres), skipped by design",
+        "Threshold sweep is calibration, not a gate, and its agent axis is inert: evaluate_group(agent=False) never reads AGENT_EVIDENCE_THRESHOLD, so 72 of 81 combinations are duplicates. Do not read the agent axis as measured.",
+        "Azure still runs an older image; runtime identity is NOT yet reconciled with 68e7d15"
+      ],
+      "ci": "GREEN 13/13 at 68e7d15, run 36804255801. pyright 0 errors with no optional-dep suppressions; threshold-regression terminates and asserts instead of sweeping for ~10.4h."
     },
     {
       "project": "ApexInspect-AI",
       "domain": "Industrial PCB defect vision (ONNX/YOLOv8 + FastAPI)",
-      "commit": "e8e42da",
+      "commit": "6e0475c (archived)",
       "tests": "150 passed / 1 skipped (the skip needs a VCR cassette or live GROQ key)",
       "e2e": "NOT_RUN",
       "failure_recovery": "corrupt model -> degraded=True, use_onnx=False (A4 PASS); PLC bridge 7 tests pass once pymodbus is installed",
@@ -125,31 +128,36 @@
       "enterprise_score": null,
       "limitations": [
         "A5b FAILS and it is a product defect. src/vision/detector.py:313 returns [] on the quality-reject branch, but infer() documents None as 'no verdict' and [] as 'inspected, no defects found'. A frame rejected for low laplacian variance is therefore reported to the caller as a clean board. In defect inspection that is a false negative: a blank frame or camera fault reads as a part with no defects.",
-        "Latency was measured on random-noise frames: P50 43.781ms, P95 81.637ms, P99 174.772ms. That bounds compute cost and says nothing about detection accuracy, which needs labelled frames.",
+        "Latency was measured on random-noise frames: P50 42.746ms, P95 47.162ms, P99 48.927ms. That bounds compute cost and says nothing about detection accuracy, which needs labelled frames.",
         "The multi-camera figure is a sequential microbenchmark, so it does not establish behaviour under thread or process contention."
       ]
     },
     {
       "project": "Factory-Data-Automation-v-AI-Reporting-Platform",
-      "domain": "Manufacturing data pipeline (medallion + marts)",
-      "commit": "be9e5d3",
-      "tests": "212 passed / 5 skipped, on a 458,166-row generated dataset",
+      "domain": "Manufacturing data pipeline (medallion + marts) + quality-gated AI reporting",
+      "commit": "be96306",
+      "tests": "canonical run: 290 passed / 5 skipped / 4 xfailed (the 4 xfailed are M1-M4 mutation controls that must never pass); earlier medallion audit: 212 passed / 5 skipped on a 458,166-row generated dataset",
       "e2e": "Raw->Silver->Gold->Mart exercised end to end in the suite",
       "failure_recovery": "quarantine DLQ, dedupe, parquet fallback; rerun on identical input is .equals() identical (F1 PASS)",
-      "security": "auth_boundary, csv_injection suites in the 212",
-      "observability": "structured JSON log events per ETL stage",
-      "azure": "ca-factory-api \u2014 HTTP 200 on /",
+      "security": "auth_boundary, csv_injection suites; ApiKeyMiddleware enforced path via TestClient (401 no key / 200 with key)",
+      "observability": "structured JSON log events per ETL stage, plus quality_gate_decision / report_blocked / report_provenance",
+      "azure": "ca-factory-api — HTTP 200 on /; revision ca-factory-api--0000002 runs be4ace3 by digest sha256:7c3e81b7…, SLSA-attested, quality gate VERIFIED live",
       "enterprise_score": null,
       "limitations": [
-        "F3 FAILS and it is a defect in the shipped pipeline. Applied directly, apply_contract_gate rejects a malformed record 1/1. In the order the pipeline actually uses, clean_dataframe coerces Target_Qty='abc' to a float NaN while keeping the row; the validator then raises TypeError(\"'float' object cannot be interpreted as an integer\") on that NaN; and because the gate is documented to fail open on validator error, the exception is swallowed, logged as action=failing_open, and the unvalidated row reaches KPI math as a missing quantity.",
-        "data/raw/* is gitignored, so the fixture is not in the commit. The 212/212 figure requires running the generator first. A clean clone cannot reproduce it, and a 30-row local stub fails 2 tests.",
+        "F3 now PASSES (PASS) — the contract gate was made fail-closed, so the validator no longer lets a malformed row reach KPI math. The earlier 'F3 FAILS' defect entry in this matrix was stale and has been removed rather than kept as a live defect.",
+        "Deployed by digest, not tag: revision ca-factory-api--0000002 references sha256:7c3e81b7… and the SLSA attestation resolves to git commit be4ace3, so commit -> workflow run -> digest -> revision -> probe is a closed chain.",
+        "The quality gate is VERIFIED on the live Azure revision: the probed report response carries generation_mode=FALLBACK, quality.status=GOOD with 5/5 checks ok, an evidence snapshot_id and 13 provenance ids with provenance_rejected=0. Defect Q1 (cumulative-DLQ quarantine rate, fixed at be4ace3) is closed and re-verified in the cloud: 10 consecutive ETL refreshes, each {'success': true}, left the rate flat at 0.009 with scope=current_etl_run, where the old code would have climbed every run.",
+        "FACTORY_API_KEY is not provisioned in the deployed container, so the cloud revision runs the API-key middleware in its documented open mode. The enforced path is test-covered; production enforcement is not.",
+        "NOT verified against the live revision: the BAD/UNKNOWN fail-closed branch was never triggered in the cloud. It is covered at unit and HTTP test level, but no bad data was pushed into a deployed container. REAL_MODEL is also unverified on Azure because no LLM endpoint is reachable from the container, which is why it correctly reports FALLBACK.",
+        "No cold-start SLA is claimed: probes timed out at 15s and 60s on scale-from-zero before a 90s-budget warm run succeeded, and the revision template configures no probes.",
+        "data/raw/* is gitignored, so the fixture is not in the commit. The 290 figure requires running the generator first. A clean clone cannot reproduce it without that step.",
         "No Airflow or Spark execution was performed. The DAG file and parity tests are covered, but no scheduler or cluster actually ran."
       ]
     },
     {
       "project": "MiniERP-Manufacturing-Warehouse",
       "domain": "ERP/WMS (.NET 8, Oracle)",
-      "commit": "4107e51",
+      "commit": "97bb361 (archived)",
       "tests": "224 passed / 81 environment-blocked by the Oracle DSN guard, plus 21/21 in the new DB-free logic audit",
       "e2e": "NOT_RUN",
       "failure_recovery": "Helpdesk integration is fail-soft by design: unavailable downstream yields DELIVERY_UNAVAILABLE with the ERP result unchanged",
@@ -165,8 +173,8 @@
     {
       "project": "Enterprise-IT-Helpdesk-Lab",
       "domain": "ITSM + asset management (Node 26)",
-      "commit": "f320d59",
-      "tests": "336 passed / 1 skipped (live LLM adversarial test needs LIVE_TESTS=1); audit adds 6/7",
+      "commit": "c6671ce",
+      "tests": "three independent suites, not summable: python 156 passed / 4 xfailed (the xfails are mutation controls M1-M4); node 336 passed / 1 skipped; API smoke 68/68.",
       "e2e": "agent-runtime, factory-delivery, e2e/ directory in the 336",
       "failure_recovery": "restore refuses a tampered archive with an explicit integrity error (H6 PASS, tamper case)",
       "security": "auth-boundary, api-csv injection, XSS escaping, ps1 lint+syntax, 4-shape dynamic-evaluation scan with 0 hits (H7)",
@@ -195,11 +203,39 @@
       "severity": "high: false negative in defect inspection"
     },
     {
+      "project": "MAIA",
+      "id": "W0.2-QDRANT-DEPLOYMENT",
+      "defect": "Qdrant is required by the primary serving path (build_stack -> QdrantStore, whose constructor hard-probes connectivity and raises), but ACA revision 0000005 provides no QDRANT_URL, so it resolves to localhost:6333. Root cause verified: the ACA deployment is manual and bypasses scripts/deploy.sh, which declares QDRANT_URL REQUIRED. The app starts clean and /health returns 200, so startup success carries no signal about retrieval.",
+      "fix_direction": "Provision a real Qdrant runtime and supply QDRANT_URL through a controlled deployment path FIRST, then make /ready truthful, then negative-test Qdrant loss. Do NOT flip /ready to 503 before Qdrant exists: that yields a permanently unready deployment that still cannot serve retrieval.",
+      "severity": "high for a system",
+      "status": "VERIFIED_ROOT_CAUSE (verdict A, confidence MEDIUM)",
+      "limitation": "Business-path reproduction is NOT_RUN: every retrieval endpoint requires auth and the demo password is in a write-only Azure secret, so the final link is inferred from code rather than observed."
+    },
+    {
+      "project": "MAIA",
+      "id": "W0-JWT-EPHEMERAL-SECRET",
+      "defect": "JWT_SECRET_KEY is absent on ACA revision 0000005, so the runtime generates an ephemeral random signing key. Tokens and sessions are expected to become invalid after a process restart; with minReplicas=0 every scale-to-zero cycle is a restart.",
+      "fix_direction": "Not to be set by hand. Doing so would add another manually-managed static secret, deepening the problem. Wave 1 must resolve it through identity and a secrets architecture.",
+      "severity": "P1",
+      "status": "VERIFIED_CONFIGURATION_DEFECT, do_not_fix_yet"
+    },
+    {
+      "project": "MAIA",
+      "id": "DEPLOYMENT-CONTRACT-DRIFT",
+      "defect": "The deployment contract exists but is not the path actually used. deploy.sh requires QDRANT_URL; .env.example omits it; the build evidence labels the image 'self-contained (no Qdrant)'; ACA runtime has no QDRANT_URL; and there is no ACA deployment automation in the repo.",
+      "fix_direction": "A process defect, not a single missing variable. Fixing QDRANT_URL alone closes this incident while leaving the next required variable free to fail identically. Wave 1 must make the deployment path enforce the contract; Wave 6 must reproduce the environment from code.",
+      "severity": "P1",
+      "status": "VERIFIED_PLATFORM_PROCESS_DEFECT"
+    }
+  ],
+  "resolved_defects": [
+    {
       "project": "Factory-Data-Automation-v-AI-Reporting-Platform",
       "id": "F3",
-      "defect": "clean_dataframe produces NaN that makes the contract validator raise, and the gate fails open, so malformed rows reach KPI math",
-      "fix_direction": "either stop producing the NaN or treat NaN as a violation instead of letting the validator raise",
-      "severity": "high: a silent numeric gap in a production ledger"
+      "defect": "clean_dataframe produced NaN that made the contract validator raise, and the gate failed open, so malformed rows could reach KPI math as a missing quantity",
+      "fix": "contract gate made fail-closed: a validator exception is now a DATA_ACCEPTANCE violation, not infrastructure noise. 19 regression tests, one of which is a negative control proving a single bad row still quarantines rather than aborting the file",
+      "evidence": "docs/evidence/factory/tests + canonical audit F3 = PASS",
+      "was_severity": "high: a silent numeric gap in a production ledger"
     }
   ],
   "honest_limits": [

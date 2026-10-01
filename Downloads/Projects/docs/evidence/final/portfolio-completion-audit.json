@@ -1,0 +1,833 @@
+{
+  "assertions_expected": {
+    "almost_done": 5,
+    "average_completion": 81.3,
+    "azure_live_count": 3,
+    "critical_blockers": 0,
+    "done_count": 0,
+    "p0_total": 0,
+    "p1_total": 7,
+    "p2_total": 9,
+    "partial_count": 2,
+    "project_count": 7,
+    "projects_ge_82": 5
+  },
+  "audit_model": {
+    "blocker_semantics": "MODEL_A",
+    "blocker_semantics_note": "P0 implies critical_blocker. The MAIA citation red test resolved (green at 93f5788 full suite AND on re-run at 47110b8) -> P0 empty -> blockers 0. Severity/impact split: P0 means ACCEPTANCE_INCONSISTENCY (red canonical test), NOT production outage/security hole.",
+    "priority_rule": "A task id may appear in at most one of P0/P1/P2. Stale badge count is P2 documentation hygiene, not P1.",
+    "scores": "MAIA recomputed on 93f5788 with the frozen 100-point rubric (tests 13->15 green suite, correctness 11->12 expanded tested surface, gate still PARTIAL). All other scores frozen."
+  },
+  "generated_by": "docs/_gen_portfolio_audit_v2.py",
+  "projects": [
+    {
+      "azure": {
+        "expected_public": true,
+        "live": true,
+        "probe": {
+          "body_sha256": "aa5c315c219f6022c8cd8152e1be8ea049f05407f4f1ada747ec215041d9d50f",
+          "duration_s": 26,
+          "http": 200,
+          "timestamp": "2026-09-30T09:53:48Z",
+          "url": "https://ca-creditflow-api.wittysand-b748274c.eastasia.azurecontainerapps.io/health"
+        }
+      },
+      "branch": "main",
+      "breakdown": {
+        "core": 14,
+        "correctness": 14,
+        "deploy": 6,
+        "docs": 4,
+        "e2e": 11,
+        "observability": 6,
+        "reliability": 9,
+        "security": 8,
+        "tests": 14
+      },
+      "canonical_sha": "f9f8625f198e39ae850dce470c8654bcce32469d",
+      "classification": "ENTERPRISE-ORIENTED",
+      "cv_ready": "YES",
+      "done": false,
+      "interview_ready": "YES",
+      "linkedin_ready": "YES",
+      "name": "CreditFlow",
+      "p0": [],
+      "p1": [
+        {
+          "id": "cf-metrics-evidence",
+          "title": "/metrics + alert-firing runtime evidence"
+        },
+        {
+          "id": "cf-deploy-evidence",
+          "title": "Disbursement retry/DLQ evidence on Azure path"
+        }
+      ],
+      "p2": [
+        {
+          "id": "cf-badge-count",
+          "title": "README badge 357 -> 405 passed"
+        }
+      ],
+      "remote": "https://github.com/imtarget05/CreditFlow.git",
+      "repo_path": "/Users/mainguyenbinhtan/Downloads/Projects/CreditFlow",
+      "runs": {
+        "prior": {
+          "failed": 0,
+          "head": "c2d87d3",
+          "passed": 410,
+          "skipped": 5,
+          "source": "docs/execution-state.md Phase 7"
+        },
+        "run_a": {
+          "blocked": 0,
+          "command": "python3 -m pytest tests/ -q -p no:cacheprovider --ignore=tests/test_verify_deploy.py --ignore=tests/test_deploy_pages.py",
+          "duration_s": 148.83,
+          "failed": 0,
+          "head": "8c75391 (test evidence; canonical advanced to f9f8625 = +k8s manifest only, no code/test change)",
+          "passed": 405,
+          "runtime": "system python 3.14.7",
+          "skipped": 2,
+          "timestamp": "2026-09-30"
+        }
+      },
+      "score": 86,
+      "worktree_status": "DIRTY (untracked k8s/ from dir-cleanup; no code change)"
+    },
+    {
+      "azure": {
+        "expected_public": false,
+        "live": false,
+        "reason": "no public endpoint expected; deploy stops at docker-compose"
+      },
+      "branch": "main",
+      "breakdown": {
+        "core": 13,
+        "correctness": 14,
+        "deploy": 5,
+        "docs": 4,
+        "e2e": 13,
+        "observability": 6,
+        "reliability": 8,
+        "security": 8,
+        "tests": 14
+      },
+      "canonical_sha": "c6f7b3e1d647eb95dc59d587e45456ee24c4f376",
+      "classification": "ENTERPRISE-ORIENTED",
+      "cv_ready": "YES",
+      "done": false,
+      "interview_ready": "YES",
+      "linkedin_ready": "YES",
+      "name": "FlashSale-Backend",
+      "p0": [],
+      "p1": [
+        {
+          "id": "fs-restore-rto",
+          "title": "Restore drill + publish RTO/RPO"
+        }
+      ],
+      "p2": [
+        {
+          "id": "fs-testcontainers-pin",
+          "title": "Pin Testcontainers version (NU1603 warnings)"
+        }
+      ],
+      "remote": "https://github.com/imtarget05/FlashSale-Backend.git",
+      "repo_path": "/Users/mainguyenbinhtan/Downloads/Projects/FlashSale-Backend",
+      "runs": {
+        "prior": null,
+        "run_a": {
+          "blocked": 0,
+          "command": "dotnet test tests/UnitTests + dotnet test tests/IntegrationTests (Testcontainers Redis/PG/RabbitMQ)",
+          "duration_s": 19,
+          "failed": 0,
+          "head": "c6f7b3e1d647eb95dc59d587e45456ee24c4f376",
+          "passed": 234,
+          "runtime": "dotnet 10.0.400",
+          "skipped": 0,
+          "timestamp": "2026-09-30"
+        }
+      },
+      "score": 85,
+      "worktree_status": "CLEAN"
+    },
+    {
+      "accuracy_wording_guard": "Five identities are recorded and are not merged. (1) Docs HEAD is 77e5d14, a docs-only commit that moved the OCI identifier out of README without touching runtime. (2) Test evidence is be96306: 290 passed / 5 skipped / 4 xfailed, independently reproduced in an isolated worktree, and the 4 xfails are M1-M4 mutation controls that must never pass. (3) The deployed source is be4ace3, which carries the DLQ run-scope fix; the live revision ca-factory-api--0000002 reports scope=current_etl_run, a field that exists only after that fix. (4) The artifact digest is sha256:7c3e81b7..., linked to be4ace3 by CI buildx provenance, SLSA v1 attestation verified. (5) The quality gate is VERIFIED on the live GOOD path (status GOOD, 5/5 checks, 13 provenance entries, 0 rejected); the BAD/UNKNOWN fail-closed branch is NOT RUN against live data, to avoid corrupting the demo dataset. generation_mode is FALLBACK, not a real model: no Ollama endpoint is reachable from the container. Production AuthN is NOT VERIFIED: FACTORY_API_KEY is unset, so the live API is open by design; the guard is verified in tests and a controlled container. Cold-start SLA is NOT CLAIMED. CI is GREEN 8/8 at 77e5d14, including the container-smoke job observed green on hosted CI for the first time. Superseded historical figures 258/5 and 288/5 must not be published as current.",
+      "artifact_digest": "sha256:7c3e81b7698b7625ef44d7f76ee594d1201acb8622a5497b15d1401e5ed853e2",
+      "azure": {
+        "attestation": "VERIFIED (SLSA v1, CI-recorded)",
+        "authn_enforcement": "NOT VERIFIED in production. FACTORY_API_KEY is not set on the app, so the live API is open by design. The guard itself is verified in tests and in a controlled container (401 without a key, 200 with one).",
+        "azure_gate_verification": {
+          "contains_gate_commit": "2477cf80466d62aad8f769b486856afb72c10454",
+          "contains_q1_fix_commit": "be4ace3ad14330cb92c40d5a63fa27c0544ae0ac",
+          "endpoints": {
+            "/api/v1/alerts": "200, 16 active alerts",
+            "/api/v1/data": "200, 5 datasets",
+            "/api/v1/health": "200, healthy, data_loaded true",
+            "/api/v1/kpis": "200, daily_production 90 rows",
+            "/api/v1/report": "200, generation_mode FALLBACK",
+            "/metrics": "200, factory_data_up 1",
+            "/metrics-evil": "404, safe-path matching is exact-or-boundary"
+          },
+          "gate_decision": {
+            "checks_ok": 5,
+            "checks_total": 5,
+            "evidence_snapshot_id": "snap-61f9a0a3b61dbcc3",
+            "generation_mode": "FALLBACK",
+            "kpi_names_n": 8,
+            "provenance_ids_n": 13,
+            "provenance_rejected": 0,
+            "quality_status": "GOOD",
+            "sources": [
+              "inventory",
+              "machine",
+              "production",
+              "quality",
+              "workers"
+            ]
+          },
+          "live_determinism": "Two consecutive live calls returned the same evidence snapshot_id (snap-61f9a0a3b61dbcc3), differing only in quality.evaluated_at_epoch.",
+          "method": "direct HTTP probe of the live ingress FQDN, never a config read",
+          "not_verified_here": [
+            "BAD/UNKNOWN blocking was NOT exercised against the live revision. No bad data was pushed into a deployed container on purpose; it is covered at unit and HTTP test level only.",
+            "REAL_MODEL mode is NOT verified on Azure: no LLM endpoint is reachable from the container, so the live endpoint correctly reports FALLBACK.",
+            "No zero-LLM-call assertion was made against the live revision.",
+            "FACTORY_API_KEY is not provisioned, so the cloud API-key middleware runs in its documented open mode.",
+            "No cold-start SLA is claimed."
+          ],
+          "q1_closed_on_the_cloud": {
+            "counterfactual_measured_locally": "The same defect on the local 26,119-row dataset reached rate=0.555 after 33 ETL runs, which is what triggered the fix.",
+            "defect": "the gate divided the append-only DLQ's lifetime row count by the current run's rows, so the rate climbed every run until it permanently blocked reports on clean data",
+            "proof_without_dirtying_production": "Ten consecutive POST /api/v1/refresh calls, each returning {'success': true} in 3.6-7.0s, with /api/v1/report read after each one. The quarantine rate was 0.009 on all 11 observations, the check detail carried scope=current_etl_run every time, and quality stayed GOOD at 5/5 checks.",
+            "why_this_proves_it": "Every refresh re-runs the ETL, which re-quarantines the same bad rows and appends them to the DLQ again, so the lifetime file total grew each time while the rate stayed flat; the old code would have produced a monotonically rising rate. DERIVED, not directly observed: dlq_cumulative_rows is an internal audit field and is not exposed in the response body."
+          },
+          "verified_at": "2026-09-30, revision ca-factory-api--0000002"
+        },
+        "cloud_authn_enforcement": "NOT_VERIFIED",
+        "cloud_authn_note": "Still open mode. The gate revision does not set FACTORY_API_KEY, so ApiKeyMiddleware passes traffic through. The enforced path is covered by tests/test_api_key_auth.py; production enforcement still needs the secret.",
+        "cold_start_note": "The gate revision answered warm probes in 0.2-0.3s, but an earlier revision timed out at 15s and 60s on scale-from-zero before a 90s budget succeeded. No cold-start SLA is claimed and the template configures no probes.",
+        "cold_start_sla": "NOT_CLAIMED",
+        "deployed_source_sha": "be4ace3",
+        "endpoints_verified": {
+          "/": 200,
+          "/api/v1/alerts": 200,
+          "/api/v1/data": 200,
+          "/api/v1/health": 200,
+          "/api/v1/kpis": 200,
+          "/api/v1/report": 200,
+          "/metrics": 200
+        },
+        "expected_public": true,
+        "image_digest": "sha256:7c3e81b7698b7625ef44d7f76ee594d1201acb8622a5497b15d1401e5ed853e2",
+        "live": true,
+        "metrics_observed": {
+          "factory_alerts_active": 16,
+          "factory_data_up": 1
+        },
+        "min_replicas": 1,
+        "probe": {
+          "body": "{\"status\":\"healthy\",\"timestamp\":\"2026-09-30T15:35:31.959599\",\"data_loaded\":true}",
+          "body_sha256": "954073c5e505932d",
+          "http": 200,
+          "note": "Warm probe against the gate revision. Health is the weakest signal in this service: a previous incident reported healthy while business endpoints 500'd, so health alone is never cited as proof of readiness here.",
+          "revision_at_probe": "ca-factory-api--gate",
+          "timestamp": "2026-09-30T15:35:31Z",
+          "url": "https://ca-factory-api.wittysand-b748274c.eastasia.azurecontainerapps.io/api/v1/health"
+        },
+        "quality_gate_observed": {
+          "checks_all_ok": "5/5",
+          "cloud_bad_unknown_blocking": "NOT_RUN",
+          "dlq_run_scoped_fix": "VERIFIED (quarantine_rate detail reports scope=current_etl_run, which only exists after be4ace3)",
+          "gate_on_azure": "VERIFIED",
+          "generation_mode": "FALLBACK",
+          "good_path": "VERIFIED",
+          "note": "generation_mode is FALLBACK, not REAL_MODEL: no Ollama endpoint is reachable from the container, so the deterministic path produced the report. The gate authorised it; no LLM did.",
+          "provenance_entries": 13,
+          "provenance_rejected": 0,
+          "quality_status": "GOOD"
+        },
+        "quality_gate_on_azure": "VERIFIED",
+        "quality_gate_on_azure_note": "Verified on ca-factory-api--0000002 (be4ace3), which is the deployed source. The earlier verification on ca-factory-api--gate (4ea75e5) was superseded because that revision still carried defect Q1.",
+        "report_determinism": "Consecutive /api/v1/report calls differ only in quality.evaluated_at_epoch (wall clock). checks, evidence, provenance and generation_mode are byte-identical, which is the determinism claim Phase C pinned.",
+        "revision": "ca-factory-api--0000002",
+        "runtime_identity": {
+          "active_replicas": 1,
+          "created": "2026-09-30T17:14:02+00:00",
+          "deploy_tag_note": "An image for the pushed HEAD (be96306) was also built, but that SHA is documentation-only. The deployment references be4ace3, pinned by tag factory-gate-dlq-fix-2026-09-30 so the workflow's commit-SHA image naming produced an exact-match artifact.",
+          "deployed_by_digest_not_tag": true,
+          "deployed_by_digest_note": "The Container App references the digest, not a mutable tag, so the running artifact stays identified by content whatever happens to tags later.",
+          "deployed_source_sha": "be4ace3ad14330cb92c40d5a63fa27c0544ae0ac",
+          "image_digest": "sha256:7c3e81b7698b7625ef44d7f76ee594d1201acb8622a5497b15d1401e5ed853e2",
+          "image_reference": "ghcr.io/imtarget05/factory-data-automation-v-ai-reporting-platform-factory-api@sha256:7c3e81b7698b7625ef44d7f76ee594d1201acb8622a5497b15d1401e5ed853e2",
+          "provenance": {
+            "attestation_verified": true,
+            "build_trigger": "workflow_dispatch on tag factory-gate-dlq-fix-2026-09-30",
+            "builder": "build-container.yml",
+            "chain": "commit be4ace3 -> workflow run -> image digest -> Azure revision -> live probe",
+            "predicate_type": "https://slsa.dev/provenance/v1",
+            "rekor_tlog_timestamp": "2026-10-01T00:07:51+07:00",
+            "resolved_dependency_git_commit": "be4ace3ad14330cb92c40d5a63fa27c0544ae0ac",
+            "verify_command": "gh attestation verify oci://ghcr.io/imtarget05/factory-data-automation-v-ai-reporting-platform-factory-api:be4ace3ad14330cb92c40d5a63fa27c0544ae0ac --repo imtarget05/Factory-Data-Automation-v-AI-Reporting-Platform",
+            "workflow_run_id": "36749098632"
+          },
+          "provisioning_state": "Provisioned",
+          "revision": "ca-factory-api--0000002",
+          "superseded_revisions": [
+            "ca-factory-api--gate (4ea75e5) - carried defect Q1",
+            "ca-factory-api--0000001 (4e4e8b58) - predated the gate entirely"
+          ],
+          "traffic_weight": 100
+        },
+        "state": "RunningAtMaxScale",
+        "traffic_weight": 100,
+        "verified_runtime_scope": [
+          "health, data, kpis, report, metrics all HTTP 200 (warm probe)",
+          "/metrics-evil 404 - safe-path matching is exact-or-boundary",
+          "quality gate live: generation_mode / quality / evidence / provenance all present in the deployed report response"
+        ]
+      },
+      "branch": "main",
+      "breakdown": {
+        "core": 13,
+        "correctness": 13,
+        "deploy": 6,
+        "docs": 4,
+        "e2e": 12,
+        "observability": 6,
+        "reliability": 9,
+        "security": 8,
+        "tests": 14
+      },
+      "canonical_sha": "77e5d140b951c27bd1e141bbd55eb4457f8e9e0d",
+      "ci": {
+        "conclusion": "GREEN 8/8",
+        "container_smoke": "PASS — observed green on hosted CI for the first time; previously the job existed but was always skipped because it declares needs: [lint, test] and lint failed",
+        "gitleaks": "PASS",
+        "head_sha": "77e5d14",
+        "jobs": {
+          "API Image Ships Usable Data": "success",
+          "Dependency audit (pip-audit)": "success",
+          "Docker Build": "success",
+          "Lint & Code Quality": "success",
+          "Secret scanning (gitleaks)": "success",
+          "Security Scan": "success",
+          "Unit Tests & Coverage": "success"
+        },
+        "ruff_check": "PASS",
+        "ruff_format_check": "PASS",
+        "run_id": 36759179545
+      },
+      "classification": "STRONG PORTFOLIO",
+      "cv_ready": "YES",
+      "deployed_source_sha": "be4ace3",
+      "dlq_fix_sha": "be4ace3",
+      "docs_head": "77e5d140b951c27bd1e141bbd55eb4457f8e9e0d",
+      "done": false,
+      "gitleaks_fix_sha": "ee420237b43352512cdc804800422e0c751ed127",
+      "gitleaks_readme_sha": "77e5d14",
+      "interview_ready": "YES",
+      "linkedin_ready": "YES",
+      "name": "Factory-Data-Automation-v-AI-Reporting-Platform",
+      "p0": [],
+      "p1": [],
+      "p2": [
+        {
+          "id": "factory-alert-firing",
+          "title": "NOT RUN: 6 Prometheus alert rules exist in observability/prometheus/alerts.yml and the API serves 16 alerts, but no alert has been observed firing through Prometheus/Alertmanager. Non-blocking for application readiness."
+        },
+        {
+          "id": "factory-kubernetes",
+          "title": "NOT DEPLOYED / NOT RUN: 108 files are tracked under k8s/. No cluster, no apply evidence, no README claim. They are not evidence that Factory runs on Kubernetes."
+        },
+        {
+          "id": "factory-rbac",
+          "title": "NOT RUN: this app has an API-key guard (app/api/security.py) verified to return 401 without a key and 200 with one, but no per-role AuthZ/RBAC model exists and none was invented."
+        },
+        {
+          "id": "factory-gate-cloud-negative",
+          "title": "NOT RUN on Azure: the quality gate was observed on the live GOOD path (status GOOD, 5/5 checks, 13 provenance entries). The BAD/UNKNOWN fail-closed branch was NOT triggered against the live deployment, to avoid corrupting demo data. It is verified in the HTTP-level regression suite and locally in a container. Do not claim the cloud blocked bad data."
+        }
+      ],
+      "phase_c_sha": "b0358ba45ef861ed256888131d29e07e18f4a16a",
+      "remote": "https://github.com/imtarget05/Factory-Data-Automation-v-AI-Reporting-Platform.git",
+      "repo_path": "/Users/mainguyenbinhtan/Downloads/Projects/Factory-Data-Automation-v-AI-Reporting-Platform",
+      "runs": {
+        "prior": {
+          "ci_conclusion": "success (lint, gitleaks, tests, security, docker, image-data)",
+          "ci_run": "36741560374",
+          "command": "GitHub Actions CI/CD Pipeline",
+          "failed": 0,
+          "head": "70509fc2e3bf58a0f9bf48bd2f348ce4dc6c6f19",
+          "passed": 288,
+          "skipped": 5,
+          "source": "70509fc (CI lint/security hygiene, recorded this session)",
+          "timestamp": "2026-10-01",
+          "xfailed": 4
+        },
+        "run_a": {
+          "blocked": 0,
+          "ci_conclusion": "success",
+          "ci_run": "36759179545",
+          "command": "GitHub Actions CI/CD Pipeline",
+          "duration_s": 120.0,
+          "failed": 0,
+          "head": "77e5d140b951c27bd1e141bbd55eb4457f8e9e0d",
+          "note": "HEAD moved past 70509fc via parallel track (quarantine scoping fix be4ace3 + redeploy record 2d4fd07 + readme 77e5d14); CI green on the new HEAD. Prior CI-green base 70509fc (run 36741560374: ruff/format/gitleaks-allowlist fixes, no runtime change) retained below as prior. Unit-tests job: 290 passed / 5 skipped / 4 xfailed.",
+          "passed": 290,
+          "repo": "imtarget05/Factory-Data-Automation-v-AI-Reporting-Platform",
+          "skipped": 5,
+          "timestamp": "2026-10-01",
+          "xfailed": 4
+        }
+      },
+      "runtime_revision": "ca-factory-api--0000002",
+      "score": 85,
+      "verified_test_sha": "be96306",
+      "worktree_status": "CLEAN at 77e5d14. docs_head is a docs-only commit (README provenance summary); it does not change the runtime artifact, so no redeploy is implied by it."
+    },
+    {
+      "accuracy_wording_guard": "FULL MODEL ACCURACY = NOT FULLY MEASURED. PRELIMINARY QC OBSERVATION (2/15 boards rejected = 13.3% board-level observation) = MEASURED but reproducibility disputed in docs/RECRUITER-EVIDENCE.md. NEVER call it recall/miss-rate/precision/F1/mAP.",
+      "azure": {
+        "expected_public": false,
+        "live": false,
+        "reason": "k8s manifest is http-echo test double by design; real API never deployed"
+      },
+      "branch": "main",
+      "breakdown": {
+        "core": 13,
+        "correctness": 13,
+        "deploy": 5,
+        "docs": 5,
+        "e2e": 11,
+        "observability": 6,
+        "reliability": 8,
+        "security": 8,
+        "tests": 14
+      },
+      "canonical_sha": "6e0475c618e494c4be1fadb43af01001cdf148e4",
+      "classification": "STRONG PORTFOLIO",
+      "cv_ready": "YES",
+      "done": false,
+      "interview_ready": "YES",
+      "linkedin_ready": "YES",
+      "name": "ApexInspect-AI",
+      "p0": [],
+      "p1": [
+        {
+          "id": "apex-accuracy",
+          "title": "Labeled validation set + measure precision/recall"
+        }
+      ],
+      "p2": [],
+      "remote": "https://github.com/imtarget05/ApexInspect-AI.git",
+      "repo_path": "/Users/mainguyenbinhtan/Downloads/Projects/ApexInspect-AI",
+      "runs": {
+        "prior": {
+          "failed": 0,
+          "head": "unknown (manifest SPEC)",
+          "passed": 137,
+          "skipped": 2,
+          "source": "docs/_gen_manifest_apex.py D3-APEX-BATCH (tests/FULL.xml)"
+        },
+        "run_a": {
+          "blocked": 0,
+          "command": ".venv-apex2/bin/python -m pytest tests/ -q -p no:cacheprovider",
+          "duration_s": 6.69,
+          "failed": 0,
+          "head": "6e0475c618e494c4be1fadb43af01001cdf148e4",
+          "passed": 210,
+          "runtime": "venv python 3.12.13",
+          "skipped": 2,
+          "timestamp": "2026-09-30"
+        }
+      },
+      "score": 83,
+      "worktree_status": "CLEAN"
+    },
+    {
+      "azure": {
+        "app": "ca-maia-api",
+        "artifact_digest_index": "sha256:5d603584ff85a8270082583ee1e61dac38ab22d6e2e3009339228ffadd098323",
+        "artifact_digest_platform_amd64": "sha256:e080968afdbda67cd5f8095c46d24fd5afb0cf713b214700496b18341205ad79",
+        "attestation_manifest_digest": "sha256:f17855df1fd96e66d6e538d38ff081d00bce4331f97c24fdba0713dac90e88af",
+        "cold_start_observation": {
+          "cold_first_request_s": 21.8,
+          "cold_second_request_s": 0.21,
+          "interpretation": "Cold start costs ~21.8s versus ~0.2-0.3s warm, about two orders of magnitude. This is the measured consequence of minReplicas=0: a cost/availability trade-off, NOT an outage, because every request returned HTTP 200. No cold-start SLA is claimed and this figure must never be presented as p99 latency.",
+          "method": "Waited for the revision to report ScaledToZero (cooldown 300s), then issued the first request of a new cycle.",
+          "warm_s": [
+            0.19,
+            0.3,
+            0.24
+          ]
+        },
+        "cooldown_period_s": 300,
+        "deployed_source_sha": "68e7d15f506de2497183af659087e611af560f79",
+        "endpoints_verified": {
+          "GET /health": "HTTP 200 {\"status\":\"ok\",\"version\":\"0.4.0\"}",
+          "GET /ready": "HTTP 200 BUT body {\"status\":\"degraded\", cannot reach Qdrant at localhost:6333}. NOT counted as verified.",
+          "POST /auth/login (wrong password)": "HTTP 401",
+          "POST /chat/stream (unauthenticated)": "HTTP 401 {\"detail\":\"Not authenticated\"} -- auth contract holds"
+        },
+        "image_reference": "ghcr.io/imtarget05/maia-maia-api:68e7d15f506de2497183af659087e611af560f79@sha256:5d603584ff85a8270082583ee1e61dac38ab22d6e2e3009339228ffadd098323",
+        "live": true,
+        "max_replicas": 1,
+        "min_replicas": 0,
+        "pinned_by_digest": true,
+        "previous_revision": "ca-maia-api--0000003 (deprovisioned)",
+        "probe": {
+          "body": "{\"status\":\"ok\",\"version\":\"0.4.0\"}",
+          "body_sha256": "82e530f7dc4baa2fba75cd5af142c72026b732fd30682d861d12fbe92f57f81c",
+          "body_sha256_note": "Byte-identical to the pre-deploy probe of the previous revision, so /health is unchanged across the rollout. Note it is identical BECAUSE the payload is a static version string -- it is not evidence that the new code is running. The evidence for that is the digest-pinned image plus the ACA revision, not this body.",
+          "http": 200,
+          "latency_s": 0.38,
+          "timestamp": "2026-10-01T05:05Z",
+          "url": "https://ca-maia-api.wittysand-b748274c.eastasia.azurecontainerapps.io/health"
+        },
+        "provenance": "VERIFIED. Fetched the in-toto attestation blob from GHCR rather than trusting the build log, because the build log printed two different sha256 values. predicateType https://slsa.dev/provenance/v1; subject digest sha256:e080968afdbda67cd5f8095c46d24fd5afb0cf713b214700496b18341205ad79 matches the deployed platform manifest exactly; buildDefinition records vcs:revision=68e7d15f506de2497183af659087e611af560f79 and vcs:source=https://github.com/imtarget05/MAIA, from Dockerfile.api.",
+        "resource_group": "rg-portfolio-evidence",
+        "revision": "ca-maia-api--0000005",
+        "sse_on_azure": "AUTH_BLOCKED -- NOT VERIFIED",
+        "traffic_weight": 100,
+        "url": "https://ca-maia-api.wittysand-b748274c.eastasia.azurecontainerapps.io"
+      },
+      "branch": "main (repo root MAIA/)",
+      "breakdown": {
+        "core": 13,
+        "correctness": 12,
+        "deploy": 6,
+        "docs": 4,
+        "e2e": 12,
+        "observability": 7,
+        "reliability": 9,
+        "security": 8,
+        "tests": 15
+      },
+      "canonical_identity": {
+        "audited_at": "GitHub Actions runs 36819947283 (CI) + 36819947364 (image); live Azure probes 2026-10-01",
+        "deployed_image": "ghcr.io/imtarget05/maia-maia-api:a82f24b2123b5abceeeb5264677aa81bbc437df7@sha256:9be70ed14aaa849c17b8e9544dca284f853163895f039ed804e664f13c091514",
+        "deployed_revision": "ca-maia-api--0000006, 100% traffic, Healthy",
+        "deployed_sha": "a82f24b2123b5abceeeb5264677aa81bbc437df7",
+        "dev_head": "a82f24b (2026-10-01) - CI GREEN 13/13, run 36819947283; error-path fix + regression test",
+        "docs_head": "17dfd72 (2026-10-01) - docs-only delta (cloud closeout evidence)",
+        "repo": "single git repo imtarget05/MAIA (MAIA/.git + worktrees/)",
+        "status": "CANONICAL_RESOLVED"
+      },
+      "canonical_sha": "a82f24b2123b5abceeeb5264677aa81bbc437df7",
+      "ci_investigation": {
+        "fixes": [
+          "Sweep moved to .github/workflows/threshold-calibration.yml (workflow_dispatch + weekly), bounded at 12h, pipefail, report uploaded with if: always().",
+          "Merge gate is tests/test_threshold_regression.py, unchanged and not weakened.",
+          "concurrency cancel-in-progress so a newer commit supersedes an older run instead of queueing behind it."
+        ],
+        "known_p1": "The sweep calls evaluate_group(agent=False), so AGENT_EVIDENCE_THRESHOLD is never read on the evaluation path and 72 of the 81 combinations are duplicates of the other 9. Deliberately NOT changed: it would change what is measured. The agent axis of the grid must not be read as a measured dimension until this is fixed.",
+        "root_cause": "The job ran the 81-combination threshold sweep as a merge gate. Measured cost 98 golden rows x 81 combinations x ~4.7s/query = ~10.4h, with LLM_PROVIDER defaulting to 'local' (a LAN gateway unreachable from a runner) so every llm.chat() first burned a connect timeout.",
+        "second_defect_fake_gate": "The sweep asserted nothing. It computed LOCKED_SIM/LOCKED_AGENT, compared them against hardcoded CONFIG_SIM/CONFIG_AGENT, and never acted on the comparison. It looked like a regression gate while checking nothing.",
+        "status": "RESOLVED",
+        "symptom": "Three consecutive runs (dd39026, e566cef, a7319ac) never produced a conclusion; gh run list showed no conclusion at all because the notify job depends on threshold-regression.",
+        "third_defect_silent_skip": "Even the real gate could report PASS with no signal: if Qdrant was unreachable the whole module skipped and pytest exited 0. THRESHOLD_REGRESSION_REQUIRED=1 now fails instead. Verified exit 1 with the flag and Qdrant down, exit 0 without it."
+      },
+      "classification": "STRONG PORTFOLIO",
+      "cv_ready": "YES",
+      "docs_head": "17dfd7233010690dcc91d0d50b489b0ec261b69d",
+      "done": false,
+      "gate8": "PARTIAL (unchanged; gate8b work records honest FAILS, no gate loosening)",
+      "interview_ready": "YES",
+      "linkedin_ready": "YES",
+      "measurement_correctness_change": {
+        "landed_in": "68e7d15",
+        "scope_preserved": "Row population, citation order and citation count are unchanged; only the text being measured changes. recall@k, hit@k and MRR are unaffected.",
+        "stale_until_regenerated": "Any evidence recorded before 68e7d15 that reports context_precision, faithfulness_proxy, faithfulness_embed, contact_in_ctx or contact_context_rate is STALE. Pinned by tests/test_eval_canonical_evidence.py (5 tests).",
+        "what": "eval.py gained _canonical_texts(): evidence metrics are now computed against res['candidates'] rather than citations[].text.",
+        "why_it_matters": "citations[].text is a 600-character presentation excerpt built for the UI. The EAP contact eap@company.com sits at character offset 919 of its chunk, so a correctly retrieved chunk was being scored as if the contact were absent. That silently understated context_precision, faithfulness_proxy and faithfulness_embed."
+      },
+      "name": "MAIA",
+      "open_debt_before_phase_f": {
+        "no_durable_state": "QDRANT_URL unset and Postgres absent, so the deployed app has no vector store and no durable checkpoints. This is the functional gap that Waves 1-3 of Phase F must close.",
+        "ready_probe_returns_200_while_degraded": "See ready_probe_defect. OPEN.",
+        "remediation_order_note": "Do not make /ready return 503 first. Under verdict A that yields a permanently unready deployment that still has no business capability. Provision first, then make the signal truthful.",
+        "sse_contract_not_verified_on_azure": "The meta -> token -> citations -> done SSE contract is NOT verified on Azure. It is verified in CI (tests/test_chat_stream_sse.py, 16 tests, at 68e7d15), but the live probe needs authentication and the demo password lives in an Azure Container Apps secret, which is write-only and cannot be read back. Recorded as AUTH_BLOCKED, not as pass. Phase F must resolve this: it is exactly the end-to-end claim an enterprise architecture is supposed to make credible."
+      },
+      "p0": [],
+      "p1": [
+        {
+          "id": "maia-gate8-unmeasured",
+          "impact_class": "EVALUATION COVERAGE (not a product defect)",
+          "title": "Gate 8 abstention metric is UNMEASURED: audit reports usable=0 of 9 no-answer rows. The suite is green but no refusal-accuracy figure is published, because reporting one over 0 usable rows would be reporting a metric of nothing. 8 rows remain PENDING corpus verification."
+        }
+      ],
+      "p2": [
+        {
+          "id": "maia-commit-hygiene",
+          "title": "untracked k8s/ and docs/evidence/ in main worktree; consider documenting min_replicas=1"
+        }
+      ],
+      "pyright_history": {
+        "remaining_suppression": "One, predating all of this: vector_store.py client.search (reportAttributeAccessIssue), a genuine third-party qdrant stub gap, not silenced optional-dep debt.",
+        "resolution": "All seven suppressions removed (ca8d9eb) and the extras installed in the lint job instead. The seven genuine fixes carried by 482ac30 were kept: Hashable-keyed classify_routes, the dead KnowledgeLoop cleanup, TypedDict configurable access, the LLM union widening, bytes-safe iter_lines, pd.Index, Any on the tracing context manager.",
+        "second_independent_cause": "pyrightconfig.json pinned {\"venvPath\": \".\", \"venv\": \".venv\"}. That directory exists on a developer machine but not on a runner, and pyright does not fall back when the configured venv is missing. Measured both ways in the same env: with the key, 6 errors; without it, 0. Both keys removed.",
+        "what_happened": "482ac30 and 2d2eaf9 cleared the pyright gate by adding seven '# pyright: ignore[reportMissingImports]' suppressions instead of installing the declared dependencies."
+      },
+      "ready_probe_defect": {
+        "cause": "Qdrant is not configured in the container environment at all. There is no QDRANT_URL among the app env vars, so it defaults to http://localhost:6333, which does not exist in the self-contained cloud-demo image.",
+        "fix_options_not_yet_chosen": [
+          "Set QDRANT_URL in the container env, or deploy a real vector store.",
+          "Return HTTP 503 when degraded so the code means something to a probe.",
+          "If a self-contained demo with no vector store is intended, report a distinct status such as \"demo-mode\" rather than \"degraded\"."
+        ],
+        "not_a_regression": "The /ready handler was not changed by the closeout commits (only a comment differs), and the missing QDRANT_URL predates this deploy. The previous revision ca-maia-api--0000003 had identical configuration.",
+        "root_cause_verdict": "A -- see w0_findings.W0.2_QDRANT_DEPLOYMENT. Qdrant is required by the serving path; the ACA revision simply does not supply it. Consequence for W0.1: changing /ready to 503 WITHOUT first providing a real Qdrant would produce a deployment that is permanently unready and still unable to serve retrieval. Remediation order is therefore: provision a real Qdrant runtime -> supply QDRANT_URL through a controlled deployment path -> make readiness truthful -> negative-test Qdrant loss -> redeploy -> verify.",
+        "status": "OPEN",
+        "symptom": "GET /ready returns HTTP 200 with a body saying {\"status\":\"degraded\"}. The status code carries no signal: a 200 does not mean ready.",
+        "why_it_matters": "Same class of defect as the fake threshold-regression gate: a check whose pass signal cannot fail. Any uptime or health check keyed on HTTP 200 would report this app healthy while its vector store is unreachable."
+      },
+      "remote": "origin/main == 68e7d15 (reconciled, nothing local-only)",
+      "repo_path": "/Users/mainguyenbinhtan/Downloads/Projects/MAIA",
+      "runs": {
+        "prior": {
+          "command": "GitHub Actions CI",
+          "failed": 0,
+          "head": "2d2eaf9f95d836cf6157b41349e5e847a5e6e170",
+          "note": "HISTORICAL - superseded by a82f24b live-probe fix. Do not publish as current.",
+          "passed": 987,
+          "skipped": 12,
+          "source": "2d2eaf9 CI run 36768831367 (retired)",
+          "timestamp": "2026-09-30",
+          "unit_tests": "987 passed, 0 failed"
+        },
+        "run_a": {
+          "blocked": 0,
+          "ci_conclusion": "success (13/13)",
+          "ci_run": "36819947283",
+          "command": "GitHub Actions CI (13 jobs)",
+          "duration_s": 614.0,
+          "failed": 0,
+          "head": "a82f24b2123b5abceeeb5264677aa81bbc437df7",
+          "image": "ghcr.io/imtarget05/maia-maia-api:a82f24b2123b5abceeeb5264677aa81bbc437df7@sha256:9be70ed14aaa849c17b8e9544dca284f853163895f039ed804e664f13c091514",
+          "image_run": "36819947364",
+          "note": "Includes the error-path regression test (tests/test_agent_error_path.py)",
+          "passed": 998,
+          "repo": "imtarget05/MAIA",
+          "skipped": 12,
+          "timestamp": "2026-10-01",
+          "unit_tests": "998 passed, 12 skipped, 2 deselected, 3 xfailed, 0 failed",
+          "xfailed": 3
+        }
+      },
+      "score": 86,
+      "streaming": {
+        "adjacent": "47 passed (stream + p1a rate-limit + session_registry + approval)",
+        "ci": "run 36819947283 green 13/13 (incl. 16 streaming tests + error-path regression)",
+        "code_sha": "a82f24b2123b5abceeeb5264677aa81bbc437df7",
+        "contract": "meta -> token* -> citations -> done | approval_required -> citations -> done | error -> done",
+        "endpoint": "POST /chat/stream",
+        "latency": "MOCK orchestration only: 20 prompts, TTFT p50 2.1ms/p95 97.2ms (docs/evidence/stream_latency.json). NOT production LLM latency; NOT for CV.",
+        "limitations": "provider token streaming is provider-dependent (deterministic chunked fallback); sync agent.chat() compute cannot be force-cancelled mid-call (delivery stops, partial writes discarded)",
+        "live": "ca-maia-api--0000006 @100%: unauth 401; auth stream meta->5x token->citations->done exactly once with graceful degradation under total Qdrant outage; no traceback; /chat parity JSON error, no 500",
+        "mutation_controls": "M1 (auth removed -> STREAM-002 fails) and M2 (disconnect disabled -> STREAM-009/010 fail); source restored",
+        "protocol": "SSE (no WebSocket)",
+        "status": "VERIFIED",
+        "targeted": "16/16 passed (tests/test_chat_stream_sse.py: STREAM-001..015 + no-orphan-threads)"
+      },
+      "test_isolation_defect": {
+        "ownership_fix": "reset_reranker_cache() already existed and its own docstring names this exact failure mode, but only tests/test_reranker_lifecycle.py called it, and only for itself. Reset ownership moved into an autouse fixture in tests/conftest.py so no individual test can forget it. The health test's assertion was NOT relaxed; the pollution was fixed.",
+        "proof": "Bisected file-by-file then test-by-test. test_tracing.py alone reproduces it. With the fixture: 21 passed. Negative control, fixture removed: 1 failed, 20 passed.",
+        "root_cause": "get_reranker caches a process-wide Reranker keyed by model name. Four tests in tests/test_tracing.py drive a real query() and leave a live cross-encoder (~90MB) in that cache. The health test then asserted resident_reranker_mode() == 'not-loaded' and saw 'cross-encoder'.",
+        "status": "RESOLVED",
+        "symptom": "tests/test_health_endpoints.py::test_embedder_singleton_reused failed only in a full-suite run and passed in isolation. No random seed was involved: pytest-randomly is not installed, so collection order is deterministic."
+      },
+      "verified_test_sha": "a82f24b2123b5abceeeb5264677aa81bbc437df7",
+      "w0_findings": {
+        "DEPLOYMENT_CONTRACT_DRIFT": {
+          "drift_table": {
+            ".env.example": "QDRANT_URL = ABSENT (not listed among the sample vars)",
+            "ACA deployment automation": "DOES NOT EXIST in the repository",
+            "ACA runtime (revision ca-maia-api--0000006)": "QDRANT_URL = ABSENT",
+            "build-container.yml evidence": "claims self-contained / no Qdrant",
+            "docker compose (app/stream/ui)": "QDRANT_URL provided, plus a qdrant service",
+            "scripts/deploy.sh": "QDRANT_URL = REQUIRED (fails the deploy if empty)"
+          },
+          "process_implication": "Fixing QDRANT_URL alone would close this incident while leaving the process defect intact, so the next required variable will fail the same way. Wave 1 must make the deployment path enforce the contract, and Wave 6 must reproduce the environment from code rather than by hand.",
+          "severity": "P1",
+          "status": "VERIFIED_PLATFORM_PROCESS_DEFECT",
+          "summary": "The root cause is not simply a forgotten environment variable. The deployment contract exists but is not the deployment path actually used, while documentation and build evidence create the impression that the dependency is unnecessary.",
+          "why_it_matters": "Two independent failure modes compound here. First, the contract is not enforced on the path that ships, so a required dependency can be silently absent in production. Second, the documentation gap in .env.example plus the misleading 'self-contained' image label actively discourage a future operator from supplying the value. Anyone creating .env from the sample file and then running deploy.sh would also hit a contradiction, since deploy.sh requires a variable the sample omits."
+        },
+        "W0.2_QDRANT_DEPLOYMENT": {
+          "claim": "Qdrant is required by the primary serving path, but the deployed Azure Container Apps revision does not provide QDRANT_URL, so configuration falls back to localhost:6333.",
+          "code_predicted_behaviour": "SUPERSEDED IN PART by a82f24b ('fix(agent): error path must not crash when the stack is down'), which hardens the failure path. It does NOT change the root cause: the new revision still carries the same 10 env vars and still has no QDRANT_URL, so retrieval remains unavailable. The earlier prediction was that agent.chat() catches the exception and returns HTTP 200 with status='error', has_evidence=False and plan={retrieve: False}. That predicted behaviour was NOT directly observed, because every retrieval endpoint requires auth and the probe was not bypassed.",
+          "confidence": "MEDIUM",
+          "confidence_upgrade_condition": "Authenticated Azure business-path probe once identity is available. That is the same capability Wave 1 unlocks, so it costs no separate work.",
+          "contradicting_evidence": "build-container.yml writes image evidence asserting mode = 'cloud-demo, self-contained (no Qdrant/Postgres/LLM gateway)'. That label is misleading: Dockerfile.api bundles only data/ and the demo user seeder. 'Self-contained' means no co-located service, not no network dependency. It creates a false belief that no Qdrant is needed, but it does not create a working non-RAG mode, so it does not overturn the verdict.",
+          "evidence": [
+            "/ready constructs QdrantStore, whose __init__ runs a hard connectivity probe (get_collections) and raises ConnectionError when every candidate fails.",
+            "Note the asymmetry: QdrantStore.count() swallows exceptions and returns 0, so the failure comes from CONSTRUCTION, not from counting -- meaning any path that builds the store fails.",
+            "build_stack() is on the primary query/chat path: api.py calls it at lines 746/775/802/1519, and query() -> _query_impl() -> build_stack(). No branch bypasses it.",
+            "No non-RAG serving mode exists anywhere in the codebase.",
+            "scripts/deploy.sh declares QDRANT_URL in REQUIRED_VARS and FAILS if it is empty.",
+            "The compose deployment provides a Qdrant service explicitly (deploy/docker/compose.app.yml: depends_on qdrant, QDRANT_URL=http://qdrant:6333).",
+            "ACA revision ca-maia-api--0000006 carries 10 env vars and none is QDRANT_URL. Verified at runtime, not inferred from .env.example.",
+            "config.py:27 therefore resolves QDRANT_URL to the default http://localhost:6333, which does not exist in the container.",
+            "The app starts cleanly and /health returns 200: nothing touches Qdrant until a request needs the stack, so startup success carries no signal about retrieval.",
+            "Authenticated business-path reproduction remains NOT_RUN."
+          ],
+          "limitation": "No authenticated Azure /chat request has yet directly observed the expected retrieval failure. The final link in the chain is inferred from code, not observed at runtime, which is why confidence is MEDIUM and not HIGH.",
+          "revalidated_after_concurrent_change": "A parallel process committed and deployed a82f24b while this investigation was running. The finding was re-checked on the live revision ca-maia-api--0000006 and is unchanged: 10 env vars, no QDRANT_URL, resolving to localhost:6333. Recorded here so the finding is not mistaken for an artifact of the older revision 0000005.",
+          "root_cause": "Manual ACA deployment bypassed the repository deployment contract and its REQUIRED_VARS validation. There is no ACA deployment automation anywhere in the repo; the only occurrence of 'containerapp' is a comment in build-container.yml. Every other deployment path (deploy.sh, docker compose) supplies Qdrant, so the cloud path is the sole exception.",
+          "status": "VERIFIED_ROOT_CAUSE",
+          "verdict": "A"
+        },
+        "W0.JWT_EPHEMERAL_SECRET": {
+          "do_not_fix_yet": true,
+          "impact": "Tokens and sessions are expected to become invalid after a process restart, because the runtime generates a new ephemeral signing key. With minReplicas=0 every scale-to-zero cycle is a restart. This claim is deliberately scoped to token/session invalidation on restart; it is NOT extended to a broader claim about every session mechanism, which the code has not been shown to support.",
+          "observed": "JWT_SECRET_KEY is absent on ACA revision ca-maia-api--0000006.",
+          "root_cause_relation": "Same deployment-control gap as QDRANT_URL: manual deployment bypasses required-configuration validation. deploy.sh lists JWT_SECRET_KEY in REQUIRED_VARS; the ACA revision does not set it.",
+          "runtime_evidence": "Startup log: 'RuntimeWarning: JWT_SECRET_KEY is not set -- using an ephemeral random key. All tokens/sessions will be invalidated on restart. Set JWT_SECRET_KEY in .env for production.' Observed in ACA console logs for revision ca-maia-api--0000006.",
+          "severity": "P1",
+          "status": "VERIFIED_CONFIGURATION_DEFECT",
+          "why_not_now": "Setting it by hand would add yet another manually-managed static secret, deepening exactly the problem Wave 1 exists to remove. Wave 1 must solve it properly through identity and a secrets architecture."
+        }
+      },
+      "worktree_status": "CI-backed at a82f24b and RUNNING on Azure as ca-maia-api--0000006 (100% traffic, Healthy). 2d2eaf9 and the 987 figure are historical."
+    },
+    {
+      "azure": {
+        "expected_public": false,
+        "live": false,
+        "reason": "no public endpoint expected"
+      },
+      "branch": "main",
+      "breakdown": {
+        "core": 12,
+        "correctness": 12,
+        "deploy": 4,
+        "docs": 4,
+        "e2e": 8,
+        "observability": 5,
+        "reliability": 7,
+        "security": 8,
+        "tests": 12
+      },
+      "canonical_sha": "97bb3612fadfcf5ede2db64017bdb878edf60689",
+      "classification": "PORTFOLIO USABLE",
+      "cv_ready": "PARTIAL",
+      "done": false,
+      "interview_ready": "YES",
+      "linkedin_ready": "PARTIAL",
+      "name": "MiniERP-Manufacturing-Warehouse",
+      "p0": [],
+      "p1": [
+        {
+          "id": "minierp-oracle-e2e",
+          "title": "Run Oracle integration suite once in container + save evidence"
+        },
+        {
+          "id": "minierp-outbox-test",
+          "title": "Outbox publish->consume->dedupe test"
+        }
+      ],
+      "p2": [
+        {
+          "id": "minierp-cloud-deploy",
+          "title": "Cloud/API deploy + dashboard e2e"
+        }
+      ],
+      "remote": "https://github.com/imtarget05/MiniERP-Manufacturing-Warehouse.git",
+      "repo_path": "/Users/mainguyenbinhtan/Downloads/Projects/MiniERP-Manufacturing-Warehouse",
+      "runs": {
+        "prior": null,
+        "run_a": {
+          "blocked": 81,
+          "blocked_reason": "Oracle DSN guard by design; needs MINIERP_TEST_ALLOW_AMBIENT_DB=1 + container",
+          "command": "dotnet test MiniERP.Api.Tests -c Release --filter Category!=Integration + dotnet test MiniErp.LogicAudit",
+          "duration_s": 2,
+          "failed": 0,
+          "head": "97bb3612fadfcf5ede2db64017bdb878edf60689",
+          "passed": 245,
+          "runtime": "dotnet 10.0.400",
+          "skipped": 0,
+          "timestamp": "2026-09-30"
+        }
+      },
+      "score": 72,
+      "worktree_status": "CLEAN"
+    },
+    {
+      "azure": {
+        "expected_public": false,
+        "live": false,
+        "note": "internal IT portal; no public endpoint by design. Not a gap."
+      },
+      "branch": "main",
+      "breakdown": {
+        "core": 11,
+        "correctness": 12,
+        "deploy": 4,
+        "docs": 4,
+        "e2e": 8,
+        "observability": 5,
+        "reliability": 8,
+        "security": 7,
+        "tests": 13
+      },
+      "canonical_sha": "37c5c0d8e0096bcf84fac4a7bae807311863f92b",
+      "classification": "PORTFOLIO USABLE",
+      "cv_ready": "PARTIAL",
+      "docs_head": "37c5c0d8e0096bcf84fac4a7bae807311863f92b",
+      "done": false,
+      "interview_ready": "YES",
+      "linkedin_ready": "PARTIAL",
+      "name": "Enterprise-IT-Helpdesk-Lab",
+      "p0": [],
+      "p1": [],
+      "p2": [
+        {
+          "id": "helpdesk-capability-gaps",
+          "title": "DOCUMENTED CAPABILITY GAPS, not blockers: (1) no role-based access on portal routes, (2) no alert/ticket dedupe (grep dedup returns 0 in both Node and Flask), (3) SLA is slaPercent only, with no clock-based breach. None were implemented for CV value."
+        }
+      ],
+      "remote": "https://github.com/imtarget05/Enterprise-IT-Helpdesk-Lab.git",
+      "repo_path": "/Users/mainguyenbinhtan/Downloads/Projects/Enterprise-IT-Helpdesk-Lab",
+      "runs": {
+        "run_a": {
+          "blocked": 0,
+          "ci_conclusion": "success (all jobs)",
+          "ci_run": "36742444837",
+          "command": "GitHub Actions CI",
+          "duration_s": 129.0,
+          "failed": 0,
+          "head": "37c5c0d8e0096bcf84fac4a7bae807311863f92b",
+          "note": "Includes the 5 previously-local commits (Safe Automation Gateway fail-closed policy + RBAC injection tests + docs); remote == canonical, CI-backed. Node portal 336/1 + API smoke 68/68 per prior evidence.",
+          "passed": 156,
+          "repo": "imtarget05/Enterprise-IT-Helpdesk-Lab",
+          "skipped": 0,
+          "timestamp": "2026-10-01",
+          "xfailed": 4
+        }
+      },
+      "score": 72,
+      "verified_test_sha": "c6671ceef3f0c2b5642a63ef3c76259c7fd0ba87",
+      "worktree_status": "CLEAN"
+    }
+  ],
+  "report_bugs_fixed_from_v1": [
+    "average 79.6 -> 80.0 (560/7)",
+    "projects_ge_82: 4/7 -> 5/7",
+    "azure_live among top-5: 4/5 -> 3/5 (Apex/FlashSale never had endpoints)",
+    "critical_blockers 0 + P0 1 contradiction -> MODEL_A: blockers=1",
+    "badge counted P1+P2 -> P2 only",
+    "v1 said P1 gaps = 7 but project sections support 9 (minierp-outbox-test and cf-deploy-evidence never made the v1 final list); derived count is 9",
+    "v1 breakdown fields mixed scores and maxima; fixed to true category scores + added breakdown-sum assertion",
+    "v1 P0 (MAIA citation red) resolved: green at 93f5788 full suite AND on re-run at 47110b8 -> state-dependent flake, demoted to P1 test-reliability; P0 now 0, blockers 0"
+  ],
+  "self_audit_notes": [
+    "Duplicate venvs found INSIDE projects (pre-existing). CORRECTION 2026-09-30: three are IN-USE evidence envs, NOT cleanup candidates - Factory/.venv (TEST_EXECUTION_REPORT gate-note run), ApexInspect-AI/.venv 1.6G (opencv vision run per TEST_EXECUTION_REPORT), MAIA/.venv 705M (2026-09-27 full run, 518 passed). KEPT. Only Factory/.venv-fixture 591M was truly unreferenced -> DELETED 2026-09-30 (~591M reclaimed, regenerable). No score impact.",
+    "MAIA drift 860 -> 932 explained: +72 from 3 new MCP prompts/session-registry test files at 93f5788 (NOT gate8 tests; gate8b work lives in root scripts + eval goldens).",
+    "Apex MODEL_CARD '13% miss rate' wording is FORBIDDEN by wording guard; recruiter evidence disputes reproducibility.",
+    "First Azure probe round 2/3 timeouts were Consumption cold starts (25-28s), not outages; retry with 90s timeout all 200.",
+    "Concurrent-session warning: during integrity pass another agent created MAIA/eval/*.py (birth 09:54 UTC) and docs/_msg_*.txt. Canonical re-audit ran in detached worktree, unaffected.",
+    "P1 helpdesk-flask-env RESOLVED 2026-09-30 by secondary executor: created .venv-helpdesk per repo requirements (portal requirements.txt + gateway requirements-dev.txt), added .venv*/ ignore. 42 importorskip-gated tests unlocked: 82+2blocked+11skip -> 137 passed/0 failed/0 skipped. No app code changed. Score 68->71 (tests 11->13, correctness 11->12).",
+    "P1 helpdesk-restore-drill RESOLVED 2026-09-30 by secondary executor: REAL backup/restore drill on /tmp fixture with pwsh 7.6.5 (happy path + 4 negatives, all refused-to-write verified). AD part NOT_RUN (Windows-only, not faked). Evidence docs/evidence/helpdesk/restore-drill/. No app code changed. Score 71->72 (reliability 7->8).",
+    "P1 fac-api-auth RESOLVED 2026-09-30 by secondary executor: TDD request-level tests (11 tests, TestClient through real middleware; prefix-bypass test RED pre-fix proving gap). Fix: exact-or-boundary safe-path matching in security.py (minimal). Full suite 231->242 passed, 0 failed. Roles/expiry N/A by design (single shared key, no tokens). Score 84->85 (security 7->8). Committed by repo owner as 068a89a.",
+    "WORKSPACE ARCHIVE 2026-09-30 (secondary executor): local copies DELETED after remote-verify - MiniERP (archive/local-20260930 @97bb361), CreditFlow (archive/local-20260930 @f9f8625), FlashSale (main @c6f7b3e fast-forward), ApexInspect (archive/local-20260930 @6e0475c); tag portfolio-freeze-2026-09-30 on all 4, clean-clone verified. Reclaimed ~2.6GB. BLOCKED_KEEP_LOCAL (no origin remote, never force): manufacturing-contracts, spark-benchmark, k8s-manifests (stale stub README removed). MAIA-clean worktree REMOVED after preserving k8s/10-maia-api.yaml + .venv-maia into MAIA/ (+ .gitignore entry). plans/tasks/tools = Cline closeout workspace, untouched."
+  ]
+}
