@@ -6,7 +6,7 @@
     "critical_blockers": 0,
     "done_count": 0,
     "p0_total": 0,
-    "p1_total": 7,
+    "p1_total": 8,
     "p2_total": 9,
     "partial_count": 2,
     "project_count": 7,
@@ -531,6 +531,35 @@
       "docs_head": "17dfd7233010690dcc91d0d50b489b0ec261b69d",
       "done": false,
       "gate8": "PARTIAL (unchanged; gate8b work records honest FAILS, no gate loosening)",
+      "iac_contract_drift": {
+        "evidence": [
+          "current origin/main: 2ac21ab",
+          "main.bicep structural delta observed between the tree the checker targets and origin/main: +66 / -285 lines",
+          "check_invariants.py crashes through iter_resources (line 78 -> 80 -> 86 -> 113 -> 153)",
+          "the clean canonical worktree remains unchanged; the 8 ported files were reset and never committed",
+          "no commit, no push and no deployment were performed"
+        ],
+        "finding": "The compiled-ARM invariant checker was written against an earlier main.bicep structure and crashes when evaluating the current canonical origin/main ARM output.",
+        "impact": "The invariant gate currently cannot distinguish an actual invariant violation from an unsupported ARM structure. Both surface as a traceback.",
+        "known_secondary_risk": "A traceback does fail loudly, so the gate is not silently green. But if anyone wraps this call in `|| true` to keep the pipeline moving, the traceback becomes a silent skip -- exactly the failure mode the checker was written to avoid. That is why remediation is required rather than optional.",
+        "p1_entry": {
+          "id": "maia-iac-invariant-contract-drift",
+          "impact_class": "process",
+          "title": "IaC invariant checker crashes on the canonical ARM output: it was written against an earlier main.bicep structure and cannot tell an invariant violation apart from an unsupported ARM node. Records validator-template contract drift ONLY -- it is NOT a claim that any Key Vault invariant is violated, because the check never reached a verdict. TODO 3 is REOPENED/BLOCKED until unknown ARM structures fail closed with a JSON path instead of a traceback."
+        },
+        "required_remediation": "Unknown ARM structures must produce an explicit fail-closed diagnostic carrying the JSON path and context, never a traceback and never a silent skip. Expected shape, for example: 'FAIL invariant discovery: unsupported resource node at resources[2].properties.template.resources[0]'.",
+        "root_cause_status": "NOT YET DETERMINED. The +66/-285 delta proves structural drift but is NOT the root cause. The real root cause must be identified from the specific node in the compiled ARM JSON that makes the walker fail. Deferred to the next investigation (B-prime).",
+        "scope_limit": "This records VALIDATOR-TEMPLATE CONTRACT DRIFT ONLY. It is NOT a claim that any Key Vault invariant is violated. The invariant check never reached a verdict on the current template, so no invariant was evaluated either way. Any such claim would be unsupported.",
+        "security_posture": "Failing by traceback is NOT treated as successful validation, and it is not the same as a clean fail either -- a crash carries no diagnostic a reviewer can act on. TODO 3 therefore remains REOPENED / BLOCKED.",
+        "severity": "P1",
+        "status": "VERIFIED_CONTRACT_DRIFT",
+        "verified_independent_of_this_finding": [
+          "V1 entrypoint provisions only identity, Key Vault and RBAC; the apim and edge references are explanatory comments.",
+          "V1 uses rg-maia-identity-dev and cannot recreate rg-portfolio-evidence, cae-portfolio, ca-maia-api or the existing Log Analytics workspace.",
+          "params/ is the V1 parameter source; parameters/ is the V6 target.",
+          ".github/workflows/iac-validate.yml exists and invokes infra/validate.sh, so the README claim about CI is accurate."
+        ]
+      },
       "interview_ready": "YES",
       "linkedin_ready": "YES",
       "measurement_correctness_change": {
@@ -553,6 +582,11 @@
           "id": "maia-gate8-unmeasured",
           "impact_class": "EVALUATION COVERAGE (not a product defect)",
           "title": "Gate 8 abstention metric is UNMEASURED: audit reports usable=0 of 9 no-answer rows. The suite is green but no refusal-accuracy figure is published, because reporting one over 0 usable rows would be reporting a metric of nothing. 8 rows remain PENDING corpus verification."
+        },
+        {
+          "id": "maia-iac-invariant-contract-drift",
+          "impact_class": "process",
+          "title": "IaC invariant checker crashes on the canonical ARM output: it was written against an earlier main.bicep structure and cannot tell an invariant violation apart from an unsupported ARM node. Records validator-template contract drift ONLY -- it is NOT a claim that any Key Vault invariant is violated, because the check never reached a verdict. TODO 3 is REOPENED/BLOCKED until unknown ARM structures fail closed with a JSON path instead of a traceback."
         }
       ],
       "p2": [

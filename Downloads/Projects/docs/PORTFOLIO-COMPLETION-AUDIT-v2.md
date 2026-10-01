@@ -9,7 +9,7 @@ Projects audited: 7
 Average completion: 81.3%
 Projects >=82: 5/7
 Azure live: 3/7 (3/5 among CV-ready top five)
-P0: 0  P1: 7  P2: 9
+P0: 0  P1: 8  P2: 9
 Critical blockers: 0 (MODEL A: P0 implies blocker)
 DONE: 0  ALMOST: 5  PARTIAL: 2
 ```
@@ -54,6 +54,7 @@ PRIOR (2d2eaf9 CI run 36768831367 (retired)): passed=987 failed=0 skipped=12 @ 2
 Identity: CANONICAL_RESOLVED
 Azure LIVE: https://ca-maia-api.wittysand-b748274c.eastasia.azurecontainerapps.io/health HTTP=200 sha256=82e530f7dc4baa2f... @ 2026-10-01T05:05Z
 P1: [maia-gate8-unmeasured] Gate 8 abstention metric is UNMEASURED: audit reports usable=0 of 9 no-answer rows. The suite is green but no refusal-accuracy figure is published, because reporting one over 0 usable rows would be reporting a metric of nothing. 8 rows remain PENDING corpus verification.
+P1: [maia-iac-invariant-contract-drift] IaC invariant checker crashes on the canonical ARM output: it was written against an earlier main.bicep structure and cannot tell an invariant violation apart from an unsupported ARM node. Records validator-template contract drift ONLY -- it is NOT a claim that any Key Vault invariant is violated, because the check never reached a verdict. TODO 3 is REOPENED/BLOCKED until unknown ARM structures fail closed with a JSON path instead of a traceback.
 P2: [maia-commit-hygiene] untracked k8s/ and docs/evidence/ in main worktree; consider documenting min_replicas=1
 CV=YES LI=YES IV=YES DONE=False
 ```
