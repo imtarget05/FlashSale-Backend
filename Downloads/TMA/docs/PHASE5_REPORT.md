@@ -254,6 +254,30 @@ Kết quả sau fix:
 
 ---
 
+## 7. Runtime — đã lên Render thật (2026-10-10)
+
+| Việc | Kết quả | Bằng chứng |
+|---|---|---|
+| `DATABASE_URL` cho `smart-doc-agent` → Neon | ✅ **live** | Render API: 20 var, `DATABASE_URL` + `LANGGRAPH_CHECKPOINT_SHARED_REQUIRED=true` |
+| Code agent tới service Render | ✅ deployed | service build từ repo **`Enterprise-Document-Intelligence-Corrective-RAG-Platform`** (`main`, rootDir=agent) — không phải `Smart-Document-Chatbot`; đã push cùng nội dung tới repo đó, autoDeploy rebuild (build 4.5 phút) |
+| `/ready` sau đó | ✅ **`status: ok`** | `{"workflow":"ok","checkpointer":"postgres","long_term_memory":"ok","graph_memory":"ok","rate_limiter":"ok","a2a_hub":"ok","mcp_server":"ok","llm":"ok"}` |
+| Memory layer (`long_term_memory`, `graph_memory`) | 🔴 → ✅ sửa xong | DSN thiếu `sslmode` + `POSTGRES_HOST` mặc định `postgres` → fallback RAM thầm lặng. Fix: `POSTGRES_SSLMODE` trong `_pg_dsn()` (2 file memory) + set `POSTGRES_*` Neon → live ok |
+| SupportDesk provider → `cloudflare` | ⚠️ env đã set, **token thiếu quyền** | live: `AI_PROVIDER=cloudflare`; blueprint + 405 tests ✅; Cloudflare trả **403 Workers AI** |
+
+### Bug tìm ra khi lên Render (đã fix)
+1. **Service build từ repo khác**: `smart-doc-agent` trỏ `Enterprise-Document-Intelligence-Corrective-RAG-Platform`, nên mọi thay đổi ở `Smart-Document-Chatbot` chưa từng được deploy. Nên chốt 1 repo chính thức (human quyết).
+2. **Memory layer không có TLS** → toàn bộ long-term/graph memory chạy RAM, mất khi restart (trước khi fix `/ready` báo `degraded_in_memory_fallback`).
+
+### Blocker cần human (Cloudflare)
+Token trong `SupportDesk/.env` **active nhưng thiếu quyền**:
+```
+GET /user/tokens/verify -> 200 active
+GET /accounts            -> 200 total_count=0   (không được quyền xem account)
+GET /accounts/{id}/ai/models/search -> 403      (không có quyền Workers AI)
+```
+→ Tạo token mới tại **Cloudflare Dashboard → My Profile → API Tokens** với quyền:
+`Account → Workers AI → Read` (+ `Account Settings → Read` để lấy Account ID). Gửi `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`, tôi set Render + verify.
+
 ## 7. Kết luận & Tiếp theo
 
 | Milestone | Status | Owner | Next Action |
@@ -266,7 +290,8 @@ Kết quả sau fix:
 | Gitleaks gate (SupportDesk + CreditFlow) | 🔴 gate mù → ✅ FIXED + verified | AI | Human: merge 2 PR |
 | Bug `_start_aiosqlite_conn` (aiosqlite 0.21) | 🔴 ẩn — fallback tưởng SQLite, thực ra RAM | ✅ FIXED + regression test (RED→GREEN) | AI | — |
 | PR vi phạm giả (Sprint 4 gate) | ✅ DONE — PR#2, gate chặn đúng | AI | Human: xác nhận PR + bật branch protection (gap #1) |
-| GitHub secrets (3 repo) | ⏳ PENDING | Human | `CREDITFLOW_API_KEY`, `OPENAI_API_KEY`, `DATABASE_URL`, `REDIS_URL`, `RENDER_API_KEY` |
+| SupportDesk runtime | ⚠️ `cloudflare` set, token 403 | Human | Token Cloudflare có quyền Workers AI |
+| GitHub secrets (3 repo) | ⏳ PENDING | Human | `CREDITFLOW_API_KEY`, `REDIS_URL`, `RENDER_API_KEY` |
 
 ---
 *Template theo chuẩn: `RESULT: DONE/PARTIAL/BLOCKED` + file:line + lệnh + output thật*
