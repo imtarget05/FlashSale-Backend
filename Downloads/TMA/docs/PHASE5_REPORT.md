@@ -213,38 +213,44 @@ Docker container test đã xoá sạch (sdpg-*), không còn port rò.
 
 ---
 
-## 6. PR Vi Phạm Giả Checklist (CHO HUMAN — Sprint 4)
+## 6. PR Vi Phạm Giả — Sprint 4 Gate Verification (ĐÃ CHẠY THẬT)
 
-⚠️ **Đây là điều kiện nghiệm thu bắt buộc của Sprint 4.**
+**PR vi phạm giả:** https://github.com/imtarget05/SupportDesk/pull/2
+(branch `fix/secret-leak-test`, file `airflow/dags/_secret_leak.py`, giá trị **giả**, không bao giờ merge)
 
-Khi human tạo PR, bạn phải:
+| Gate | Kỳ vọng | Thực tế | Bằng chứng |
+|---|---|---|---|
+| `backend` → Secret leak scan (inline grep) | BLOCK | ❌ **fail** (block) | `./airflow/dags/_secret_leak.py:7:API_KEY = "sk-9f2c..."` |
+| `Secret scanning (gitleaks)` | BLOCK | ❌ **fail** (block) | `leaks found: 2`, rule `generic-api-key`, file L7 + L8 |
+| `SonarCloud Code Analysis` | — | ❌ fail | Security Rating on New Code (required ≥ A) |
+| `Security — Trivy vulnerability scan` | pass | ✅ pass | file `.py` không phải dependency → không có CVE |
+| `frontend` / `gateway` | pass | ✅ pass | không đổi code |
+| Merge | DENIED | ⚠️ **MERGEABLE** | `main` **chưa có branch protection** → nút merge vẫn bấm được |
 
-1. Tạo 1 file mới trong repo (ví dụ: `airflow/dags/_secret_leak.py`) với nội dung:
-```python
-# VI PHẠM GIẢ — hardcoded secret
-API_KEY = "sk-1234-5678-secret-leak-test"  # TRINYỀU, NÊN BLOCK
-DATABASE_URL = "postgresql://admin:password123@localhost/db"  # VI PHẠM
+### Bug gate phát hiện trong lúc verify (đã sửa)
+Check gitleaks **đỏ trên mọi PR** vì:
 ```
-
-2. Commit & push lên PR branch (ví dụ: `fix/secret-leak-test`)
-
-3. CI phải chặn merge do:
-   - **Gitleaks scan** (đã cài đặt) → detect `API_KEY = "sk-..."`
-   - **Trivy scan** (Sprint 4 yêu cầu) → detect hardcoded secret
-
-4. Chụp screenshot PR bị `closed/merged blocked by failing check`
-
-5. Ghi vào `PHASE5_REPORT.md` + `PRODUCTION_READY_MATRIX.md`:
+🛑 GITHUB_TOKEN is now required to scan pull requests.
 ```
-Sprint 4 Gate Verification:
-- PR vi phạm: created on fix/secret-leak-test
-- Gitleaks: BLOCKED (status check failed)
-- Trivy: BLOCKED
-- Merge: DENIED
-- Evidence: screenshots/pr_leak_blocked.png
-- Date: 2026-10-XX
-- Approver: (human)
-```
+→ job chết **trước khi quét**: không phân biệt được PR sạch với PR rò rỉ (mọi PR đều đỏ, nên mọi người sẽ bấm qua). Gate mù còn tệ hơn không có gate.
+
+Đã sửa: thêm `GITHUB_TOKEN` + bump `gitleaks-action@v2 → v3` (v2 chạy Node 20, hosted runner không còn chạy từ 2026-09-16).
+
+Kết quả sau fix:
+| PR | Gitleaks trước fix | Sau fix |
+|---|---|---|
+| PR sạch (`ci/gitleaks-pr-token`) | ❌ đỏ (token) | ✅ **pass** |
+| PR có secret giả | ❌ đỏ (token — không phải phát hiện) | ❌ đỏ **+ 2 findings thật** |
+
+Đã áp cùng patch cho **CreditFlow** (`imtarget05/CreditFlow#1`, gitleaks pass) — cùng bug đó.
+`SupportDesk#3` và `CreditFlow#1` đang chờ merge.
+
+### Gap còn lại (cần quyết của human)
+1. **`main` chưa có branch protection** → merge vẫn được phép bất chấp check đỏ. Cần bật
+   "Require status checks to pass" với: `Secret scanning (gitleaks)`, `backend`, `Security — Trivy vulnerability scan`
+   (và `SonarCloud Code Analysis` nếu muốn).
+2. **SmartDoc không dùng gitleaks** (nghi vấn "parity" trong docs): nó q quyết quét secret bằng **TruffleHog `--only-verified`**, chỉ báo secret **xác thực được** với provider → secret giả như test này sẽ **không** bị chặn, và action chạy `@main` (không pinned). Cần quyết: thêm gitleaks parity hay giữ TruffleHog (và bỏ `--only-verified`).
+3. PR #2 vẫn để mở như bằng chứng — cần human xác nhận rồi đóng (`gh pr close 2`).
 
 ---
 
@@ -257,8 +263,9 @@ Sprint 4 Gate Verification:
 | Wave 1.2 SupportDesk cost cap | ✅ CODE DONE (405/405) | AI | Human: thêm `OPENAI_API_KEY` (không cần đổi provider) |
 | Sprint 2 CreditFlow → PG | ✅ CODE COMPLETE, VERIFIED (14+27 passed, 1 skip) | AI | Human: set `DATABASE_URL` |
 | Sprint 2 SmartDoc agent → PG | ✅ CODE DONE + BOOT-VERIFIED (340 suite, 3 kịch bản prod) | AI | Human: set `DATABASE_URL` + restart |
+| Gitleaks gate (SupportDesk + CreditFlow) | 🔴 gate mù → ✅ FIXED + verified | AI | Human: merge 2 PR |
 | Bug `_start_aiosqlite_conn` (aiosqlite 0.21) | 🔴 ẩn — fallback tưởng SQLite, thực ra RAM | ✅ FIXED + regression test (RED→GREEN) | AI | — |
-| PR vi phạm giả | ⏳ PENDING | Human | Tạo PR khi tới Sprint 4 |
+| PR vi phạm giả (Sprint 4 gate) | ✅ DONE — PR#2, gate chặn đúng | AI | Human: xác nhận PR + bật branch protection (gap #1) |
 | GitHub secrets (3 repo) | ⏳ PENDING | Human | `CREDITFLOW_API_KEY`, `OPENAI_API_KEY`, `DATABASE_URL`, `REDIS_URL`, `RENDER_API_KEY` |
 
 ---
