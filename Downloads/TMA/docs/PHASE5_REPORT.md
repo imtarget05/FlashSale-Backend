@@ -278,6 +278,22 @@ GET /accounts/{id}/ai/models/search -> 403      (không có quyền Workers AI)
 → Tạo token mới tại **Cloudflare Dashboard → My Profile → API Tokens** với quyền:
 `Account → Workers AI → Read` (+ `Account Settings → Read` để lấy Account ID). Gửi `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`, tôi set Render + verify.
 
+### 6b. SmartDoc gate (repo `Enterprise-Document-Intelligence-Corrective-RAG-Platform`)
+PR test vi phạm: PR **#37** (branch `test/secret-gate-check`, `scripts/_secret_leak_test.py`, secret **giả**)
+
+| Gate | Trước | Sau khi fix |
+|---|---|---|
+| `Secret scanning (gitleaks)` (job mới) | không tồn tại | ❌ **fail** — `leaks found: 2`, rule `generic-api-key`, L3/L4 |
+| TruffleHog trong `Security Scan` | quét **0 bytes** (`chunks: 0, bytes: 0`, `unable to resolve commit: object not found` vì checkout depth 1) rồi `exit 0` | quét thật `chunks: 5, bytes: 2491`, vẫn `unverified_secrets: 0` (secret giả không verify được — đúng bản chất của nó) |
+| 15 check còn lại | ✅ | ✅ |
+
+Hai bug tìm ra khi verify (đã sửa, merged #36 + #38):
+1. **TruffleHog `--only-verified`** → không bắt được secret giả/không xác minh được.
+2. **Job `security-scan` checkout depth 1** → range BASE..HEAD không resolve → **scan 0 byte rồi pass**. Scan 0 byte không phải gate.
+→ thêm job `gitleaks` (SHA-pinned v3 + `GITHUB_TOKEN`) để bắt pattern; action `trufflehog` pin từ `@main` sang commit SHA v3.99.2.
+
+**Lưu ý:** repo này cũng chưa có branch protection → nút merge vẫn bấm được khi check đỏ (cần human bật như đã nêu ở §6).
+
 ## 7. Kết luận & Tiếp theo
 
 | Milestone | Status | Owner | Next Action |
