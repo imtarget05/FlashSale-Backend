@@ -1,5 +1,7 @@
 """Auth utilities and token management."""
 
+import hashlib
+import time
 import uuid
 from datetime import datetime, timedelta
 
@@ -16,6 +18,61 @@ from app.models.iam import Capability, RoleCapability, User, UserRole
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+# --- Token revocation (in-memory demo scope; thay Redis/DB khi scale) ---
+_revoked_token_hashes: dict[str, float] = {}  # sha256(token) -> exp epoch
+
+
+def _token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def revoke_token(token: str) -> None:
+    """Đưa token vào denylist tới khi nó tự hết hạn (logout/refresh rotation)."""
+    try:
+        payload = jwt.decode(
+            token, settings.signing_key, algorithms=[settings.jwt_algorithm],
+            options={"verify_exp": False},
+        )
+        exp = float(payload.get("exp", 0))
+    except JWTError:
+        return
+    _revoked_token_hashes[_token_hash(token)] = exp
+    purge_expired_revocations()
+
+
+def is_token_revoked(token: str) -> bool:
+    return _token_hash(token) in _revoked_token_hashes
+
+
+def purge_expired_revocations() -> None:
+    now = time.time()
+    for key in [k for k, exp in _revoked_token_hashes.items() if exp < now]:
+        del _revoked_token_hashes[key]
+
+
+# --- Login rate limiting (docs/08: 5 lần / 15 phút, khóa tạm khi brute force) ---
+_login_failures: dict[str, list[float]] = {}
+
+
+def _rate_key(username: str) -> str:
+    return username.strip().lower()
+
+
+def login_rate_limited(username: str) -> bool:
+    window = settings.rate_limit_login_window_minutes * 60
+    now = time.time()
+    recent = [t for t in _login_failures.get(_rate_key(username), []) if now - t < window]
+    _login_failures[_rate_key(username)] = recent
+    return len(recent) >= settings.rate_limit_login_attempts
+
+
+def record_login_failure(username: str) -> None:
+    _login_failures.setdefault(_rate_key(username), []).append(time.time())
+
+
+def reset_login_failures(username: str) -> None:
+    _login_failures.pop(_rate_key(username), None)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -97,8 +154,14 @@ async def get_current_user(
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
+        if payload.get("type") != "access":
+            # Refresh token (7 ngày) không được dùng như access token (30 phút).
+            raise credentials_exception
     except JWTError:
         raise credentials_exception from None
+
+    if is_token_revoked(token):
+        raise credentials_exception
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -127,5 +190,20 @@ def require_capability(*required_caps: str):
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"Missing capability: {cap}",
                 )
+        return user
+    return check
+
+
+def require_any_capability(*accepted_caps: str):
+    """User cần ít nhất một capability trong danh sách (deny by default)."""
+    async def check(
+        user_caps: tuple[User, list[str]] = Depends(get_current_user_with_capabilities),
+    ):
+        user, caps = user_caps
+        if not any(cap in caps for cap in accepted_caps):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing one of capabilities: {', '.join(accepted_caps)}",
+            )
         return user
     return check

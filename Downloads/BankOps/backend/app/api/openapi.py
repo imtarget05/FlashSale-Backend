@@ -25,14 +25,25 @@ def custom_openapi(app):
         }
     }
 
-    # Define security requirements for all operations
-    for _path, methods in openapi_schema["paths"].items():
+    # Public paths theo docs/06:9 — không gắn BearerAuth để Swagger không
+    # đòi Authorize cho login/health (test_openapi_security...).
+    public_paths = {
+        "/auth/login",
+        "/auth/refresh",
+        "/auth/logout",
+        "/auth/google",
+        "/me",
+        "/health/live",
+        "/health/ready",
+    }
+
+    # Define security requirements for protected operations only
+    for path, methods in openapi_schema["paths"].items():
+        if path in public_paths:
+            continue
         for method, spec in methods.items():
             if method in ("get", "post", "put", "patch", "delete"):
-                if spec.get("parameters"):
-                    spec["security"] = [{"BearerAuth": []}]
-                else:
-                    spec["security"] = [{"BearerAuth": []}]
+                spec["security"] = [{"BearerAuth": []}]
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
