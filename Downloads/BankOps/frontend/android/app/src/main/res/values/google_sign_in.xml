@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Resource mà plugin google_sign_in_android đọc lúc runtime:
+  GoogleSignInPlugin gọi context.getString(R.string.default_web_client_id)
+  để lấy Web client ID (dùng cho ID-token flow).
+
+  Chúng ta KHÔNG dùng plugin google-services (không cần google-services.json
+  cho demo) — khai báo resource trực tiếp, cùng giá trị với
+  `web/client_id` trong backend `Settings.google_allowed_audiences`.
+
+  Web client ID là PUBLIC identifier (an toàn trong repo); web client
+  *secret* không bao giờ được đưa vào app hay repo.
+-->
+<resources>
+    <string name="default_web_client_id" translatable="false">1070073470852-hc12cgovbt9h7micnu072vpkvigee28u.apps.googleusercontent.com</string>
+</resources>

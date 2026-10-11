@@ -1,0 +1,28 @@
+# --- Secrets: KHÔNG BAO GIỜ commit OAuth client secrets ------------------
+# (client ID là public identifier, được phép; client *secret* thì không)
+client_secret*.json
+**/client_secret*.json
+**/GoogleService-Info.plist.secret
+service-account*.json
+*.p12
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+
+# Flutter
+frontend/.dart_tool/
+frontend/build/
+frontend/.flutter-plugins-dependencies
+
+# Env
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
