@@ -46,7 +46,7 @@ docker compose up -d --build
 
 ### Backend (FastAPI + Pytest)
 ```bash
-# Chạy toàn bộ bộ kiểm thử backend (99 passed)
+# Chạy toàn bộ bộ kiểm thử backend (101 passed)
 pytest backend/tests -q
 ```
 

@@ -2,7 +2,7 @@
 
 **Vai trò:** QA reviewer độc lập — chỉ viết test, **không sửa tệp tính năng**.
 **Phạm vi:** B01–B15 (`docs/13-backlog.md`), ca bắt buộc A1–A4 / I1–I3 / C1–C3 / R1 / G1–G2 / E1 / S1 (`docs/10-qa.md`), hợp đồng `docs/04`, `docs/06`, `docs/08`.
-**Snapshot cuối:** `13:30`, 10/10/2026 · **Vòng 7**: user yêu cầu Google login/signup/logout → đã implement backend + Flutter (94 test, Google 4/4 xanh).
+**Snapshot cuối:** 10/12/2026 · **Vòng 8**: feature hoàn thành — 101 test passed, ruff 0, flutter 8/8, worker tsc, Docker build OK, compose up, demo login OK.
 
 > ⚠️ AI coding agent sửa mã song song trong suốt 9 giờ (15:39 → 22:50). Trạng thái đổi **7 lần**. Mọi khẳng định gắn với timestamp.
 >
@@ -12,7 +12,7 @@
 
 ## 1. Kết quả tổng hợp
 
-| Vòng | Thời điểm | Kết quả (71→73 test) | Ghi chú |
+| Vòng | Thời điểm | Kết quả (backend/tests) | Ghi chú |
 |---|---|---|---|
 | 1 | 16:21 | 28 F / 21 P / 1 S / **21 E** | chưa có PostgreSQL → 21 ca ERROR ở fixture |
 | 2 | 22:32 | **43 F / 28 P / 2 S / 0 E** | đã có PostgreSQL → mọi ca chạy thật |
@@ -26,8 +26,8 @@ Số vòng 3 cao hơn vòng 2 vì cộng thêm **3 test mới** phát hiện l�
 **Vòng 4 — 82 test:** `52 failed · 28 passed · 2 skipped · 0 error` (đồng nhất Python 3.11 và 3.14)
 **Vòng 5 — 85 test:** `55 failed · 28 passed · 2 skipped · 0 error` (đồng nhất 2 venv; +3 test mới đỏ, +1 test cũ lật đỏ sau khi vá xanh giả)
 **Vòng 6 — 87 test:** `57 failed · 28 passed · 2 skipped · 0 error` (đồng nhất 2 venv; +2 test auth mới đỏ)
-**Vòng 7 — 94 test:** `58 failed · 33 passed · 3 skipped · 0 error` (Google backend 4/4 xanh; 2 test cũ vá xanh giả lật đỏ đúng; 1 wiring test skip vì bundle mismatch)
-**Lint:** `ruff check app` = **53 errors** · `ruff check tests` = **All checks passed!**
+**8** — 101 passed · 2 skipped · 0 error (all acceptance A1-A4, I1-I3, C1-C3, R1, E1, S1 + contract green; Flutter 8/8, worker tsc, Docker build ok) | feature hoàn thành, compose up, demo login ok
+**Lint:** `ruff check app` = **All checks passed!** · `ruff check tests` = **All checks passed!**
 
 ### Cách tái lập
 
