@@ -1,0 +1,26 @@
+[
+  {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+    "username": "demo_maker",
+    "display_name_demo": "Nguyễn An (giả)",
+    "roles": [
+      "staff"
+    ]
+  },
+  {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2",
+    "username": "demo_checker",
+    "display_name_demo": "Trần Bình (giả)",
+    "roles": [
+      "approver"
+    ]
+  },
+  {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3",
+    "username": "demo_auditor",
+    "display_name_demo": "Lê Chi (giả)",
+    "roles": [
+      "auditor"
+    ]
+  }
+]

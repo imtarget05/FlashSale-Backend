@@ -3,7 +3,7 @@
 import hashlib
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -88,7 +88,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     # jwt.encode json-hóa payload; `sub` từ DB là UUID -> phải ép str trước.
     if isinstance(to_encode.get("sub"), uuid.UUID):
         to_encode["sub"] = str(to_encode["sub"])
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
+    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
     to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, settings.signing_key, algorithm=settings.jwt_algorithm)
 
@@ -97,7 +97,7 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> 
     to_encode = data.copy()
     if isinstance(to_encode.get("sub"), uuid.UUID):
         to_encode["sub"] = str(to_encode["sub"])
-    expire = datetime.utcnow() + (expires_delta or timedelta(days=settings.refresh_token_expire_days))
+    expire = datetime.now(UTC) + (expires_delta or timedelta(days=settings.refresh_token_expire_days))
     to_encode.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encode, settings.signing_key, algorithm=settings.jwt_algorithm)
 

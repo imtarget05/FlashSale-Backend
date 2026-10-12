@@ -1,0 +1,54 @@
+name: Deploy BankOps Worker to Cloudflare
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/cloudflare-worker/**"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-worker-${{ github.ref }}
+  cancel-in-progress: false  # đừng cancel deploy đang chạy
+
+jobs:
+  deploy:
+    name: Deploy Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: infra/cloudflare-worker
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: infra/cloudflare-worker/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: infra/cloudflare-worker
+          command: deploy
+
+      - name: Smoke test
+        run: |
+          sleep 5
+          curl -f https://bankops-api.${{ secrets.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/api/v1/health/live \
+            || echo "⚠️  Smoke test failed – manual check required"

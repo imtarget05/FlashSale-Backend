@@ -7,11 +7,12 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.errors import register_error_handlers
 from app.api.middleware.correlation import CorrelationIdMiddleware
 from app.api.openapi import custom_openapi
 from app.api.routes import (
@@ -20,8 +21,12 @@ from app.api.routes import (
     auth,
     auth_google,
     cash_sim,
+    events,
     health,
+    integrations,
     inventory,
+    reconciliations,
+    reports,
 )
 from app.config import settings
 from app.database import init_db
@@ -136,7 +141,6 @@ async def validation_exception_envelope(request: Request, exc: RequestValidation
         headers={"X-Request-ID": rid},
     )
 
-
 @app.exception_handler(Exception)
 async def unhandled_exception_envelope(request: Request, exc: Exception):
     """500 theo cùng envelope docs/06:44."""
@@ -155,13 +159,27 @@ async def unhandled_exception_envelope(request: Request, exc: Exception):
     )
 
 
-app.include_router(health.router, prefix="/health", tags=["health"])
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(auth_google.router, prefix="/auth", tags=["auth"])
-app.include_router(inventory.router, prefix="/inventory", tags=["inventory"])
-app.include_router(cash_sim.router, prefix="/cash-sim", tags=["cash-sim"])
-app.include_router(approvals.router, prefix="/approvals", tags=["approvals"])
-app.include_router(activity.router, prefix="/activity", tags=["activity"])
+# Lỗi nghiệp vụ có code riêng (AppError, IdempotencyConflict) -> envelope docs/06.
+register_error_handlers(app)
 
-# docs/06:9 khai báo `GET /me` (không qua /auth) — alias tới cùng handler.
-app.add_api_route("/me", auth.get_current_user_info, methods=["GET"], tags=["auth"])
+def _mount_routes(target: FastAPI | APIRouter, *, include_in_schema: bool = True) -> None:
+    target.include_router(health.router, prefix="/health", tags=["health"], include_in_schema=include_in_schema)
+    target.include_router(auth.router, prefix="/auth", tags=["auth"], include_in_schema=include_in_schema)
+    target.include_router(auth_google.router, prefix="/auth", tags=["auth"], include_in_schema=include_in_schema)
+    target.include_router(inventory.router, tags=["inventory"], include_in_schema=include_in_schema)
+    target.include_router(cash_sim.router, tags=["cash-sim"], include_in_schema=include_in_schema)
+    target.include_router(approvals.router, prefix="/approvals", tags=["approvals"], include_in_schema=include_in_schema)
+    target.include_router(activity.router, tags=["activity"], include_in_schema=include_in_schema)
+    target.include_router(events.router, tags=["events"], include_in_schema=include_in_schema)
+    target.include_router(reports.router, prefix="/reports", tags=["reports"], include_in_schema=include_in_schema)
+    target.include_router(integrations.router, tags=["integrations"], include_in_schema=include_in_schema)
+    target.include_router(reconciliations.router, tags=["reconciliations"], include_in_schema=include_in_schema)
+    # docs/06:9 khai báo `GET /me` (không qua /auth) — alias tới cùng handler.
+    target.add_api_route("/me", auth.get_current_user_info, methods=["GET"], tags=["auth"], include_in_schema=include_in_schema)
+
+
+_mount_routes(app, include_in_schema=True)
+
+api_v1_router = APIRouter(prefix="/api/v1")
+_mount_routes(api_v1_router, include_in_schema=False)
+app.include_router(api_v1_router, include_in_schema=False)

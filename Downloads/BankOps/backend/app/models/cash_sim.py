@@ -39,7 +39,6 @@ class CashRequest(Base, TimestampMixin):
     __table_args__ = (
         CheckConstraint("amount > 0", name="amount_positive"),
     )
-    __mapper_args__ = {"version_id_col": "version"}
 
     id: str = Column(UUID(as_uuid=True), primary_key=True)
     cashbox_id: str = Column(UUID(as_uuid=True), ForeignKey("cash_boxes.id"), nullable=False)
@@ -52,6 +51,10 @@ class CashRequest(Base, TimestampMixin):
     version: int = Column(Integer, default=1, nullable=False)
     submitted_at = Column(DateTime(timezone=True), nullable=True)
     created_by: str = Column(UUID(as_uuid=True), ForeignKey("iam_users.id"), nullable=False)
+
+    __mapper_args__ = {
+        "version_id_col": version
+    }
 
     def __repr__(self):
         return f"<CashRequest {self.kind} {self.amount} {self.status}>"

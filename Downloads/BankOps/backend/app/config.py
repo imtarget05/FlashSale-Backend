@@ -28,7 +28,16 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = Field(default=30)
     refresh_token_expire_days: int = Field(default=7)
 
-    allowed_origins: list[str] = Field(default=[])
+    allowed_origins: list[str] = Field(
+        default=[
+            "http://localhost:3000",
+            "http://localhost:5000",
+            "http://localhost:8080",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5000",
+            "http://127.0.0.1:8080",
+        ]
+    )
 
     idempotency_key_retention_hours: int = Field(default=24)
 
@@ -39,6 +48,11 @@ class Settings(BaseSettings):
     connector_secret_ref: str = Field(default="")
     sse_retention_days: int = Field(default=7)
     staging_ttl_hours: int = Field(default=24)
+    sheets_timeout_seconds: int = Field(default=15)
+
+    # Integration Hub (docs/09): secret cho Apps Script webhook + Sheet sandbox.
+    google_sheets_api_key: str = Field(default="")
+    apps_script_webhook_secret: str = Field(default="")
 
     rate_limit_login_attempts: int = Field(default=5)
     rate_limit_login_window_minutes: int = Field(default=15)

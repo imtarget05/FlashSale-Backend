@@ -57,7 +57,6 @@ class Asset(Base, TimestampMixin):
 
 class InventoryRequest(Base, TimestampMixin):
     __tablename__ = "inv_requests"
-    __mapper_args__ = {"version_id_col": "version"}
 
     id: str = Column(UUID(as_uuid=True), primary_key=True)
     kind: str = Column(String(32), nullable=False)  # receipt, issue, transfer, adjustment
@@ -70,6 +69,10 @@ class InventoryRequest(Base, TimestampMixin):
     version: int = Column(Integer, default=1, nullable=False)
     submitted_at = Column(DateTime(timezone=True), nullable=True)
     created_by: str = Column(UUID(as_uuid=True), ForeignKey("iam_users.id"), nullable=False)
+
+    __mapper_args__ = {
+        "version_id_col": version
+    }
 
     def __repr__(self):
         return f"<InventoryRequest {self.kind} {self.status}>"

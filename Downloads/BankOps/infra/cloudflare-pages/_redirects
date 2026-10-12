@@ -1,0 +1,6 @@
+/*
+ * Cloudflare Pages: SPA redirect rules
+ * Flutter web cần tất cả paths route về index.html
+ */
+
+/* /index.html 200

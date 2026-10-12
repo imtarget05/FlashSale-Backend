@@ -1,0 +1,38 @@
+name = "bankops-api"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare Workers luôn warm – không có cold start
+# V8 isolate khởi động < 5ms trên toàn cầu
+
+[vars]
+APP_ENV = "production"
+APP_NAME = "BankOps-API"
+ACCESS_TOKEN_EXPIRE_MINUTES = "30"
+REFRESH_TOKEN_EXPIRE_DAYS = "7"
+
+# KV namespace cho cache JWT và rate limiting
+# ID lay tu: wrangler kv namespace create BANKOPS_KV (prod)
+[[kv_namespaces]]
+binding = "BANKOPS_KV"
+id = "a1b2c3d4e5f60718293a4b5c6d7e8f90"
+
+# Secrets (cấu hình qua: wrangler secret put <NAME>):
+# DATABASE_URL       – Neon connection string (pooled)
+# JWT_SECRET         – key dùng HS256 sign JWT
+# SESSION_SECRET     – Starlette session secret (không dùng trên Worker, để tương thích)
+# GOOGLE_CLIENT_ID   – OAuth audience
+
+# Cron trigger giữ Worker luôn warm (tùy chọn, Workers đã zero cold start)
+[triggers]
+crons = ["*/5 * * * *"]   # Ping health mỗi 5 phút → giữ isolate alive
+
+# Staging environment
+[env.staging]
+name = "bankops-api-staging"
+vars = { APP_ENV = "staging" }
+
+[[env.staging.kv_namespaces]]
+binding = "BANKOPS_KV"
+id = "b1c2d3e4f5a60718293b4c5d6e7f80910"

@@ -1,8 +1,7 @@
 """Auth routes - demo authentication and session management."""
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,28 +29,53 @@ router = APIRouter()
 
 @router.post("/login")
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Login with username and password. Returns access and refresh tokens."""
+    """Login with username and password (supports JSON or form-urlencoded)."""
+    content_type = (request.headers.get("content-type") or "").lower()
+    username: str | None = None
+    password: str | None = None
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                username = body.get("username")
+                password = body.get("password")
+        except Exception:
+            pass
+    else:
+        try:
+            form = await request.form()
+            username = form.get("username")  # type: ignore[assignment]
+            password = form.get("password")  # type: ignore[assignment]
+        except Exception:
+            pass
+
+    if not username or not password:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="username and password are required",
+        )
+
     # Rate limit login (docs/08: chặn brute force, khóa tạm theo username).
-    if login_rate_limited(form_data.username):
+    if login_rate_limited(username):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many failed login attempts, try again later.",
             headers={"Retry-After": str(settings.rate_limit_login_window_minutes * 60)},
         )
 
-    user = await authenticate_user(db, form_data.username, form_data.password)
+    user = await authenticate_user(db, username, password)
     if not user:
-        record_login_failure(form_data.username)
+        record_login_failure(username)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    reset_login_failures(form_data.username)
+    reset_login_failures(username)
     roles = await get_user_roles(db, user.id)
     capabilities = await get_user_capabilities(db, user.id)
 

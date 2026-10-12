@@ -1,0 +1,46 @@
+{
+  "simulation": true,
+  "locations": [
+    {
+      "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1",
+      "code": "DEMO-HN",
+      "name": "Kho demo Hà Nội"
+    },
+    {
+      "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2",
+      "code": "DEMO-HCM",
+      "name": "Kho demo TP.HCM"
+    }
+  ],
+  "items": [
+    {
+      "id": "cccccccc-cccc-4ccc-8ccc-ccccccccccc1",
+      "sku": "DEMO-PAPER-A4",
+      "name": "Giấy A4 giả lập",
+      "unit": "ram",
+      "tracked_serial": false
+    },
+    {
+      "id": "cccccccc-cccc-4ccc-8ccc-ccccccccccc2",
+      "sku": "DEMO-LAPTOP",
+      "name": "Laptop mẫu",
+      "unit": "cái",
+      "tracked_serial": true
+    }
+  ],
+  "initial_balances": [
+    {
+      "location_code": "DEMO-HN",
+      "sku": "DEMO-PAPER-A4",
+      "quantity": "100.000"
+    }
+  ],
+  "assets": [
+    {
+      "sku": "DEMO-LAPTOP",
+      "serial": "DEMO-ASSET-0001",
+      "location_code": "DEMO-HN",
+      "status": "available"
+    }
+  ]
+}

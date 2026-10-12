@@ -1,0 +1,31 @@
+{
+  "name": "bankops-worker",
+  "version": "1.0.0",
+  "description": "BankOps API trên Cloudflare Workers – zero cold start",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --local",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "@neondatabase/serverless": "^0.10.0",
+    "jose": "^5.9.6",
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241106.0",
+    "@types/bcryptjs": "^2.4.6",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0",
+    "eslint": "^9.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.17.19": true,
+    "workerd@1.20250718.0": true,
+    "sharp@0.33.5": true
+  }
+}

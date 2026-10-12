@@ -23,6 +23,13 @@ frontend/.flutter-plugins-dependencies
 .env
 .env.*
 !.env.example
+.dev.vars
+
+# Node / Cloudflare Worker
+node_modules/
+**/node_modules/
+.wrangler/
+**/.wrangler/
 
 # macOS
 .DS_Store

@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import Base, TimestampMixin
 
 
-class UserStatus(str, enum.Enum):
+class UserStatus(enum.StrEnum):
     active = "active"
     inactive = "inactive"
     locked = "locked"

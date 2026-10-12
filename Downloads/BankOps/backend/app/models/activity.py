@@ -13,7 +13,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.exc import DBAPIError
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, utc_now
 
 
 class AuditEvent(Base):
@@ -26,7 +26,7 @@ class AuditEvent(Base):
     before_hash: str = Column(String(128), nullable=True)
     after_hash: str = Column(String(128), nullable=True)
     request_id: str = Column(String(64), nullable=True)
-    occurred_at: datetime = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    occurred_at: datetime = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     metadata_json: dict = Column(JSON, nullable=True)
 
     def __repr__(self):
@@ -59,7 +59,7 @@ class OutboxEvent(Base):
     event_type: str = Column(String(128), nullable=False)
     aggregate_id: str = Column(String(128), nullable=False)
     payload_json: dict = Column(JSON, nullable=False)
-    created_at: datetime = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at: datetime = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     published_at: datetime = Column(DateTime(timezone=True), nullable=True)
     attempts: int = Column(Integer, default=0, nullable=False)
 
@@ -92,7 +92,7 @@ class ActivityEvent(Base):
     subject: str = Column(String(128), nullable=False)
     message_key: str = Column(String(256), nullable=False)
     payload: dict = Column(JSON, nullable=False)
-    occurred_at: datetime = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    occurred_at: datetime = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     outbox_event_id: str = Column(UUID(as_uuid=True), ForeignKey("outbox_events.id"), nullable=True)
 
     def __repr__(self):

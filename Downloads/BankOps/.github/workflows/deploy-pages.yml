@@ -1,0 +1,67 @@
+name: Build & Deploy Flutter Web to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build Flutter Web & Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: "stable"
+          cache: true
+
+      - name: Flutter pub get
+        working-directory: frontend
+        run: flutter pub get
+
+      - name: Flutter analyze
+        working-directory: frontend
+        run: flutter analyze
+
+      - name: Flutter test
+        working-directory: frontend
+        run: flutter test
+
+      - name: Build Flutter Web (release)
+        working-directory: frontend
+        env:
+          # URL của Cloudflare Worker
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: |
+          flutter build web \
+            --release \
+            --web-renderer canvaskit \
+            --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }} \
+            --dart-define=GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+            --dart-define=APP_ENV=production
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy frontend/build/web --project-name=bankops-web --commit-dirty=true
+
+      - name: Print deployment URL
+        run: |
+          echo "✅ Flutter Web deployed to Cloudflare Pages"
+          echo "🌐 URL: https://bankops-web.pages.dev"

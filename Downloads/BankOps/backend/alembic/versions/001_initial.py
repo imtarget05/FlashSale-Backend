@@ -1,7 +1,8 @@
 """Initial migration - all tables."""
-from alembic import op
 import sqlalchemy as sa
 import sqlalchemy.dialects.postgresql as pg
+
+from alembic import op
 
 revision = '001_initial'
 down_revision = None
