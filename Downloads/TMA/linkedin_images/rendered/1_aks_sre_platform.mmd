@@ -1,0 +1,57 @@
+flowchart TD
+    %% Styling Definitions
+    classDef client fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef control fill:#0f172a,stroke:#818cf8,stroke-width:2px,color:#f8fafc;
+    classDef pool fill:#1e1b4b,stroke:#c084fc,stroke-width:2px,color:#f8fafc;
+    classDef gitops fill:#022c22,stroke:#34d399,stroke-width:2px,color:#f8fafc;
+    classDef obs fill:#311042,stroke:#f472b6,stroke-width:2px,color:#f8fafc;
+    classDef sec fill:#451a03,stroke:#fb923c,stroke-width:2px,color:#f8fafc;
+
+    subgraph IaC["1. Infrastructure as Code & Azure Perimeter (Terraform)"]
+        direction TB
+        TF["Terraform IaC (Resource Groups · VNet · Subnets · Private DNS)"]:::sec
+        ACR["Private Azure Container Registry (ACR Pull by Digest)"]:::sec
+        OIDC["Azure AD Workload Identity (OIDC Federated Token Exchange)"]:::sec
+    end
+
+    subgraph AKSCluster["2. Azure Kubernetes Service (AKS Platform Core)"]
+        direction TB
+        subgraph ControlPlane["Managed Control Plane"]
+            APIServer["Kube-API Server (OIDC Auth · Admission Webhooks)"]:::control
+        end
+
+        subgraph SystemPool["System Node Pool (CriticalAddonsOnly Taint)"]
+            CoreDNS["CoreDNS / Metrics Server"]:::pool
+            Overlay["Azure CNI Overlay Network"]:::pool
+        end
+
+        subgraph WorkloadPool["User / Workload Node Pool (Auto-Scaling)"]
+            Workloads["Workload Pods (FlashSale Backend / Microservices)"]:::client
+            KEDA["KEDA Operator (Event-Driven Pod Autoscaler)"]:::pool
+            ArgoAgent["Argo CD Application Controller"]:::gitops
+        end
+    end
+
+    subgraph GitOpsTier["3. GitOps Continuous Delivery & Reconciliation"]
+        direction TB
+        GitRepo["GitHub Repository (Platform & App Manifests)"]:::gitops
+        ArgoServer["Argo CD Server (GitOps Reconcile · Drift Detection)"]:::gitops
+    end
+
+    subgraph SREObs["4. SRE Observability & Governance"]
+        direction TB
+        Monitor["Azure Monitor Container Insights"]:::obs
+        Prom["Managed Prometheus (Metrics Scrape)"]:::obs
+        Graf["Grafana Dashboards (SLO · Latency · Capacity)"]:::obs
+    end
+
+    %% Connections
+    GitRepo -->|1. Commit Desired State| ArgoServer
+    ArgoServer -->|2. Reconcile Manifests| APIServer
+    ACR -->|3. Digest-Verified Image Pull| WorkloadPool
+    OIDC -.->|Federated Auth| Workloads
+    KEDA -->|4. Scale Pods on Event Lag| Workloads
+    Workloads -->|5. Telemetry & Metrics| Prom
+    Prom --> Graf
+    APIServer --> SystemPool
+    APIServer --> WorkloadPool

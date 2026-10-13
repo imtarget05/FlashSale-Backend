@@ -1,0 +1,50 @@
+flowchart TD
+    %% Styling Definitions
+    classDef edge fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef ai fill:#1e1b4b,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
+    classDef hitl fill:#451a03,stroke:#fb923c,stroke-width:2px,color:#f8fafc;
+    classDef plc fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#f8fafc;
+    classDef db fill:#0f172a,stroke:#94a3b8,stroke-width:2px,color:#f8fafc;
+
+    subgraph EdgeVision["1. Edge Industrial Vision (Assembly Line)"]
+        direction TB
+        CAM["4K RTSP Industrial Camera"]:::edge
+        SAHI["SAHI High-Res Micro-Patching (OpenCV)"]:::edge
+        ONNX["ONNX Runtime YOLOv8n (43.36ms / 23.1 FPS Apple Silicon)"]:::edge
+    end
+
+    subgraph AgenticCore["2. FastAPI Service & LangGraph SOP Reasoner (:8000)"]
+        direction TB
+        API["FastAPI Inspection Service (API_KEY Auth)"]:::ai
+        Graph["LangGraph StateGraph (Frame Defect State)"]:::ai
+        BM25["BM25 Knowledge Retrieval (SOP-001..006 IPC-A-610)"]:::ai
+    end
+
+    subgraph HITLTier["3. Human-in-the-Loop Operator Console (:8501)"]
+        direction TB
+        UI["Streamlit / Render Web Dashboard"]:::hitl
+        Overlay["Defect Bounding Box & Risk Grading"]:::hitl
+        Decision{"Operator Decision Gate (Approve / Reject)"}:::hitl
+    end
+
+    subgraph OTIntegration["4. OT Hardware Control & MES Integration"]
+        direction TB
+        Modbus["Modbus TCP Bridge :502 (Simulation Safe Guard)"]:::plc
+        PLC["PLC Hardware / Diverter Coil 0x00001"]:::plc
+        MES["Factory MES Sync (POST /api/v1/mes/action)"]:::plc
+        AuditDB[("Neon PostgreSQL: Append-Only AuditLog")]:::db
+    end
+
+    %% Dataflow
+    CAM -->|1. RTSP Stream| SAHI
+    SAHI -->|2. High-Res Patches| ONNX
+    ONNX -->|3. Defect Coordinates & Confidence| API
+    API --> Graph
+    Graph -->|4. Retrieve IPC-A-610 Standard| BM25
+    BM25 -->|5. Diagnostic Rules| Graph
+    Graph -->|6. High-Risk HITL Interrupt| UI
+    UI --> Overlay --> Decision
+    Decision -->|7. Verified Approval| Modbus
+    Modbus -->|8. Write Coil| PLC
+    Decision -->|9. Dispatch MES Action| MES
+    Decision -->|10. Cryptographic Audit Record| AuditDB

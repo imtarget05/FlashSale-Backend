@@ -1,0 +1,60 @@
+flowchart TD
+    %% Styling Definitions
+    classDef ui fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef api fill:#0f172a,stroke:#818cf8,stroke-width:2px,color:#f8fafc;
+    classDef plsql fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#f8fafc;
+    classDef failsoft fill:#451a03,stroke:#fb923c,stroke-width:2px,color:#f8fafc;
+
+    subgraph ClientShopFloor["1. Shop Floor & Warehouse Terminals"]
+        direction TB
+        Dashboard["Web Operations Dashboard (Real-time View)"]:::ui
+        Scanner["Handheld WMS Scanner (Zebra Label Integration)"]:::ui
+        Workstation["Manufacturing Assembly Workstation"]:::ui
+    end
+
+    subgraph APITier["2. ASP.NET Core 8 Web API & Security"]
+        direction TB
+        JWTAuth["JWT Authentication + PBKDF2 Password Hashing"]:::api
+        RBAC["RBAC Engine (Operator · Warehouse · Planner · Admin)"]:::api
+        Dapper["Dapper ORM (High-Throughput SQL Execution)"]:::api
+        IdempGuard["Anti-Duplicate Barcode Scanning Guard"]:::api
+    end
+
+    subgraph OracleCore["3. Oracle Database 23c PL/SQL Engine (31 Tables 3NF)"]
+        direction TB
+        subgraph Operations["ERP_OPERATIONS Package"]
+            Inv["Inventory & Material Master"]:::plsql
+            BOM["BOM (Bill of Materials)"]:::plsql
+            PO_WO["PO & Production Work Orders"]:::plsql
+        end
+        subgraph Automation["ERP_AUTOMATION Package"]
+            AvailCheck["Material Availability Check"]:::plsql
+            AutoReserve["Auto Stock Reservation"]:::plsql
+            ThresholdAlert["Minimum Stock Safety Alert"]:::plsql
+        end
+        subgraph Traceability["ERP_TRACEABILITY Package"]
+            LotBin["Lot & Bin Management"]:::plsql
+            FEFO["FEFO Rule (First Expired First Out)"]:::plsql
+            Genealogy["Bi-Directional Genealogy (Raw Material ↔ Finished Good)"]:::plsql
+        end
+    end
+
+    subgraph FailSoftIntegration["4. Fail-Soft Incident & Event Outbox"]
+        direction TB
+        AutonomousLog["Autonomous Transaction Error Logger (Independent Audit)"]:::failsoft
+        HelpdeskOutbox["Helpdesk Outbox Table (Fail-Soft Retry Queue)"]:::failsoft
+        ITSM["Enterprise IT Helpdesk Integration"]:::failsoft
+    end
+
+    %% Flows
+    Scanner -->|1. Barcode Scan Events| IdempGuard
+    Dashboard --> JWTAuth
+    Workstation --> JWTAuth
+    IdempGuard --> Dapper
+    JWTAuth --> RBAC --> Dapper
+    Dapper -->|2. Atomic PL/SQL Execution| Operations
+    Operations --> Automation
+    Operations --> Traceability
+    Operations -.->|3. On Business Exception| AutonomousLog
+    Operations -.->|4. Emit Incident Event| HelpdeskOutbox
+    HelpdeskOutbox -->|5. Background Retry| ITSM

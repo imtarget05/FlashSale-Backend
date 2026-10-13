@@ -1,0 +1,61 @@
+flowchart TD
+    %% Styling Definitions
+    classDef client fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef api fill:#0f172a,stroke:#818cf8,stroke-width:2px,color:#f8fafc;
+    classDef ml fill:#1e1b4b,stroke:#c084fc,stroke-width:2px,color:#f8fafc;
+    classDef lg fill:#451a03,stroke:#fb923c,stroke-width:2px,color:#f8fafc;
+    classDef ops fill:#022c22,stroke:#34d399,stroke-width:2px,color:#f8fafc;
+
+    subgraph ClientLayer["1. Client Layer & Ingress"]
+        direction TB
+        SPA["React 18 + Vite SPA (GitHub Pages)"]:::client
+        ACA["Azure Container Apps Ingress (HTTPS :8080)"]:::api
+    end
+
+    subgraph APILayer["2. FastAPI Gateway & Validation"]
+        direction TB
+        Auth["Server-Side Auth: X-CreditFlow-API-Key"]:::api
+        Pydantic["Pydantic V2 Validation (Zero-Division Guard)"]:::api
+        FE["Feature Engineering (5 Derived Financial Ratios)"]:::api
+        BundleCheck["Model Bundle Gate: SHA-256 Checksum Verify"]:::api
+    end
+
+    subgraph MLServing["3. Cost-Sensitive ML Scoring Engine"]
+        direction TB
+        Model["StandardScaler + Logistic Regression v001"]:::ml
+        CostEngine["Asymmetric Cost Engine (Cost = 5·FN + 1·FP)"]:::ml
+        Threshold["Optimal Threshold t = 0.20 (Recall 0.80)"]:::ml
+    end
+
+    subgraph Orchestration["4. LangGraph 12-Node Decision Workflow"]
+        direction TB
+        StateGraph["LangGraph Workflow (Load → Validate → Risk → Decision)"]:::lg
+        HITLGate{"Risk Decision Gate"}:::lg
+        Interrupt["REVIEW (0.20 <= P < 0.50): HITL Interrupt"]:::lg
+        Officer["Credit Officer Approval (Idempotency Key)"]:::lg
+        Contract["Execute: Issue Contract HDTD-YYYYMMDD-XXXX"]:::lg
+    end
+
+    subgraph AuditMLOps["5. Tamper-Evident Ledger & MLOps Governance"]
+        direction TB
+        Ledger[("Immutable Ledger: SHA-256 Snapshot Hash")]:::ops
+        Drift["PSI Drift Detector (Population Stability Index)"]:::ops
+        MLflow["Self-Hosted MLflow Tracking Registry"]:::ops
+    end
+
+    %% Flow
+    SPA -->|1. Submit Loan Application| ACA
+    ACA --> Auth --> Pydantic --> FE --> BundleCheck
+    BundleCheck -->|2. In-Memory Inference| Model
+    Model --> CostEngine --> Threshold
+    Threshold -->|3. Risk State & Features| StateGraph
+    StateGraph --> HITLGate
+    HITLGate -->|P < 0.20| Contract
+    HITLGate -->|0.20 <= P < 0.50| Interrupt
+    Interrupt -->|4. Manual Review| Officer
+    Officer -->|5. Resume Graph| Contract
+    HITLGate -->|P >= 0.50| Reject["Reject Application"]:::lg
+    Contract -->|6. Append Record| Ledger
+    Reject -->|6. Append Record| Ledger
+    Ledger -.->|Daily Feature Stats| Drift
+    FE -.->|Logged Parameters| MLflow

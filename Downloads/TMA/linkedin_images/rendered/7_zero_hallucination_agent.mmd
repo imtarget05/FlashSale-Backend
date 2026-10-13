@@ -1,0 +1,60 @@
+flowchart TD
+    %% Styling Definitions
+    classDef client fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef router fill:#0f172a,stroke:#818cf8,stroke-width:2px,color:#f8fafc;
+    classDef rag fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#f8fafc;
+    classDef agent fill:#1e1b4b,stroke:#c084fc,stroke-width:2px,color:#f8fafc;
+    classDef mcp fill:#451a03,stroke:#fb923c,stroke-width:2px,color:#f8fafc;
+
+    subgraph ClientConsole["1. Enterprise Client & Memory"]
+        Console["Streamlit Console / REST API (Azure Container Apps)"]:::client
+        Memory[("Long-Term User Memory & Facts (SQLite)")]:::client
+    end
+
+    subgraph APIRouter["2. FastAPI Service & Intent Router"]
+        direction TB
+        PIIGuard["2-Layer PII Scanning Guard (Ingestion + Output)"]:::router
+        Router{"Multi-Intent Router"}:::router
+        Chitchat["Direct LLM Answer (Chitchat / Greeting)"]:::router
+    end
+
+    subgraph GroundedRAG["3. Grounded Hybrid RAG & Evidence Gate"]
+        direction TB
+        Hybrid["Dense (Qdrant) + Sparse (BM25) via RRF"]:::rag
+        EvidenceGate{"Evidence Gate: Similarity >= 0.3"}:::rag
+        Abstain["Refuse to Answer (Measured Abstention)"]:::rag
+        Citation["Citation Projection [S1], [S2] (File, Section, Snippet)"]:::rag
+    end
+
+    subgraph LangGraphHITL["4. LangGraph StateGraph & Action Execution"]
+        direction TB
+        StateGraph["LangGraph StateGraph (Slot Filling & Action Plan)"]:::agent
+        PostgresSaver[("PostgreSQL Durable Checkpointer (PostgresSaver)")]:::agent
+        Interrupt["HITL Interrupt Gate: Side-Effect Action Requires Approval"]:::agent
+        Resume["Resume Action: POST /agent/chat (Approved)"]:::agent
+    end
+
+    subgraph MCPIntegrations["5. Model Context Protocol (MCP) & ITSM Outbox"]
+        direction TB
+        MCP["MCP JSON-RPC 2.0 Server (Tools Registry)"]:::mcp
+        Jira["Jira ITSM Ticket Creation"]:::mcp
+        Teams["MS Teams / Email Notifications"]:::mcp
+        OutboxWorker["Background Outbox Publisher & Audit Trail"]:::mcp
+    end
+
+    %% Flows
+    Console --> PIIGuard --> Router
+    Router -->|1. Casual Query| Chitchat
+    Router -->|2. Policy Question| Hybrid
+    Router -->|3. Action Request| StateGraph
+    Hybrid --> EvidenceGate
+    EvidenceGate -->|No Evidence| Abstain
+    EvidenceGate -->|Evidence Found| Citation --> Console
+    StateGraph --> PostgresSaver
+    StateGraph --> Interrupt
+    Interrupt -->|4. Awaiting Human Sign-off| Console
+    Console -->|5. Operator Confirms| Resume
+    Resume --> MCP
+    MCP --> Jira
+    MCP --> Teams
+    MCP --> OutboxWorker

@@ -1,0 +1,63 @@
+flowchart TD
+    %% Styling Definitions
+    classDef client fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef gw fill:#0f172a,stroke:#818cf8,stroke-width:2px,color:#f8fafc;
+    classDef store fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#f8fafc;
+    classDef ai fill:#1e1b4b,stroke:#c084fc,stroke-width:2px,color:#f8fafc;
+    classDef obs fill:#311042,stroke:#f472b6,stroke-width:2px,color:#f8fafc;
+
+    subgraph ClientPresentation["1. Client Presentation (SPA)"]
+        SPA["React 18 + TypeScript SPA (Cloudflare Pages)"]:::client
+        SSEClient["SSE Progressive Token Renderer"]:::client
+    end
+
+    subgraph EnterpriseGateway["2. Spring Boot 3.2 Gateway (:8080 Java 17)"]
+        direction TB
+        CookieAuth["HttpOnly SameSite Cookie Authentication"]:::gw
+        Guardrails["Rate Limiting & Prompt Injection Guard"]:::gw
+        MDC["SLF4J MDC Logging (X-Trace-Id · jobId)"]:::gw
+        SSEManager["SseStreamManager (Event Deduplication)"]:::gw
+    end
+
+    subgraph DurableStorage["3. Durable Storage & Asynchronous Queue"]
+        direction TB
+        R2["Cloudflare R2 Object Storage (Document Blobs)"]:::store
+        NeonDB[("Neon PostgreSQL: Job Queue (FOR UPDATE SKIP LOCKED)")]:::store
+    end
+
+    subgraph AIService["4. Python FastAPI & LangGraph RAG Agent (:8000)"]
+        direction TB
+        Qdrant["Qdrant Cloud (Dense HNSW Cosine Vectors)"]:::ai
+        BM25["BM25 Lexical Keyword Search"]:::ai
+        RRF["Reciprocal Rank Fusion (RRF Hybrid Search)"]:::ai
+        subgraph CRAG["Corrective RAG (CRAG 5-Layer Pipeline)"]
+            Grade["1. Relevance Grading"]:::ai
+            Refine["2. Knowledge Refinement"]:::ai
+            Hallucination["3. Hallucination Guard (Groundedness Check)"]:::ai
+            AnswerGrade["4. Answer Grading / Abstain Action"]:::ai
+        end
+        LLM["Ollama Local-First (:11434) / Cloudflare Workers AI"]:::ai
+    end
+
+    subgraph Observability["5. Observability & Tracing"]
+        Langfuse["Langfuse Cloud (Token Count · USD Cost · TTFT Span)"]:::obs
+    end
+
+    %% Flows - Document Ingestion
+    SPA -->|1. Upload Doc| CookieAuth
+    CookieAuth -->|2. Store Binary| R2
+    CookieAuth -->|3. Enqueue Job| NeonDB
+    NeonDB -->|4. Worker Claim - SKIP LOCKED| AIService
+    AIService -->|5. Chunk & Embed| Qdrant
+
+    %% Flows - Chat Q&A
+    SPA -->|6. POST /chat/stream| CookieAuth
+    CookieAuth --> Guardrails --> MDC --> SSEManager
+    SSEManager -->|7. Forward Query| RRF
+    Qdrant --> RRF
+    BM25 --> RRF
+    RRF --> Grade --> Refine --> Hallucination --> AnswerGrade
+    AnswerGrade -->|8. Generate Tokens| LLM
+    LLM -->|9. Token Stream| SSEManager
+    SSEManager -->|10. SSE: status → metadata → chunk → complete| SSEClient
+    AIService -.->|Tracing Spans| Langfuse

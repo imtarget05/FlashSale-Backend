@@ -1,0 +1,63 @@
+flowchart TD
+    %% Styling Definitions
+    classDef client fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef api fill:#0f172a,stroke:#818cf8,stroke-width:2px,color:#f8fafc;
+    classDef cache fill:#451a03,stroke:#fb923c,stroke-width:2px,color:#f8fafc;
+    classDef queue fill:#1e1b4b,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
+    classDef worker fill:#022c22,stroke:#34d399,stroke-width:2px,color:#f8fafc;
+    classDef db fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef obs fill:#311042,stroke:#f472b6,stroke-width:2px,color:#f8fafc;
+
+    subgraph BuyerTraffic["1. High-Concurrency Traffic (k6 Benchmark)"]
+        Buyers["50 Concurrent Buyers Spiking on 10 Stock Items"]:::client
+    end
+
+    subgraph WebAPILayer["2. ASP.NET Core 10 Web API (:5099)"]
+        direction TB
+        IdempMiddleware["Idempotency Middleware (Key Deduplication)"]:::api
+        OrderApi["Order.Api (Clean Architecture Controller)"]:::api
+    end
+
+    subgraph FastFailCache["3. In-Memory Atomic CAS Pre-Filter"]
+        direction TB
+        Redis["Redis 7 (Lua Script: EVALSHA atomic_decr.lua)"]:::cache
+        Conflict["409 CONFLICT: Fast-Fail in <30ms (0 DB Load)"]:::cache
+    end
+
+    subgraph MessageQueue["4. Asynchronous Event Decoupling"]
+        RabbitMQ["RabbitMQ 3.12 (AMQP Exchange order.events)"]:::queue
+        Accepted["202 ACCEPTED (Async Order Acknowledged)"]:::api
+    end
+
+    subgraph BackgroundWorker["5. Durable Background Worker Daemon"]
+        direction TB
+        Worker["Order.Worker Daemon (At-Least-Once Consumer)"]:::worker
+        TimeoutScan["Payment Timeout Scanner (15 min Auto-Cancel & Refund)"]:::worker
+    end
+
+    subgraph DatabaseTier["6. Relational Database (Single Source of Truth)"]
+        direction TB
+        Postgres[("PostgreSQL 16 FlashSaleDb")]:::db
+        AtomicGuard["Conditional UPDATE: stock = stock - 1 WHERE stock >= 1"]:::db
+    end
+
+    subgraph SREObservability["7. SRE Observability & Metrics"]
+        direction TB
+        Metrics["Prometheus Scrape (:5000/metrics)"]:::obs
+        Grafana["Grafana Dashboards (Throughput · Pool Cap 80/100 · Latency)"]:::obs
+    end
+
+    %% Flows
+    Buyers -->|1. POST /api/orders + Idempotency-Key| IdempMiddleware
+    IdempMiddleware --> OrderApi
+    OrderApi -->|2. Atomic 1-RTT Decrement| Redis
+    Redis -->|Stock == 0| Conflict
+    Redis -->|Stock > 0| RabbitMQ
+    RabbitMQ --> Accepted --> Buyers
+    RabbitMQ -->|3. Consume Order Message| Worker
+    Worker -->|4. Persist EF Core Entity| AtomicGuard
+    AtomicGuard --> Postgres
+    TimeoutScan -.->|Release Cancelled Stock| Redis
+    OrderApi -.-> Metrics
+    Worker -.-> Metrics
+    Metrics --> Grafana
