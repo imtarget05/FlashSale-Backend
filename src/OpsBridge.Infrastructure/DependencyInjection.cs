@@ -31,8 +31,17 @@ public static class DependencyInjection
         services.AddScoped<IConnectorRepository, EfConnectorRepository>();
         services.AddScoped<IIngestedEventRepository, EfIngestedEventRepository>();
         services.AddScoped<IInboxRepository, EfInboxRepository>();
+        services.AddScoped<IConsumerProcessingRepository, EfConsumerProcessingRepository>();
         services.AddScoped<IOutboxRepository, EfOutboxRepository>();
         services.AddScoped<OpsBridge.Application.Common.IUnitOfWork, EfUnitOfWork>();
+
+        // Reconciliation Repositories
+        services.AddScoped<OpsBridge.Application.Reconciliation.IPurchaseOrderRepository, EfPurchaseOrderRepository>();
+        services.AddScoped<OpsBridge.Application.Reconciliation.IGoodsReceiptRepository, EfGoodsReceiptRepository>();
+        services.AddScoped<OpsBridge.Application.Reconciliation.ISupplierInvoiceRepository, EfSupplierInvoiceRepository>();
+        services.AddScoped<OpsBridge.Application.Reconciliation.IMappingRuleRepository, EfMappingRuleRepository>();
+        services.AddScoped<OpsBridge.Application.Reconciliation.IReconciliationRepository, EfReconciliationRepository>();
+        services.AddScoped<OpsBridge.Application.Reconciliation.IAuditEventRepository, EfAuditEventRepository>();
 
         // Adapters
         services.AddSingleton<IWebhookSignatureVerifier, HmacWebhookVerifier>();
@@ -41,6 +50,8 @@ public static class DependencyInjection
 
         // Application Use Cases
         services.AddScoped<ReceiveWebhookUseCase>();
+        services.AddScoped<ReconcileInvoiceUseCase>();
+        services.AddScoped<ReviewDiscrepancyUseCase>();
 
         return services;
     }

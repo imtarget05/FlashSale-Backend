@@ -29,6 +29,7 @@ app.MapWebhookEndpoints();
 app.MapConnectorEndpoints();
 app.MapIngestionEndpoints();
 app.MapReplayEndpoints();
+app.MapReconciliationEndpoints();
 
 app.Run();
 

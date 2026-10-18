@@ -12,6 +12,12 @@ public sealed class EfInboxRepository(OpsBridgeDbContext db) : IInboxRepository
             i => i.MessageId == messageId && i.ConsumerGroup == consumerGroup, ct);
     }
 
+    public async Task<InboxMessage?> GetMessageAsync(Guid messageId, string consumerGroup = "default", CancellationToken ct = default)
+    {
+        return await db.InboxMessages.FirstOrDefaultAsync(
+            i => i.MessageId == messageId && i.ConsumerGroup == consumerGroup, ct);
+    }
+
     public async Task AddAsync(InboxMessage inboxMessage, CancellationToken ct = default)
     {
         await db.InboxMessages.AddAsync(inboxMessage, ct);

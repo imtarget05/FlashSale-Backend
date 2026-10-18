@@ -59,6 +59,20 @@ public sealed class OpsBridgeFixture : IAsyncLifetime
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
+        db.AuditEvents.RemoveRange(db.AuditEvents);
+        db.ReviewDecisions.RemoveRange(db.ReviewDecisions);
+        db.Discrepancies.RemoveRange(db.Discrepancies);
+        db.ReconciliationAllocations.RemoveRange(db.ReconciliationAllocations);
+        db.ReconciliationResults.RemoveRange(db.ReconciliationResults);
+        db.ReconciliationBatches.RemoveRange(db.ReconciliationBatches);
+        db.SupplierInvoiceLines.RemoveRange(db.SupplierInvoiceLines);
+        db.SupplierInvoices.RemoveRange(db.SupplierInvoices);
+        db.GoodsReceiptLines.RemoveRange(db.GoodsReceiptLines);
+        db.GoodsReceipts.RemoveRange(db.GoodsReceipts);
+        db.PurchaseOrderLines.RemoveRange(db.PurchaseOrderLines);
+        db.PurchaseOrders.RemoveRange(db.PurchaseOrders);
+        db.MappingRules.RemoveRange(db.MappingRules);
+        db.ConsumerProcessingStates.RemoveRange(db.ConsumerProcessingStates);
         db.IngestedEvents.RemoveRange(db.IngestedEvents);
         db.InboxMessages.RemoveRange(db.InboxMessages);
         db.OutboxMessages.RemoveRange(db.OutboxMessages);

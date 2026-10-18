@@ -30,3 +30,13 @@ public class DuplicateEventException : DomainException
         EventId = eventId;
     }
 }
+
+public class EventPayloadConflictException : DomainException
+{
+    public Guid EventId { get; }
+
+    public EventPayloadConflictException(Guid eventId, string message) : base(message)
+    {
+        EventId = eventId;
+    }
+}
