@@ -14,14 +14,28 @@ public sealed class MockFactoryFlowClient(HttpClient httpClient) : IFactoryFlowC
         WriteIndented = false
     };
 
+    private static void EnsureNotProduction()
+    {
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
+
+        if (string.Equals(env, "Production", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("SECURITY VIOLATION: MockFactoryFlowClient cannot be executed in a Production environment!");
+        }
+    }
+
     public Task<bool> PingAsync(CancellationToken ct = default)
     {
+        EnsureNotProduction();
         return Task.FromResult(true);
     }
 
     public Task<GoodsReceiptConfirmedV1?> GetGoodsReceiptAsync(string receiptNumber, CancellationToken ct = default)
     {
-        // Deterministic contract mock for development
+        EnsureNotProduction();
+
+        // Deterministic contract mock for development and testing
         var mock = new GoodsReceiptConfirmedV1(
             Guid.NewGuid(),
             GoodsReceiptConfirmedV1.ExpectedEventType,
@@ -64,7 +78,7 @@ public sealed class MockFactoryFlowClient(HttpClient httpClient) : IFactoryFlowC
     {
         var rawJson = JsonSerializer.Serialize(payload, JsonOpts);
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        var signature = HmacWebhookVerifier.ComputeSignatureHeader(rawJson, timestamp, secret, "v1=");
+        var signature = HmacWebhookVerifier.ComputeSvixSignatureHeader(rawJson, timestamp, payload.EventId.ToString(), secret);
 
         var request = new HttpRequestMessage(HttpMethod.Post, targetWebhookUrl)
         {

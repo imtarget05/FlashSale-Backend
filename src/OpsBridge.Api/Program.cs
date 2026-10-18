@@ -28,6 +28,7 @@ app.MapGet("/healthz", () => Results.Ok(new { status = "Healthy", service = "Ops
 app.MapWebhookEndpoints();
 app.MapConnectorEndpoints();
 app.MapIngestionEndpoints();
+app.MapReplayEndpoints();
 
 app.Run();
 

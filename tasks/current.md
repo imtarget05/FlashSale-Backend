@@ -13,12 +13,33 @@
 - [x] Implement API endpoints: `POST /api/v1/webhooks/factoryflow`, `/api/v1/connectors`, `/api/v1/ingestion/events`.
 - [x] Verify Unit Tests (12/12 passed), Contract Tests (6/6 passed), and Integration Tests with Testcontainers PostgreSQL (4/4 passed). Total: 22/22 OpsBridge tests passing.
 
-## Phase G2 — RabbitMQ Worker, Backoff Retry & DLQ Replay (NEXT)
-- [ ] Implement RabbitMQ event publisher for ingested webhook events (`opsbridge.events.inbound`).
-- [ ] Implement `GoodsReceiptConsumerHost` in `OpsBridge.Worker`.
-- [ ] Add exponential backoff retry with jitter (3 retries).
-- [ ] Route poison messages to dead-letter exchange `opsbridge.events.dlq`.
-- [ ] Implement manual replay endpoint `POST /api/v1/events/replay/{id}`.
+## Phase G1.5 — Correctness & Security Hardening (COMPLETED)
+- [x] Verify atomic PostgreSQL persistence: Inbox, IngestedEvent, OutboxMessage in a single transaction via `IUnitOfWork`.
+- [x] Catch PostgreSQL `23505` unique constraint violation on concurrent duplicate webhooks.
+- [x] Verify official Svix webhook signature semantics (`whsec_` base64 decoding, canonical payload format `${id}.${timestamp}.${body}`, space-separated signatures, constant-time compare).
+- [x] Mask connector secrets in API DTOs and logs.
+- [x] Guard `MockFactoryFlowClient` against being invoked in `Production`.
+
+## Phase G2 — RabbitMQ Reliable Processing & Failure Drills (COMPLETED)
+- [x] Implement Transactional Outbox pattern with `OutboxPublisherHostedService` and RabbitMQ Publisher Confirms.
+- [x] Setup durable RabbitMQ topology: exchange `opsbridge.events.topic`, queue `opsbridge.goods-receipts.v1`, DLX `opsbridge.events.dlq.exchange`, DLQ `opsbridge.events.dlq`.
+- [x] Implement idempotent consumer worker `GoodsReceiptConsumerHost` with manual ACKs (`autoAck: false`).
+- [x] Implement retry with exponential backoff & jitter (max 3 attempts).
+- [x] Route poison payloads to dead-letter queue (`DeadLetterEvents` table + RabbitMQ DLQ).
+- [x] Implement authorized manual replay endpoint `POST /api/v1/events/replay/{id}`.
+- [x] Execute and verify all 8 critical failure drills with real Testcontainers (PostgreSQL 15 and RabbitMQ 3).
+
+## Phase G3 — Three-Way Reconciliation Engine (NEXT)
+- [ ] Define Domain entities for Purchase Order (PO) and Supplier Invoice.
+- [ ] Implement PO and Invoice repositories and PostgreSQL mappings.
+- [ ] Implement Three-Way Matching Engine:
+  - Partial deliveries (1 PO to N Goods Receipts).
+  - Multiple invoices per PO.
+  - Configurable tolerance rules (quantity $\pm\%$ / absolute, price $\pm\%$).
+  - Unit of Measure (UOM) conversions.
+  - Discrepancy classification (Unmatched, QuantityMismatch, PriceMismatch, DuplicateInvoice).
+- [ ] Implement Reconciliation Batch workflow and human review / approval API.
+- [ ] Contract & integration tests for 3-way matching business scenarios.
 
 ---
 

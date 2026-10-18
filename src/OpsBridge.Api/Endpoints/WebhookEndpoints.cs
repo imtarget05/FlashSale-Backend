@@ -26,6 +26,9 @@ public static class WebhookEndpoints
             var timestampHeader = context.Request.Headers["svix-timestamp"].FirstOrDefault()
                 ?? context.Request.Headers["X-OpsBridge-Timestamp"].FirstOrDefault();
 
+            var messageIdHeader = context.Request.Headers["svix-id"].FirstOrDefault()
+                ?? context.Request.Headers["X-OpsBridge-Event-Id"].FirstOrDefault();
+
             // Read raw body stream
             using var reader = new StreamReader(context.Request.Body);
             var rawBody = await reader.ReadToEndAsync(ct);
@@ -36,6 +39,7 @@ public static class WebhookEndpoints
                     rawBody,
                     signatureHeader,
                     timestampHeader,
+                    messageIdHeader,
                     ConnectorType.FactoryFlowWebhook,
                     ct);
 

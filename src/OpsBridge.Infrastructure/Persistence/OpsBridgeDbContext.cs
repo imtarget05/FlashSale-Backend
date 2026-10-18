@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OpsBridge.Domain.Connectors;
+using OpsBridge.Domain.DLQ;
 using OpsBridge.Domain.InboxOutbox;
 using OpsBridge.Domain.Ingestion;
 
@@ -11,6 +12,7 @@ public class OpsBridgeDbContext(DbContextOptions<OpsBridgeDbContext> options) : 
     public DbSet<IngestedEvent> IngestedEvents => Set<IngestedEvent>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<DeadLetterEvent> DeadLetterEvents => Set<DeadLetterEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,13 +42,14 @@ public class OpsBridgeDbContext(DbContextOptions<OpsBridgeDbContext> options) : 
             entity.Property(e => e.RawPayload).HasColumnType("text").IsRequired();
         });
 
-        // InboxMessage (Composite key: MessageId + ConsumerGroup)
+        // InboxMessage (Composite PK guarantees single execution per ConsumerGroup)
         modelBuilder.Entity<InboxMessage>(entity =>
         {
             entity.HasKey(i => new { i.MessageId, i.ConsumerGroup });
             entity.Property(i => i.ConsumerGroup).HasMaxLength(100);
             entity.Property(i => i.EventType).HasMaxLength(100);
             entity.Property(i => i.Source).HasMaxLength(200);
+            entity.Property(i => i.PayloadHash).HasMaxLength(100);
         });
 
         // OutboxMessage
@@ -54,9 +57,23 @@ public class OpsBridgeDbContext(DbContextOptions<OpsBridgeDbContext> options) : 
         {
             entity.HasKey(o => o.Id);
             entity.HasIndex(o => o.ProcessedAt);
+            entity.HasIndex(o => o.Status);
             entity.Property(o => o.EventType).HasMaxLength(100).IsRequired();
             entity.Property(o => o.Topic).HasMaxLength(150).IsRequired();
+            entity.Property(o => o.Status).HasMaxLength(50).IsRequired();
             entity.Property(o => o.Payload).HasColumnType("text").IsRequired();
+        });
+
+        // DeadLetterEvent
+        modelBuilder.Entity<DeadLetterEvent>(entity =>
+        {
+            entity.HasKey(d => d.Id);
+            entity.HasIndex(d => d.EventId);
+            entity.HasIndex(d => d.IsReplayed);
+            entity.Property(d => d.EventType).HasMaxLength(100).IsRequired();
+            entity.Property(d => d.Topic).HasMaxLength(150).IsRequired();
+            entity.Property(d => d.Reason).HasMaxLength(2000).IsRequired();
+            entity.Property(d => d.Payload).HasColumnType("text").IsRequired();
         });
     }
 }

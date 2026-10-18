@@ -6,27 +6,41 @@ namespace OpsBridge.UnitTests;
 public class HmacWebhookVerifierTests
 {
     private readonly HmacWebhookVerifier _verifier = new();
-    private const string Secret = "super-secret-key-for-testing-1234567890";
+    private const string LegacySecret = "super-secret-key-for-testing-1234567890";
+    private const string SvixSecret = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw=";
     private const string Body = "{\"hello\":\"world\"}";
+    private const string MessageId = "msg_20261018090000";
 
     [Fact]
-    public void Verify_ValidSignature_Sha256Prefix_ReturnsTrue()
+    public void Verify_OfficialSvix_WhsecSecret_Base64Signature_ReturnsTrue()
     {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        var signature = HmacWebhookVerifier.ComputeSignatureHeader(Body, timestamp, Secret, "sha256=");
+        var signature = HmacWebhookVerifier.ComputeSvixSignatureHeader(Body, timestamp, MessageId, SvixSecret);
 
-        var result = _verifier.Verify(Body, signature, timestamp, Secret);
+        var result = _verifier.Verify(Body, signature, timestamp, SvixSecret, MessageId);
 
         Assert.True(result);
     }
 
     [Fact]
-    public void Verify_ValidSignature_SvixV1Prefix_ReturnsTrue()
+    public void Verify_Svix_MultipleSignaturesInHeader_OneMatches_ReturnsTrue()
     {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        var signature = HmacWebhookVerifier.ComputeSignatureHeader(Body, timestamp, Secret, "v1=");
+        var validSignature = HmacWebhookVerifier.ComputeSvixSignatureHeader(Body, timestamp, MessageId, SvixSecret);
+        var multiSigHeader = $"v1,invalidBase64Sig12345678901234567890= {validSignature} v1,anotherFakeSig12345678901234567890=";
 
-        var result = _verifier.Verify(Body, signature, timestamp, Secret);
+        var result = _verifier.Verify(Body, multiSigHeader, timestamp, SvixSecret, MessageId);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void Verify_LegacySha256Hex_ReturnsTrue()
+    {
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        var signature = HmacWebhookVerifier.ComputeLegacySignatureHeader(Body, timestamp, LegacySecret, "sha256=");
+
+        var result = _verifier.Verify(Body, signature, timestamp, LegacySecret);
 
         Assert.True(result);
     }
@@ -35,10 +49,10 @@ public class HmacWebhookVerifierTests
     public void Verify_TamperedBody_ReturnsFalse()
     {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        var signature = HmacWebhookVerifier.ComputeSignatureHeader(Body, timestamp, Secret, "sha256=");
+        var signature = HmacWebhookVerifier.ComputeSvixSignatureHeader(Body, timestamp, MessageId, SvixSecret);
 
         var tamperedBody = "{\"hello\":\"hacked\"}";
-        var result = _verifier.Verify(tamperedBody, signature, timestamp, Secret);
+        var result = _verifier.Verify(tamperedBody, signature, timestamp, SvixSecret, MessageId);
 
         Assert.False(result);
     }
@@ -47,9 +61,10 @@ public class HmacWebhookVerifierTests
     public void Verify_WrongSecret_ReturnsFalse()
     {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        var signature = HmacWebhookVerifier.ComputeSignatureHeader(Body, timestamp, Secret, "sha256=");
+        var signature = HmacWebhookVerifier.ComputeSvixSignatureHeader(Body, timestamp, MessageId, SvixSecret);
 
-        var result = _verifier.Verify(Body, signature, timestamp, "wrong-secret-key");
+        var wrongSecret = "whsec_000000000000000000000000000000000000000=";
+        var result = _verifier.Verify(Body, signature, timestamp, wrongSecret, MessageId);
 
         Assert.False(result);
     }
@@ -57,12 +72,11 @@ public class HmacWebhookVerifierTests
     [Fact]
     public void Verify_ExpiredTimestamp_ThrowsTimestampExpiredException()
     {
-        // 10 minutes ago (> 300s tolerance)
         var oldTimestamp = DateTimeOffset.UtcNow.AddMinutes(-10).ToUnixTimeSeconds().ToString();
-        var signature = HmacWebhookVerifier.ComputeSignatureHeader(Body, oldTimestamp, Secret, "sha256=");
+        var signature = HmacWebhookVerifier.ComputeSvixSignatureHeader(Body, oldTimestamp, MessageId, SvixSecret);
 
         var ex = Assert.Throws<TimestampExpiredException>(() =>
-            _verifier.Verify(Body, signature, oldTimestamp, Secret));
+            _verifier.Verify(Body, signature, oldTimestamp, SvixSecret, MessageId));
 
         Assert.Contains("expired", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -70,24 +84,12 @@ public class HmacWebhookVerifierTests
     [Fact]
     public void Verify_FutureDriftTimestamp_ThrowsTimestampExpiredException()
     {
-        // 2 minutes in the future (> 30s future tolerance)
         var futureTimestamp = DateTimeOffset.UtcNow.AddMinutes(2).ToUnixTimeSeconds().ToString();
-        var signature = HmacWebhookVerifier.ComputeSignatureHeader(Body, futureTimestamp, Secret, "sha256=");
+        var signature = HmacWebhookVerifier.ComputeSvixSignatureHeader(Body, futureTimestamp, MessageId, SvixSecret);
 
         var ex = Assert.Throws<TimestampExpiredException>(() =>
-            _verifier.Verify(Body, signature, futureTimestamp, Secret));
+            _verifier.Verify(Body, signature, futureTimestamp, SvixSecret, MessageId));
 
         Assert.Contains("future", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Verify_Iso8601Timestamp_Succeeds()
-    {
-        var timestamp = DateTimeOffset.UtcNow.ToString("o");
-        var signature = HmacWebhookVerifier.ComputeSignatureHeader(Body, timestamp, Secret, "v1=");
-
-        var result = _verifier.Verify(Body, signature, timestamp, Secret);
-
-        Assert.True(result);
     }
 }
