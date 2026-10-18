@@ -60,6 +60,10 @@ public static class WebhookEndpoints
                     message = result.Message
                 });
             }
+            catch (EventPayloadConflictException ex)
+            {
+                return Results.Json(new { error = "EventPayloadConflict", message = ex.Message, eventId = ex.EventId }, statusCode: StatusCodes.Status409Conflict);
+            }
             catch (SignatureValidationException ex)
             {
                 return Results.Json(new { error = "SignatureVerificationFailed", message = ex.Message }, statusCode: StatusCodes.Status401Unauthorized);
@@ -81,7 +85,8 @@ public static class WebhookEndpoints
         .Produces(StatusCodes.Status202Accepted)
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
-        .Produces(StatusCodes.Status401Unauthorized);
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status409Conflict);
 
         return app;
     }

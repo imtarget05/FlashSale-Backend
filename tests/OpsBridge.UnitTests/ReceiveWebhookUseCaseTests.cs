@@ -113,6 +113,36 @@ public class ReceiveWebhookUseCaseTests
     }
 
     [Fact]
+    public async Task Execute_DuplicateEventId_WithConflictingPayload_ThrowsEventPayloadConflictException()
+    {
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        var messageId = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
+        var signature1 = HmacWebhookVerifier.ComputeSvixSignatureHeader(_validPayload, timestamp, messageId, Secret);
+
+        // First call
+        await _useCase.ExecuteAsync(
+            _validPayload,
+            signature1,
+            timestamp,
+            messageId,
+            ConnectorType.FactoryFlowWebhook);
+
+        // Modify payload while keeping identical EventId
+        var modifiedPayload = _validPayload.Replace("GR-2026-10042", "GR-TAMPERED-99999");
+        var signature2 = HmacWebhookVerifier.ComputeSvixSignatureHeader(modifiedPayload, timestamp, messageId, Secret);
+
+        var ex = await Assert.ThrowsAsync<EventPayloadConflictException>(() =>
+            _useCase.ExecuteAsync(
+                modifiedPayload,
+                signature2,
+                timestamp,
+                messageId,
+                ConnectorType.FactoryFlowWebhook));
+
+        Assert.Equal(Guid.Parse(messageId), ex.EventId);
+    }
+
+    [Fact]
     public async Task Execute_InvalidSignature_ThrowsSignatureValidationException()
     {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
@@ -188,20 +218,31 @@ internal sealed class FakeConnectorRepository : IConnectorRepository
 
 internal sealed class FakeInboxRepository : IInboxRepository
 {
-    private readonly HashSet<(Guid, string)> _processed = [];
+    private readonly Dictionary<(Guid, string), InboxMessage> _messages = [];
 
     public Task<bool> HasBeenProcessedAsync(Guid messageId, string consumerGroup = "default", CancellationToken ct = default) =>
-        Task.FromResult(_processed.Contains((messageId, consumerGroup)));
+        Task.FromResult(_messages.ContainsKey((messageId, consumerGroup)));
+
+    public Task<InboxMessage?> GetMessageAsync(Guid messageId, string consumerGroup = "default", CancellationToken ct = default) =>
+        Task.FromResult(_messages.GetValueOrDefault((messageId, consumerGroup)));
 
     public Task MarkProcessedAsync(Guid messageId, string consumerGroup, string eventType, string source, string payloadHash = "", CancellationToken ct = default)
     {
-        _processed.Add((messageId, consumerGroup));
+        _messages[(messageId, consumerGroup)] = new InboxMessage
+        {
+            MessageId = messageId,
+            ConsumerGroup = consumerGroup,
+            EventType = eventType,
+            Source = source,
+            PayloadHash = payloadHash,
+            ProcessedAt = DateTimeOffset.UtcNow
+        };
         return Task.CompletedTask;
     }
 
     public Task AddAsync(InboxMessage inboxMessage, CancellationToken ct = default)
     {
-        _processed.Add((inboxMessage.MessageId, inboxMessage.ConsumerGroup));
+        _messages[(inboxMessage.MessageId, inboxMessage.ConsumerGroup)] = inboxMessage;
         return Task.CompletedTask;
     }
 }

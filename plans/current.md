@@ -48,14 +48,37 @@
 
 ---
 
-## 2. Next Engineering Objective: Phase G3 — Three-Way Reconciliation Engine
+- **G2.5 Pre-G3 Correctness Gate**: Complete.
+  - Decoupled webhook inbox from downstream consumer execution via `ConsumerProcessingState`.
+  - Same `EventId` with same payload returns 200 Duplicate; same `EventId` with conflicting payload throws `EventPayloadConflictException` (mapped to HTTP 409 Conflict).
+  - Consumer commits business effects (`GoodsReceipt` domain models) and processing state in a single PostgreSQL transaction before issuing `BasicAckAsync`.
 
-Implement the core business engine: Purchase Order $\rightarrow$ Goods Receipt $\rightarrow$ Supplier Invoice:
-- Models for Purchase Order (PO) and Supplier Invoice with line items, quantities, unit prices, UOM.
-- Three-way matching engine supporting:
-  - Partial deliveries (1 PO to $N$ Goods Receipts).
-  - Multiple invoices per PO.
-  - Configurable tolerance rules (quantity $\pm\%$ or absolute, price $\pm\%$).
-  - Unit of Measure (UOM) conversions.
-  - Discrepancy detection (unmatched line, quantity mismatch, price mismatch, duplicate invoice).
+- **G3 Enterprise Three-Way Reconciliation Engine**: Complete.
+  - Domain models: `PurchaseOrder`, `GoodsReceipt`, `SupplierInvoice`, `MappingRule`, `ReconciliationBatch`, `ReconciliationResult`, `ReconciliationAllocation`, `Discrepancy`, `ReviewDecision`, `AuditEvent`.
+  - Deterministic 3-Way Matching Engine:
+    - Line-by-line matching with SKU aliases and UOM conversions (e.g. 1 BOX = 10 PCS).
+    - Cumulative non-overlapping receipt allocation tracking (`AllocatedQuantity` on `GoodsReceiptLine`).
+    - Configurable tolerance policies for price ($\pm\%$) and quantity ($\pm\%$ or absolute).
+    - Single-currency validation (VND vs VND) and separation of tax/discounts from unit price matching.
+    - Reference Scenario (PO-1001, GR1, GR2 $\rightarrow$ Discrepancy $\rightarrow$ GR3 $\rightarrow$ Rerun $\rightarrow$ Matched) fully validated.
+    - Concurrency-safe atomic conditional update (`TryAllocateQuantityAsync`) at database row level preventing double-spend / over-invoicing.
+    - Discrepancy management and human review workflow with RBAC (`FinanceReviewer`, `Operator`, `Admin`) and audit logging.
+  - Endpoints: `/api/v1/purchase-orders`, `/api/v1/goods-receipts`, `/api/v1/invoices` (JSON & CSV), `/api/v1/reconciliation/run`, `/api/v1/reconciliation/results/{id}`, `/api/v1/reconciliation/discrepancies`, `/api/v1/reconciliation/discrepancies/{id}/review`, `/api/v1/reconciliation/audit-trail`.
+  - Full Test Suite:
+    - `OpsBridge.UnitTests`: 31/31 Passed (18 domain matching + 13 webhook/security tests)
+    - `OpsBridge.ContractTests`: 6/6 Passed
+    - `OpsBridge.IntegrationTests`: 15/15 Passed (8 failure drills + 7 E2E reconciliation tests against real PostgreSQL & RabbitMQ Testcontainers)
+    - Total: **52/52 OpsBridge tests passing** with 0 failures.
+
+---
+
+## 2. Next Engineering Objective: Phase G4 — Frontend Operations Dashboard
+
+Build usable React/TypeScript screens:
+- Integration & Connector Management (Webhook URLs, Secrets, Health).
+- Reconciliation Workspace:
+  - 3-Way matching dashboard (PO vs GR vs Invoice).
+  - Discrepancy investigation and one-click review / approval actions (`FinanceReviewer`).
+  - Import progress & history (CSV/JSON upload).
+  - Event processing timeline & Dead-Letter Queue (DLQ) replay controls.
   - Reconciliation batch processing and human review/approval workflow.

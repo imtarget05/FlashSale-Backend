@@ -91,15 +91,37 @@ public sealed class ReceiveWebhookUseCase(
 
         var contract = validationResult.Contract;
 
+        var payloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(rawBody))).ToLowerInvariant();
+
         // 1. Fast read deduplication check
-        if (await inboxRepository.HasBeenProcessedAsync(contract.EventId, ConsumerGroup, ct)
-            || await ingestedEventRepository.ExistsAsync(contract.EventId, ct))
+        var existingInbox = await inboxRepository.GetMessageAsync(contract.EventId, ConsumerGroup, ct);
+        if (existingInbox != null)
         {
-            logger.LogInformation("Event {EventId} already recorded. Deduplicating idempotently.", contract.EventId);
-            return WebhookIngestionResult.Duplicate(contract.EventId);
+            if (string.Equals(existingInbox.PayloadHash, payloadHash, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation("Event {EventId} already recorded with matching payload. Deduplicating idempotently.", contract.EventId);
+                return WebhookIngestionResult.Duplicate(contract.EventId);
+            }
+
+            logger.LogWarning("Event {EventId} payload conflict! Existing hash: {Existing}, Incoming hash: {Incoming}",
+                contract.EventId, existingInbox.PayloadHash, payloadHash);
+            throw new EventPayloadConflictException(contract.EventId, $"Event with ID '{contract.EventId}' already exists with a different payload.");
         }
 
-        var payloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(rawBody))).ToLowerInvariant();
+        var existingEvent = await ingestedEventRepository.GetByIdAsync(contract.EventId, ct);
+        if (existingEvent != null)
+        {
+            var existingEventHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(existingEvent.RawPayload))).ToLowerInvariant();
+            if (string.Equals(existingEventHash, payloadHash, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation("Event {EventId} already recorded in IngestedEvents with matching payload. Deduplicating idempotently.", contract.EventId);
+                return WebhookIngestionResult.Duplicate(contract.EventId);
+            }
+
+            logger.LogWarning("Event {EventId} payload conflict against IngestedEvent! Existing hash: {Existing}, Incoming hash: {Incoming}",
+                contract.EventId, existingEventHash, payloadHash);
+            throw new EventPayloadConflictException(contract.EventId, $"Event with ID '{contract.EventId}' already exists with a different payload.");
+        }
 
         // 2. Atomic Transaction (Inbox + IngestedEvent + Outbox) to satisfy P0 Atomicity
         await using var tx = await unitOfWork.BeginTransactionAsync(ct);
@@ -153,6 +175,12 @@ public sealed class ReceiveWebhookUseCase(
         catch (Exception ex) when (IsUniqueViolation(ex))
         {
             await tx.RollbackAsync(ct);
+            var committed = await inboxRepository.GetMessageAsync(contract.EventId, ConsumerGroup, ct);
+            if (committed != null && !string.Equals(committed.PayloadHash, payloadHash, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new EventPayloadConflictException(contract.EventId, $"Concurrent race detected conflicting payload for Event ID '{contract.EventId}'.");
+            }
+
             logger.LogInformation("Concurrent duplicate detected via DB unique constraint for Event {EventId}. Returning duplicate.", contract.EventId);
             return WebhookIngestionResult.Duplicate(contract.EventId);
         }

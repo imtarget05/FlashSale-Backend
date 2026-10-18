@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using OpsBridge.Application.InboxOutbox;
 using OpsBridge.Application.Ingestion;
+using OpsBridge.Application.Reconciliation;
 using OpsBridge.Domain.Connectors;
 using OpsBridge.Domain.DLQ;
 using OpsBridge.Domain.InboxOutbox;
@@ -162,6 +163,8 @@ public class FailureDrillIntegrationTests(OpsBridgeFixture fixture)
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddDbContext<OpsBridgeDbContext>(opt => opt.UseNpgsql(fixture.ConnectionString));
         serviceCollection.AddScoped<IInboxRepository, EfInboxRepository>();
+        serviceCollection.AddScoped<IConsumerProcessingRepository, EfConsumerProcessingRepository>();
+        serviceCollection.AddScoped<IGoodsReceiptRepository, EfGoodsReceiptRepository>();
         serviceCollection.AddScoped<IIngestedEventRepository, EfIngestedEventRepository>();
         serviceCollection.AddScoped<OpsBridge.Application.Common.IUnitOfWork, EfUnitOfWork>();
         var sp = serviceCollection.BuildServiceProvider();
@@ -197,11 +200,12 @@ public class FailureDrillIntegrationTests(OpsBridgeFixture fixture)
             var db = scope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
             var ev = await db.IngestedEvents.FirstAsync(e => e.EventId == eventId);
             Assert.Equal(EventProcessingStatus.Completed, ev.Status);
-            var inbox = await db.InboxMessages.FirstOrDefaultAsync(i => i.MessageId == eventId && i.ConsumerGroup == "goods-receipt-consumer");
-            Assert.NotNull(inbox);
+            var state = await db.ConsumerProcessingStates.FirstOrDefaultAsync(i => i.EventId == eventId && i.ConsumerGroup == "goods-receipt-consumer");
+            Assert.NotNull(state);
+            Assert.Equal(ConsumerStatus.Completed, state.Status);
         }
 
-        // Publish 2nd message (simulating at-least-once duplicate): consumer detects Inbox entry and acks idempotently
+        // Publish 2nd message (simulating at-least-once duplicate): consumer detects state entry and acks idempotently
         await publisher.PublishAsync("opsbridge.events.inbound.goods-receipt", payload);
         var getResult2 = await consumerHost.Channel.BasicGetAsync(RabbitMqTopology.InboundQueue, autoAck: false);
         Assert.NotNull(getResult2);
@@ -220,8 +224,8 @@ public class FailureDrillIntegrationTests(OpsBridgeFixture fixture)
         using (var scope = sp.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
-            var inboxCount = await db.InboxMessages.CountAsync(i => i.MessageId == eventId && i.ConsumerGroup == "goods-receipt-consumer");
-            Assert.Equal(1, inboxCount);
+            var stateCount = await db.ConsumerProcessingStates.CountAsync(i => i.EventId == eventId && i.ConsumerGroup == "goods-receipt-consumer");
+            Assert.Equal(1, stateCount);
         }
     }
 
@@ -237,6 +241,8 @@ public class FailureDrillIntegrationTests(OpsBridgeFixture fixture)
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddDbContext<OpsBridgeDbContext>(opt => opt.UseNpgsql(fixture.ConnectionString));
         serviceCollection.AddScoped<IInboxRepository, EfInboxRepository>();
+        serviceCollection.AddScoped<IConsumerProcessingRepository, EfConsumerProcessingRepository>();
+        serviceCollection.AddScoped<IGoodsReceiptRepository, EfGoodsReceiptRepository>();
         serviceCollection.AddScoped<IIngestedEventRepository, EfIngestedEventRepository>();
         serviceCollection.AddScoped<OpsBridge.Application.Common.IUnitOfWork, EfUnitOfWork>();
         var sp = serviceCollection.BuildServiceProvider();

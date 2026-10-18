@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using OpsBridge.Application.Common;
 using OpsBridge.Application.InboxOutbox;
 using OpsBridge.Application.Ingestion;
+using OpsBridge.Application.Reconciliation;
 using OpsBridge.Domain.Contracts;
 using OpsBridge.Domain.DLQ;
 using OpsBridge.Domain.InboxOutbox;
@@ -105,14 +106,15 @@ public sealed class GoodsReceiptConsumerHost : BackgroundService
         }
 
         using var scope = _scopeFactory.CreateScope();
-        var inboxRepo = scope.ServiceProvider.GetRequiredService<IInboxRepository>();
+        var consumerRepo = scope.ServiceProvider.GetRequiredService<IConsumerProcessingRepository>();
         var eventRepo = scope.ServiceProvider.GetRequiredService<IIngestedEventRepository>();
+        var grRepo = scope.ServiceProvider.GetRequiredService<IGoodsReceiptRepository>();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-        // 1. Consumer-side Deduplication check
-        if (await inboxRepo.HasBeenProcessedAsync(eventId, ConsumerGroup, ct))
+        // 1. Consumer-side Deduplication check (Decoupled from webhook inbox)
+        if (await consumerRepo.HasBeenProcessedAsync(eventId, ConsumerGroup, ct))
         {
-            _logger.LogInformation("Consumer Inbox: Event {EventId} already processed. Sending idempotent BasicAck.", eventId);
+            _logger.LogInformation("Consumer Processing: Event {EventId} already processed. Sending idempotent BasicAck.", eventId);
             await _channel.BasicAckAsync(deliveryTag, multiple: false, ct);
             return;
         }
@@ -130,16 +132,54 @@ public sealed class GoodsReceiptConsumerHost : BackgroundService
 
             await using var tx = await unitOfWork.BeginTransactionAsync(ct);
 
+            // Attempt to deserialize and persist GoodsReceipt domain model
+            try
+            {
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var contract = JsonSerializer.Deserialize<GoodsReceiptConfirmedV1>(rawPayload, options);
+                if (contract?.Data != null)
+                {
+                    var existingGr = await grRepo.GetByReceiptNumberAsync(contract.Data.ReceiptNumber, ct);
+                    if (existingGr == null)
+                    {
+                        var gr = new OpsBridge.Domain.Reconciliation.GoodsReceipt
+                        {
+                            Id = contract.Data.ReceiptId != Guid.Empty ? contract.Data.ReceiptId : Guid.NewGuid(),
+                            ReceiptNumber = contract.Data.ReceiptNumber,
+                            PurchaseOrderNumber = contract.Data.PurchaseOrderNumber,
+                            SupplierCode = contract.Data.SupplierCode,
+                            ReceivedAt = contract.Data.ReceivedDate,
+                            SourceEventId = contract.EventId,
+                            SourceSystem = contract.Source,
+                            Lines = contract.Data.Items.Select((item, idx) => new OpsBridge.Domain.Reconciliation.GoodsReceiptLine
+                            {
+                                Id = Guid.NewGuid(),
+                                LineNumber = item.PurchaseOrderLineNumber > 0 ? item.PurchaseOrderLineNumber : idx + 1,
+                                ItemSku = item.ItemCode,
+                                ReceivedQuantity = item.QuantityReceived,
+                                UnitOfMeasure = item.UnitOfMeasure,
+                                AllocatedQuantity = 0m
+                            }).ToList()
+                        };
+                        await grRepo.AddAsync(gr, ct);
+                    }
+                }
+            }
+            catch (Exception parseEx)
+            {
+                _logger.LogWarning(parseEx, "Could not map payload directly to GoodsReceipt domain entity. Continuing event status update.");
+            }
+
             // Update IngestedEvent status
             await eventRepo.UpdateStatusAsync(eventId, EventProcessingStatus.Completed, null, ct);
 
-            // Record in Consumer Inbox
-            await inboxRepo.AddAsync(new InboxMessage
+            // Record in Consumer Processing States
+            await consumerRepo.RecordAsync(new ConsumerProcessingState
             {
-                MessageId = eventId,
+                EventId = eventId,
                 ConsumerGroup = ConsumerGroup,
                 EventType = eventType,
-                Source = "goods-receipt-consumer",
+                Status = ConsumerStatus.Completed,
                 ProcessedAt = DateTimeOffset.UtcNow
             }, ct);
 
@@ -147,7 +187,7 @@ public sealed class GoodsReceiptConsumerHost : BackgroundService
 
             // Manual ACK on success
             await _channel.BasicAckAsync(deliveryTag, multiple: false, ct);
-            _logger.LogInformation("Event {EventId} successfully processed and ACKed.", eventId);
+            _logger.LogInformation("Event {EventId} successfully processed, domain model saved, and ACKed.", eventId);
         }
         catch (Exception ex)
         {
