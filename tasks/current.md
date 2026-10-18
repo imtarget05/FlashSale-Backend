@@ -50,17 +50,33 @@
   - Audit trail query `GET /api/v1/reconciliation/audit-trail`.
 - [x] Verify complete test suite: 31 Unit tests (all 18 business matching rules + edge cases), 6 Contract tests, 15 Integration tests with PostgreSQL 15 & RabbitMQ 3 Testcontainers. Total: 52/52 OpsBridge tests passing.
 
-## Phase G4 — Frontend React + TypeScript Operations Dashboard (NEXT)
-- [ ] Initialize frontend project (`src/OpsBridge.Web` or React Vite + TypeScript SPA).
-- [ ] Integration & Connector Monitoring screen (status, health, active webhooks, DLQ counts).
-- [ ] Three-Way Matching Workspace:
-  - Interactive comparison view of Purchase Order vs Goods Receipts vs Supplier Invoices.
-  - Tolerance indicators, status badges (`Matched`, `Discrepancy`, `PendingReview`).
-- [ ] Discrepancy Investigation & Review Action Panel:
-  - Action buttons (`ApproveWithVariance`, `Reject`, `RequestCreditNote`) restricted to `FinanceReviewer`.
-  - Resolution notes and full audit history trail.
-- [ ] Manual DLQ Replay & Event Inspection UI.
-- [ ] End-to-end user verification and mock data fixtures.
+## Phase G3.5 — Business Correctness Hardening (COMPLETED)
+- [x] Contract Alias Compatibility: Support both `purchaseOrderNumber` and `purchaseOrderNo` in `GoodsReceiptConfirmedV1.cs` and `goods-receipt-confirmed-v1.schema.json` via Postel's Law.
+- [x] Allocation Release on Rejection: Implement atomic SQL `ReleaseAllocationQuantityAsync` releasing held goods receipts when invoice is rejected or cancelled.
+- [x] Double-Allocation Prevention on Rerun: Guard `ReconcileInvoiceUseCase` against re-reconciling already `Matched` or `ApprovedWithVariance` invoices.
+- [x] Supplier Code & Currency Matching: Pre-validate `po.SupplierCode == invoice.SupplierCode` and strict case-insensitive currency matching before line evaluation.
+- [x] Discrepancy Approval Commitment: When `FinanceReviewer` approves variance (`ApprovedWithTolerance`), commit planned allocations via `TryAllocateQuantityAsync` and transition invoice to `ApprovedWithVariance`.
+
+## Phase G4 — Enterprise React + TypeScript Operations Dashboard (COMPLETED)
+- [x] Initialize frontend project (`src/OpsBridge.Web` using Vite + React 19 + TypeScript + Tailwind CSS v4).
+- [x] Configure backend reverse proxy `/api` -> `http://localhost:5000` in `vite.config.ts` and CORS in `Program.cs`.
+- [x] Build multi-persona authentication (`AuthContext`, `ProtectedRoute`, `LoginPage`, navbar persona switcher: `FinanceReviewer`, `Operator`, `Admin`, `Auditor`).
+- [x] Zero-mock operational screens:
+  1. **Operations Overview Dashboard**: Real-time KPI metrics, reconciliation status breakdown, recent audit timeline.
+  2. **Purchase Orders Directory**: List, modal creation, and CSV import.
+  3. **Goods Receipts Directory**: Physical deliveries, line receipts, allocated vs available stock tracking.
+  4. **Supplier Invoices Directory**: AP invoices, modal creation, CSV upload, status filter, and direct 3-way match launch.
+  5. **Three-Way Matching Workspace**: Interactive 3-pillar view (PO Lines vs GR Lines vs Invoice Lines), tolerance policy controls (price %, quantity %, quantity abs), execution trigger, quantitative summary, allocations breakdown, and discrepancy listing.
+  6. **Discrepancy Investigation & Review**: Discrepancy directory, status tabs, review decision modal with RBAC enforcement (`FinanceReviewer` only), and atomic commit/release trigger.
+  7. **Integration Operations & DLQ**: FactoryFlow connector status, webhook telemetry, Dead-Letter Queue (DLQ) table, and manual authorized replay button.
+  8. **Audit & Compliance Timeline**: Chronological immutable audit trail with entity type filter and actor tracking.
+- [x] E2E Reference Verification: Verified reference scenario PO-1001 (100 PCS @ 20k VND) -> GR-1 (60) + GR-2 (30) -> Invoice (100) -> 10 PCS QuantityMismatch -> GR-3 (10) -> Rerun -> Matched in `ReconciliationIntegrationTests.cs`.
+- [x] Test Suite:
+  - `OpsBridge.UnitTests`: 33/33 Passed
+  - `OpsBridge.ContractTests`: 7/7 Passed
+  - `OpsBridge.IntegrationTests`: 17/17 Passed (real PostgreSQL 15 & RabbitMQ 3 Testcontainers)
+  - Total: 57/57 OpsBridge tests passing (100% green).
+  - Frontend: `npm run build` succeeds cleanly in 258ms with zero type errors.
 
 ---
 

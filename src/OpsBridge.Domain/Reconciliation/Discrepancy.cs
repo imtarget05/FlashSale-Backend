@@ -9,6 +9,7 @@ public enum DiscrepancyType
     UnmatchedInvoiceLine,
     DuplicateInvoice,
     CurrencyMismatch,
+    SupplierMismatch,
     UomConversionError
 }
 

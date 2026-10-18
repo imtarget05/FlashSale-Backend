@@ -29,6 +29,11 @@ public sealed class ReconcileInvoiceUseCase(
         var invoice = await invoiceRepository.GetByIdAsync(invoiceId, ct)
             ?? throw new DomainException($"Supplier invoice '{invoiceId}' was not found.");
 
+        if (invoice.Status == InvoiceStatus.Matched || invoice.Status == InvoiceStatus.ApprovedWithVariance)
+        {
+            throw new DomainException($"Supplier invoice '{invoice.InvoiceNumber}' is already matched and allocated.");
+        }
+
         logger.LogInformation("Starting 3-way reconciliation for Invoice {InvoiceNumber} against PO {PoNumber}",
             invoice.InvoiceNumber, invoice.PurchaseOrderNumber);
 

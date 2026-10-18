@@ -317,7 +317,9 @@ public class ReconciliationMatchingTests
         };
         await fakeReconRepo.AddDiscrepancyAsync(discrepancy);
 
-        var useCase = new ReviewDiscrepancyUseCase(fakeReconRepo, fakeAuditRepo, fakeUow, NullLogger<ReviewDiscrepancyUseCase>.Instance);
+        var fakeInvoiceRepo = new FakeSupplierInvoiceRepository();
+        var fakeGrRepo = new FakeGoodsReceiptRepository();
+        var useCase = new ReviewDiscrepancyUseCase(fakeReconRepo, fakeAuditRepo, fakeInvoiceRepo, fakeGrRepo, fakeUow, NullLogger<ReviewDiscrepancyUseCase>.Instance);
 
         var command = new ReviewDiscrepancyCommand(
             DiscrepancyId: discrepancy.Id,
@@ -341,6 +343,8 @@ public class ReconciliationMatchingTests
     {
         var fakeReconRepo = new FakeReconciliationRepository();
         var fakeAuditRepo = new FakeAuditEventRepository();
+        var fakeInvoiceRepo = new FakeSupplierInvoiceRepository();
+        var fakeGrRepo = new FakeGoodsReceiptRepository();
         var fakeUow = new FakeUnitOfWork();
 
         var discrepancy = new Discrepancy
@@ -351,7 +355,7 @@ public class ReconciliationMatchingTests
         };
         await fakeReconRepo.AddDiscrepancyAsync(discrepancy);
 
-        var useCase = new ReviewDiscrepancyUseCase(fakeReconRepo, fakeAuditRepo, fakeUow, NullLogger<ReviewDiscrepancyUseCase>.Instance);
+        var useCase = new ReviewDiscrepancyUseCase(fakeReconRepo, fakeAuditRepo, fakeInvoiceRepo, fakeGrRepo, fakeUow, NullLogger<ReviewDiscrepancyUseCase>.Instance);
 
         var command = new ReviewDiscrepancyCommand(
             DiscrepancyId: discrepancy.Id,
@@ -390,6 +394,52 @@ public class ReconciliationMatchingTests
 
         Assert.Equal(MatchStatus.Discrepancy, result.Status);
         Assert.Contains(result.Discrepancies, d => d.Type == DiscrepancyType.UomConversionError);
+    }
+
+    // 19. Supplier mismatch creates discrepancy
+    [Fact]
+    public void Match_SupplierMismatch_FlagsSupplierMismatch()
+    {
+        var po = CreatePo("PO-1001", "SUPP-01", "RM-008", 100m, 20000m);
+        var gr = CreateGr("GR-001", "PO-1001", "SUPP-01", "RM-008", 100m);
+        var inv = CreateInvoice("INV-001", "PO-1001", "SUPP-02", "RM-008", 100m, 20000m); // SUPP-02 vs SUPP-01
+
+        var result = _engine.Match(po, [gr], inv, [], _defaultTolerance);
+
+        Assert.Equal(MatchStatus.Discrepancy, result.Status);
+        Assert.Contains(result.Discrepancies, d => d.Type == DiscrepancyType.SupplierMismatch);
+    }
+
+    // 20. Reconciling an already Matched invoice throws DomainException to prevent double-allocating
+    [Fact]
+    public async Task ReconcileInvoice_AlreadyMatched_ThrowsDomainException()
+    {
+        var po = CreatePo("PO-1001", "SUPP-01", "RM-008", 100m, 20000m);
+        var inv = CreateInvoice("INV-001", "PO-1001", "SUPP-01", "RM-008", 100m, 20000m);
+        inv.Status = InvoiceStatus.Matched; // Already matched
+
+        var fakePoRepo = new FakePurchaseOrderRepository();
+        var fakeGrRepo = new FakeGoodsReceiptRepository();
+        var fakeInvRepo = new FakeSupplierInvoiceRepository();
+        var fakeMapRepo = new FakeMappingRuleRepository();
+        var fakeReconRepo = new FakeReconciliationRepository();
+        var fakeAuditRepo = new FakeAuditEventRepository();
+        var fakeUow = new FakeUnitOfWork();
+
+        await fakeInvRepo.AddAsync(inv);
+
+        var useCase = new ReconcileInvoiceUseCase(
+            fakePoRepo,
+            fakeGrRepo,
+            fakeInvRepo,
+            fakeMapRepo,
+            fakeReconRepo,
+            fakeAuditRepo,
+            fakeUow,
+            NullLogger<ReconcileInvoiceUseCase>.Instance);
+
+        var ex = await Assert.ThrowsAsync<OpsBridge.Domain.Exceptions.DomainException>(() => useCase.ExecuteAsync(inv.Id));
+        Assert.Contains("already matched and allocated", ex.Message);
     }
 
     // Helpers
@@ -475,6 +525,28 @@ public class ReconciliationMatchingTests
         };
     }
 
+    private sealed class FakePurchaseOrderRepository : IPurchaseOrderRepository
+    {
+        private readonly List<PurchaseOrder> _pos = [];
+        public Task<PurchaseOrder?> GetByOrderNumberAsync(string orderNumber, CancellationToken ct = default) =>
+            Task.FromResult(_pos.FirstOrDefault(p => p.OrderNumber == orderNumber));
+        public Task AddAsync(PurchaseOrder po, CancellationToken ct = default)
+        {
+            _pos.Add(po);
+            return Task.CompletedTask;
+        }
+        public Task UpdateAsync(PurchaseOrder po, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<PurchaseOrder>> ListAsync(int limit = 50, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<PurchaseOrder>>(_pos.Take(limit).ToList());
+    }
+
+    private sealed class FakeMappingRuleRepository : IMappingRuleRepository
+    {
+        public Task<IReadOnlyList<MappingRule>> GetActiveRulesAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<MappingRule>>([]);
+        public Task AddAsync(MappingRule rule, CancellationToken ct = default) => Task.CompletedTask;
+    }
+
     private sealed class FakeSupplierInvoiceRepository : ISupplierInvoiceRepository
     {
         private readonly List<SupplierInvoice> _list = [];
@@ -501,6 +573,9 @@ public class ReconciliationMatchingTests
         public Task<ReconciliationBatch?> GetBatchByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ReconciliationBatch?>(null);
         public Task AddResultAsync(ReconciliationResult result, CancellationToken ct = default) => Task.CompletedTask;
         public Task<ReconciliationResult?> GetResultByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ReconciliationResult?>(null);
+        public Task<IReadOnlyList<ReconciliationResult>> GetResultsByInvoiceNumberAsync(string invoiceNumber, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ReconciliationResult>>([]);
+        public Task<IReadOnlyList<ReconciliationBatch>> ListBatchesAsync(int limit = 50, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ReconciliationBatch>>([]);
+        public Task<DashboardMetricsDto> GetMetricsAsync(CancellationToken ct = default) => Task.FromResult(new DashboardMetricsDto(0, 0, 0, 0, 0, 0, 0));
         public Task<IReadOnlyList<Discrepancy>> GetDiscrepanciesAsync(DiscrepancyStatus? status = null, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<Discrepancy>>(_discrepancies.ToList());
         public Task<Discrepancy?> GetDiscrepancyByIdAsync(Guid id, CancellationToken ct = default) =>
@@ -524,5 +599,42 @@ public class ReconciliationMatchingTests
         }
         public Task<IReadOnlyList<AuditEvent>> GetRecentAsync(int limit = 100, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<AuditEvent>>(Events.Take(limit).ToList());
+    }
+
+    private sealed class FakeGoodsReceiptRepository : IGoodsReceiptRepository
+    {
+        public List<GoodsReceipt> Receipts { get; } = [];
+        public Task<GoodsReceipt?> GetByReceiptNumberAsync(string receiptNumber, CancellationToken ct = default) =>
+            Task.FromResult(Receipts.FirstOrDefault(g => g.ReceiptNumber == receiptNumber));
+        public Task<IReadOnlyList<GoodsReceipt>> GetByPurchaseOrderNumberAsync(string orderNumber, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<GoodsReceipt>>(Receipts.Where(g => g.PurchaseOrderNumber == orderNumber).ToList());
+        public Task AddAsync(GoodsReceipt gr, CancellationToken ct = default)
+        {
+            Receipts.Add(gr);
+            return Task.CompletedTask;
+        }
+        public Task UpdateLineAsync(GoodsReceiptLine line, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<bool> TryAllocateQuantityAsync(Guid lineId, decimal quantityToAllocate, CancellationToken ct = default)
+        {
+            var line = Receipts.SelectMany(r => r.Lines).FirstOrDefault(l => l.Id == lineId);
+            if (line == null) return Task.FromResult(true);
+            if (line.AllocatedQuantity + quantityToAllocate <= line.ReceivedQuantity)
+            {
+                line.AllocatedQuantity += quantityToAllocate;
+                return Task.FromResult(true);
+            }
+            return Task.FromResult(false);
+        }
+        public Task<bool> ReleaseAllocationQuantityAsync(Guid lineId, decimal quantityToRelease, CancellationToken ct = default)
+        {
+            var line = Receipts.SelectMany(r => r.Lines).FirstOrDefault(l => l.Id == lineId);
+            if (line != null)
+            {
+                line.AllocatedQuantity = Math.Max(line.AllocatedQuantity - quantityToRelease, 0);
+            }
+            return Task.FromResult(true);
+        }
+        public Task<IReadOnlyList<GoodsReceipt>> ListAsync(int limit = 50, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<GoodsReceipt>>(Receipts.Take(limit).ToList());
     }
 }

@@ -66,4 +66,18 @@ public class GoodsReceiptContractTests
         Assert.False(result.IsValid);
         Assert.Contains("invalid 'qcStatus'", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Validate_PayloadWithPurchaseOrderNoAlias_Succeeds()
+    {
+        var validJson = File.ReadAllText(Path.Combine("..", "..", "..", "..", "fixtures", "valid-goods-receipt-v1.json"));
+        // Replace purchaseOrderNumber with purchaseOrderNo
+        var modifiedJson = validJson.Replace("\"purchaseOrderNumber\"", "\"purchaseOrderNo\"");
+
+        var result = _validator.ValidateGoodsReceiptConfirmedV1(modifiedJson);
+
+        Assert.True(result.IsValid, result.ErrorMessage);
+        Assert.NotNull(result.Contract);
+        Assert.Equal("PO-2026-0891", result.Contract.Data.PurchaseOrderNumber);
+    }
 }

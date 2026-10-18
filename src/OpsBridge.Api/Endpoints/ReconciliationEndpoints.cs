@@ -72,6 +72,15 @@ public static class ReconciliationEndpoints
         .Produces(StatusCodes.Status201Created)
         .Produces(StatusCodes.Status400BadRequest);
 
+        app.MapGet("/api/v1/purchase-orders", async (
+            IPurchaseOrderRepository poRepo,
+            CancellationToken ct) =>
+        {
+            var pos = await poRepo.ListAsync(100, ct);
+            return Results.Ok(pos);
+        })
+        .WithTags("Procurement");
+
         app.MapGet("/api/v1/purchase-orders/{orderNumber}", async (
             string orderNumber,
             IPurchaseOrderRepository poRepo,
@@ -117,6 +126,15 @@ public static class ReconciliationEndpoints
         })
         .WithTags("Procurement")
         .Produces(StatusCodes.Status201Created);
+
+        app.MapGet("/api/v1/goods-receipts", async (
+            IGoodsReceiptRepository grRepo,
+            CancellationToken ct) =>
+        {
+            var grs = await grRepo.ListAsync(100, ct);
+            return Results.Ok(grs);
+        })
+        .WithTags("Procurement");
 
         app.MapGet("/api/v1/goods-receipts/{receiptNumber}", async (
             string receiptNumber,
@@ -199,6 +217,15 @@ public static class ReconciliationEndpoints
         .WithTags("Invoices")
         .Produces(StatusCodes.Status201Created)
         .Produces(StatusCodes.Status409Conflict);
+
+        app.MapGet("/api/v1/invoices", async (
+            ISupplierInvoiceRepository invoiceRepo,
+            CancellationToken ct) =>
+        {
+            var invoices = await invoiceRepo.ListAsync(100, ct);
+            return Results.Ok(invoices);
+        })
+        .WithTags("Invoices");
 
         app.MapGet("/api/v1/invoices/{id:guid}", async (
             Guid id,
@@ -310,6 +337,36 @@ public static class ReconciliationEndpoints
             await mappingRepo.AddAsync(rule, ct);
             return Results.Created($"/api/v1/reconciliation/mapping-rules/{rule.Id}", rule);
         });
+
+        // Batches
+        group.MapGet("/batches", async (
+            IReconciliationRepository reconRepo,
+            CancellationToken ct) =>
+        {
+            var batches = await reconRepo.ListBatchesAsync(50, ct);
+            return Results.Ok(batches);
+        });
+
+        // Dashboard Metrics
+        app.MapGet("/api/v1/dashboard/metrics", async (
+            IReconciliationRepository reconRepo,
+            CancellationToken ct) =>
+        {
+            var metrics = await reconRepo.GetMetricsAsync(ct);
+            return Results.Ok(metrics);
+        })
+        .WithTags("Dashboard");
+
+        // Dead Letter Events (for integration operations monitoring)
+        app.MapGet("/api/v1/events/dead-letter", async (
+            OpsBridge.Infrastructure.Persistence.OpsBridgeDbContext db,
+            CancellationToken ct) =>
+        {
+            var deadLetters = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+                db.DeadLetterEvents.OrderByDescending(d => d.FailedAt).Take(100), ct);
+            return Results.Ok(deadLetters);
+        })
+        .WithTags("Integration");
 
         // Audit Trail
         group.MapGet("/audit-trail", async (

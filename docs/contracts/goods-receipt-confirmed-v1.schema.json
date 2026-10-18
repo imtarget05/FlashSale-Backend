@@ -44,12 +44,15 @@
       "required": [
         "receiptId",
         "receiptNumber",
-        "purchaseOrderNumber",
         "supplierCode",
         "receivedDate",
         "warehouseCode",
         "receivedBy",
         "items"
+      ],
+      "anyOf": [
+        { "required": ["purchaseOrderNumber"] },
+        { "required": ["purchaseOrderNo"] }
       ],
       "properties": {
         "receiptId": {
@@ -61,6 +64,10 @@
           "minLength": 1
         },
         "purchaseOrderNumber": {
+          "type": "string",
+          "minLength": 1
+        },
+        "purchaseOrderNo": {
           "type": "string",
           "minLength": 1
         },

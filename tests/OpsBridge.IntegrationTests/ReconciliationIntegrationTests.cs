@@ -328,4 +328,141 @@ public class ReconciliationIntegrationTests(OpsBridgeFixture fixture)
         Assert.NotNull(auditEvents);
         Assert.Contains(auditEvents, a => a.EntityType == "Discrepancy" && a.UserId == "HeadOfFinance");
     }
+
+    [Fact]
+    public async Task E2E_DiscrepancyReview_ApproveWithVariance_CommitsAllocations_AndTransitionsStatus()
+    {
+        await fixture.ResetAsync();
+        var client = CreateClient();
+
+        // 1. PO: 100 PCS @ 20,000 VND
+        await client.PostAsJsonAsync("/api/v1/purchase-orders", new CreatePurchaseOrderRequest(
+            OrderNumber: "PO-VAR-APPROVE",
+            SupplierCode: "SUPP-01",
+            SupplierName: "Acme",
+            Currency: "VND",
+            SourceSystem: "ERP",
+            Lines: [new CreatePurchaseOrderLineRequest(1, "RM-008", "Material", 100m, "PCS", 20000m)]
+        ));
+
+        // 2. GR: 100 PCS received
+        await client.PostAsJsonAsync("/api/v1/goods-receipts", new CreateGoodsReceiptRequest(
+            ReceiptNumber: "GR-VAR-APPROVE",
+            PurchaseOrderNumber: "PO-VAR-APPROVE",
+            SupplierCode: "SUPP-01",
+            ReceivedAt: DateTimeOffset.UtcNow,
+            SourceSystem: "Warehouse",
+            Lines: [new CreateGoodsReceiptLineRequest(1, "RM-008", 100m, "PCS")]
+        ));
+
+        // 3. Invoice: 100 PCS @ 21,000 VND (5% variance, above default 1% tolerance)
+        var invResp = await client.PostAsJsonAsync("/api/v1/invoices", new CreateSupplierInvoiceRequest(
+            InvoiceNumber: "INV-VAR-APPROVE",
+            PurchaseOrderNumber: "PO-VAR-APPROVE",
+            SupplierCode: "SUPP-01",
+            SupplierName: "Acme",
+            Currency: "VND",
+            InvoiceDate: DateTimeOffset.UtcNow,
+            SourceSystem: "Portal",
+            Lines: [new CreateSupplierInvoiceLineRequest(1, "RM-008", "Material", 100m, "PCS", 21000m, 0m)]
+        ));
+        var invoice = await invResp.Content.ReadFromJsonAsync<SupplierInvoice>();
+
+        // 4. Reconcile -> PriceMismatch Discrepancy
+        var runResp = await client.PostAsJsonAsync("/api/v1/reconciliation/run", new RunReconciliationRequest(InvoiceId: invoice!.Id));
+        var runResult = await runResp.Content.ReadFromJsonAsync<ReconciliationResult>();
+        Assert.Equal(MatchStatus.Discrepancy, runResult!.Status);
+        var disc = Assert.Single(runResult.Discrepancies);
+
+        // 5. Review decision: ApprovedWithTolerance by FinanceReviewer
+        var reviewReq = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/reconciliation/discrepancies/{disc.Id}/review")
+        {
+            Content = JsonContent.Create(new ReviewDiscrepancyRequest(ReviewAction.ApprovedWithTolerance, "Approved acceptable price surge"))
+        };
+        reviewReq.Headers.Add("X-User-Role", OpsBridgeRoles.FinanceReviewer);
+        reviewReq.Headers.Add("X-User-Id", "FinanceManager-1");
+
+        var reviewResp = await client.SendAsync(reviewReq);
+        Assert.Equal(HttpStatusCode.OK, reviewResp.StatusCode);
+
+        // 6. Verify in DB: Invoice status updated to ApprovedWithVariance and GR allocations committed
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
+        var dbInvoice = await db.SupplierInvoices.FindAsync(invoice.Id);
+        Assert.NotNull(dbInvoice);
+        Assert.Equal(InvoiceStatus.ApprovedWithVariance, dbInvoice.Status);
+
+        var gr = await db.GoodsReceipts.Include(g => g.Lines).FirstAsync(g => g.ReceiptNumber == "GR-VAR-APPROVE");
+        var grLine = gr.Lines[0];
+        Assert.Equal(100m, grLine.AllocatedQuantity);
+        Assert.Equal(0m, grLine.AvailableQuantity);
+    }
+
+    [Fact]
+    public async Task E2E_DiscrepancyReview_Reject_TransitionsStatus_AndKeepsReceiptsAvailable()
+    {
+        await fixture.ResetAsync();
+        var client = CreateClient();
+
+        // 1. PO: 100 PCS
+        await client.PostAsJsonAsync("/api/v1/purchase-orders", new CreatePurchaseOrderRequest(
+            OrderNumber: "PO-VAR-REJECT",
+            SupplierCode: "SUPP-01",
+            SupplierName: "Acme",
+            Currency: "VND",
+            SourceSystem: "ERP",
+            Lines: [new CreatePurchaseOrderLineRequest(1, "RM-008", "Material", 100m, "PCS", 20000m)]
+        ));
+
+        // 2. GR: 100 PCS
+        await client.PostAsJsonAsync("/api/v1/goods-receipts", new CreateGoodsReceiptRequest(
+            ReceiptNumber: "GR-VAR-REJECT",
+            PurchaseOrderNumber: "PO-VAR-REJECT",
+            SupplierCode: "SUPP-01",
+            ReceivedAt: DateTimeOffset.UtcNow,
+            SourceSystem: "Warehouse",
+            Lines: [new CreateGoodsReceiptLineRequest(1, "RM-008", 100m, "PCS")]
+        ));
+
+        // 3. Invoice: 100 PCS @ 30,000 VND (excessive variance)
+        var invResp = await client.PostAsJsonAsync("/api/v1/invoices", new CreateSupplierInvoiceRequest(
+            InvoiceNumber: "INV-VAR-REJECT",
+            PurchaseOrderNumber: "PO-VAR-REJECT",
+            SupplierCode: "SUPP-01",
+            SupplierName: "Acme",
+            Currency: "VND",
+            InvoiceDate: DateTimeOffset.UtcNow,
+            SourceSystem: "Portal",
+            Lines: [new CreateSupplierInvoiceLineRequest(1, "RM-008", "Material", 100m, "PCS", 30000m, 0m)]
+        ));
+        var invoice = await invResp.Content.ReadFromJsonAsync<SupplierInvoice>();
+
+        // 4. Reconcile
+        var runResp = await client.PostAsJsonAsync("/api/v1/reconciliation/run", new RunReconciliationRequest(InvoiceId: invoice!.Id));
+        var runResult = await runResp.Content.ReadFromJsonAsync<ReconciliationResult>();
+        var disc = Assert.Single(runResult!.Discrepancies);
+
+        // 5. Review decision: Rejected by FinanceReviewer
+        var reviewReq = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/reconciliation/discrepancies/{disc.Id}/review")
+        {
+            Content = JsonContent.Create(new ReviewDiscrepancyRequest(ReviewAction.Rejected, "Unacceptable price jump, rejected"))
+        };
+        reviewReq.Headers.Add("X-User-Role", OpsBridgeRoles.FinanceReviewer);
+        reviewReq.Headers.Add("X-User-Id", "FinanceManager-2");
+
+        var reviewResp = await client.SendAsync(reviewReq);
+        Assert.Equal(HttpStatusCode.OK, reviewResp.StatusCode);
+
+        // 6. Verify in DB: Invoice status is Rejected, GR inventory remains 100% available (0 allocated)
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
+        var dbInvoice = await db.SupplierInvoices.FindAsync(invoice.Id);
+        Assert.NotNull(dbInvoice);
+        Assert.Equal(InvoiceStatus.Rejected, dbInvoice.Status);
+
+        var gr = await db.GoodsReceipts.Include(g => g.Lines).FirstAsync(g => g.ReceiptNumber == "GR-VAR-REJECT");
+        var grLine = gr.Lines[0];
+        Assert.Equal(0m, grLine.AllocatedQuantity);
+        Assert.Equal(100m, grLine.AvailableQuantity);
+    }
 }

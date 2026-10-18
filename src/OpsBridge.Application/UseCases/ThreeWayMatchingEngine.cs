@@ -54,6 +54,23 @@ public sealed class ThreeWayMatchingEngine
             });
         }
 
+        // 2b. Pre-validation: Supplier Mismatch
+        if (!string.IsNullOrWhiteSpace(po.SupplierCode) &&
+            !string.IsNullOrWhiteSpace(invoice.SupplierCode) &&
+            !string.Equals(po.SupplierCode, invoice.SupplierCode, StringComparison.OrdinalIgnoreCase))
+        {
+            result.Status = MatchStatus.Discrepancy;
+            result.Discrepancies.Add(new Discrepancy
+            {
+                ReconciliationResultId = result.Id,
+                Type = DiscrepancyType.SupplierMismatch,
+                Severity = DiscrepancySeverity.Error,
+                ExpectedValue = po.SupplierCode,
+                ActualValue = invoice.SupplierCode,
+                Details = $"Supplier mismatch: PO '{po.OrderNumber}' belongs to supplier '{po.SupplierCode}', but invoice '{invoice.InvoiceNumber}' was issued by '{invoice.SupplierCode}'."
+            });
+        }
+
         // 3. Pre-validation: Missing Goods Receipts
         var allReceiptLines = goodsReceipts
             .SelectMany(g => g.Lines)
@@ -185,6 +202,22 @@ public sealed class ThreeWayMatchingEngine
             }
         }
 
+        // Populate allocations on result
+        foreach (var (line, qty, price, invLineId) in plannedAllocations)
+        {
+            result.Allocations.Add(new ReconciliationAllocation
+            {
+                Id = Guid.NewGuid(),
+                ReconciliationResultId = result.Id,
+                GoodsReceiptLineId = line.Id,
+                InvoiceLineId = invLineId,
+                ItemSku = line.ItemSku,
+                AllocatedQuantity = qty,
+                UnitPrice = price,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
+
         // 5. Final Evaluation
         if (result.Discrepancies.Count > 0)
         {
@@ -194,21 +227,10 @@ public sealed class ThreeWayMatchingEngine
         {
             result.Status = MatchStatus.Matched;
 
-            // Commit allocations to result and update GR line AllocatedQuantity
-            foreach (var (line, qty, price, invLineId) in plannedAllocations)
+            // In-memory allocation for callers using non-persisted domain entities
+            foreach (var (line, qty, _, _) in plannedAllocations)
             {
                 line.AllocatedQuantity += qty;
-                result.Allocations.Add(new ReconciliationAllocation
-                {
-                    Id = Guid.NewGuid(),
-                    ReconciliationResultId = result.Id,
-                    GoodsReceiptLineId = line.Id,
-                    InvoiceLineId = invLineId,
-                    ItemSku = line.ItemSku,
-                    AllocatedQuantity = qty,
-                    UnitPrice = price,
-                    CreatedAt = DateTimeOffset.UtcNow
-                });
             }
         }
 
