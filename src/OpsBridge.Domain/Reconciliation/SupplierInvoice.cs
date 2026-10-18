@@ -8,7 +8,9 @@ public enum InvoiceStatus
     Matched,
     Discrepancy,
     Approved,
-    Rejected
+    ApprovedWithVariance,
+    Rejected,
+    Cancelled
 }
 
 public sealed class SupplierInvoice

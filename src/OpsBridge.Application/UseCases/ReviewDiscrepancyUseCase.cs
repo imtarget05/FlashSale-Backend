@@ -18,6 +18,8 @@ public sealed record ReviewDiscrepancyCommand(
 public sealed class ReviewDiscrepancyUseCase(
     IReconciliationRepository reconciliationRepository,
     IAuditEventRepository auditRepository,
+    ISupplierInvoiceRepository invoiceRepository,
+    IGoodsReceiptRepository grRepository,
     IUnitOfWork unitOfWork,
     ILogger<ReviewDiscrepancyUseCase> logger)
 {
@@ -69,6 +71,55 @@ public sealed class ReviewDiscrepancyUseCase(
 
             await reconciliationRepository.UpdateDiscrepancyAsync(discrepancy, ct);
             await reconciliationRepository.AddReviewDecisionAsync(decision, ct);
+
+            // Fetch the parent reconciliation result
+            var reconResult = await reconciliationRepository.GetResultByIdAsync(discrepancy.ReconciliationResultId, ct);
+            if (reconResult != null)
+            {
+                var invoices = await invoiceRepository.GetByPurchaseOrderNumberAsync(reconResult.PurchaseOrderNumber, ct);
+                var invoice = invoices.FirstOrDefault(i => i.InvoiceNumber == reconResult.InvoiceNumber);
+
+                if (command.Action == ReviewAction.ApprovedWithTolerance || command.Action == ReviewAction.Adjusted)
+                {
+                    // Check if all discrepancies on this result are now Resolved
+                    var allDiscrepancies = reconResult.Discrepancies.ToList();
+                    var allResolved = allDiscrepancies.All(d => d.Id == discrepancy.Id || d.Status == DiscrepancyStatus.Resolved);
+
+                    if (allResolved)
+                    {
+                        // Commit planned allocations to GoodsReceiptLines
+                        foreach (var alloc in reconResult.Allocations)
+                        {
+                            var allocated = await grRepository.TryAllocateQuantityAsync(alloc.GoodsReceiptLineId, alloc.AllocatedQuantity, ct);
+                            if (!allocated)
+                            {
+                                logger.LogWarning("Concurrent allocation failed during variance approval for receipt line {LineId}", alloc.GoodsReceiptLineId);
+                                throw new DomainException($"Cannot approve discrepancy: Goods receipt line {alloc.GoodsReceiptLineId} does not have sufficient available quantity to allocate.");
+                            }
+                        }
+
+                        if (invoice != null)
+                        {
+                            invoice.Status = InvoiceStatus.ApprovedWithVariance;
+                            await invoiceRepository.UpdateAsync(invoice, ct);
+                        }
+                    }
+                }
+                else if (command.Action == ReviewAction.Rejected)
+                {
+                    if (invoice != null)
+                    {
+                        invoice.Status = InvoiceStatus.Rejected;
+                        await invoiceRepository.UpdateAsync(invoice, ct);
+                    }
+
+                    // Release any allocations previously held
+                    foreach (var alloc in reconResult.Allocations)
+                    {
+                        await grRepository.ReleaseAllocationQuantityAsync(alloc.GoodsReceiptLineId, alloc.AllocatedQuantity, ct);
+                    }
+                }
+            }
 
             await auditRepository.AddAsync(new AuditEvent
             {

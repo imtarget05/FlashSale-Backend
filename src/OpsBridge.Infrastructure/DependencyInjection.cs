@@ -46,6 +46,7 @@ public static class DependencyInjection
         // Adapters
         services.AddSingleton<IWebhookSignatureVerifier, HmacWebhookVerifier>();
         services.AddSingleton<IContractValidator, JsonContractValidator>();
+        services.AddSingleton<IOpsBridgeTokenIssuer, OpsBridgeJwtTokenIssuer>();
         services.AddHttpClient<IFactoryFlowClient, MockFactoryFlowClient>();
 
         // Application Use Cases

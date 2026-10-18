@@ -63,22 +63,42 @@
     - Reference Scenario (PO-1001, GR1, GR2 $\rightarrow$ Discrepancy $\rightarrow$ GR3 $\rightarrow$ Rerun $\rightarrow$ Matched) fully validated.
     - Concurrency-safe atomic conditional update (`TryAllocateQuantityAsync`) at database row level preventing double-spend / over-invoicing.
     - Discrepancy management and human review workflow with RBAC (`FinanceReviewer`, `Operator`, `Admin`) and audit logging.
-  - Endpoints: `/api/v1/purchase-orders`, `/api/v1/goods-receipts`, `/api/v1/invoices` (JSON & CSV), `/api/v1/reconciliation/run`, `/api/v1/reconciliation/results/{id}`, `/api/v1/reconciliation/discrepancies`, `/api/v1/reconciliation/discrepancies/{id}/review`, `/api/v1/reconciliation/audit-trail`.
+
+- **G3.5 Correctness Hardening**: Complete.
+  - Contract compatibility for both `purchaseOrderNumber` and `purchaseOrderNo` (Postel's Law).
+  - Allocation release on rejection (`ReleaseAllocationQuantityAsync`) and conditional commitment on variance approval.
+  - Guarded against re-reconciling already `Matched` or `ApprovedWithVariance` invoices.
+  - Supplier identity and currency strict matching.
+
+- **G4 Enterprise React + TypeScript Operations Dashboard**: Complete.
+  - Initialized `src/OpsBridge.Web` (React 19 + TypeScript + Vite + Tailwind CSS v4 + TanStack Query v5 + React Router v7).
+  - Zero mock buttons: All 8 screens connected to real backend APIs in `OpsBridge.Api`.
+  - Multi-persona auth with instant role switching (`FinanceReviewer`, `Operator`, `Admin`, `Auditor`).
+  - 8 operational screens:
+    1. Operations Overview
+    2. Purchase Orders
+    3. Goods Receipts
+    4. Supplier Invoices
+    5. 3-Way Matching Workspace
+    6. Discrepancy Investigation & Review Panel
+    7. Integration Operations & DLQ
+    8. Audit Timeline
   - Full Test Suite:
-    - `OpsBridge.UnitTests`: 31/31 Passed (18 domain matching + 13 webhook/security tests)
-    - `OpsBridge.ContractTests`: 6/6 Passed
-    - `OpsBridge.IntegrationTests`: 15/15 Passed (8 failure drills + 7 E2E reconciliation tests against real PostgreSQL & RabbitMQ Testcontainers)
-    - Total: **52/52 OpsBridge tests passing** with 0 failures.
+    - `OpsBridge.UnitTests`: 33/33 Passed
+    - `OpsBridge.ContractTests`: 7/7 Passed
+    - `OpsBridge.IntegrationTests`: 17/17 Passed (real PostgreSQL 15 & RabbitMQ 3 Testcontainers)
+    - Total: **57/57 OpsBridge tests passing** with 0 failures.
+    - Frontend bundle: `npm run build` succeeds cleanly in 258ms with 0 type errors.
 
 ---
 
-## 2. Next Engineering Objective: Phase G4 — Frontend Operations Dashboard
+## 2. Next Engineering Objective: Phase G5 — Observability, SRE & Production Readiness
 
-Build usable React/TypeScript screens:
-- Integration & Connector Management (Webhook URLs, Secrets, Health).
-- Reconciliation Workspace:
-  - 3-Way matching dashboard (PO vs GR vs Invoice).
-  - Discrepancy investigation and one-click review / approval actions (`FinanceReviewer`).
-  - Import progress & history (CSV/JSON upload).
-  - Event processing timeline & Dead-Letter Queue (DLQ) replay controls.
-  - Reconciliation batch processing and human review/approval workflow.
+1. OpenTelemetry distributed tracing across HTTP webhook $\rightarrow$ Outbox $\rightarrow$ RabbitMQ $\rightarrow$ Consumer $\rightarrow$ Reconciliation Engine.
+2. Prometheus metrics & Grafana operational dashboards:
+   - Webhook ingestion rate & latency.
+   - Message processing latency & consumer lag.
+   - Discrepancy rates & auto-match percentage.
+   - DLQ size & replay success rate.
+3. Health check probes (`/healthz/liveness`, `/healthz/readiness`) with deep checks on PostgreSQL & RabbitMQ.
+4. Structured logging with correlation IDs (`traceparent`, `CorrelationId`) end-to-end.

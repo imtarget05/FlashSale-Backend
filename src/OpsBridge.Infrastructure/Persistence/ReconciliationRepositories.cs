@@ -76,6 +76,16 @@ public sealed class EfGoodsReceiptRepository(OpsBridgeDbContext db) : IGoodsRece
         return rowsAffected > 0;
     }
 
+    public async Task<bool> ReleaseAllocationQuantityAsync(Guid lineId, decimal quantityToRelease, CancellationToken ct = default)
+    {
+        var rowsAffected = await db.Database.ExecuteSqlInterpolatedAsync(
+            $@"UPDATE ""GoodsReceiptLines""
+               SET ""AllocatedQuantity"" = GREATEST(""AllocatedQuantity"" - {quantityToRelease}, 0)
+               WHERE ""Id"" = {lineId}", ct);
+
+        return rowsAffected > 0;
+    }
+
     public async Task<IReadOnlyList<GoodsReceipt>> ListAsync(int limit = 50, CancellationToken ct = default)
     {
         return await db.GoodsReceipts
@@ -180,6 +190,47 @@ public sealed class EfReconciliationRepository(OpsBridgeDbContext db) : IReconci
             .Include(r => r.Discrepancies)
                 .ThenInclude(d => d.ReviewDecision)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
+    }
+
+    public async Task<IReadOnlyList<ReconciliationResult>> GetResultsByInvoiceNumberAsync(string invoiceNumber, CancellationToken ct = default)
+    {
+        return await db.ReconciliationResults
+            .Include(r => r.Allocations)
+            .Include(r => r.Discrepancies)
+                .ThenInclude(d => d.ReviewDecision)
+            .Where(r => r.InvoiceNumber == invoiceNumber)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<ReconciliationBatch>> ListBatchesAsync(int limit = 50, CancellationToken ct = default)
+    {
+        return await db.ReconciliationBatches
+            .Include(b => b.Results)
+            .OrderByDescending(b => b.CreatedAt)
+            .Take(limit)
+            .ToListAsync(ct);
+    }
+
+    public async Task<DashboardMetricsDto> GetMetricsAsync(CancellationToken ct = default)
+    {
+        var totalBatches = await db.ReconciliationBatches.CountAsync(ct);
+        var totalInvoices = await db.SupplierInvoices.CountAsync(ct);
+        var matchedInvoices = await db.SupplierInvoices.CountAsync(i => i.Status == InvoiceStatus.Matched || i.Status == InvoiceStatus.ApprovedWithVariance, ct);
+        var discrepantInvoices = await db.SupplierInvoices.CountAsync(i => i.Status == InvoiceStatus.Discrepancy, ct);
+        var openDiscrepancies = await db.Discrepancies.CountAsync(d => d.Status == DiscrepancyStatus.Open || d.Status == DiscrepancyStatus.UnderReview, ct);
+        var activeConnectors = await db.Connectors.CountAsync(c => c.IsActive, ct);
+        var deadLetterCount = await db.DeadLetterEvents.CountAsync(d => !d.IsReplayed, ct);
+
+        return new DashboardMetricsDto(
+            totalBatches,
+            totalInvoices,
+            matchedInvoices,
+            discrepantInvoices,
+            openDiscrepancies,
+            activeConnectors,
+            deadLetterCount
+        );
     }
 
     public async Task<IReadOnlyList<Discrepancy>> GetDiscrepanciesAsync(DiscrepancyStatus? status = null, CancellationToken ct = default)

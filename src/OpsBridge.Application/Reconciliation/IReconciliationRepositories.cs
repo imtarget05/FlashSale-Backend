@@ -17,6 +17,7 @@ public interface IGoodsReceiptRepository
     Task AddAsync(GoodsReceipt gr, CancellationToken ct = default);
     Task UpdateLineAsync(GoodsReceiptLine line, CancellationToken ct = default);
     Task<bool> TryAllocateQuantityAsync(Guid lineId, decimal quantityToAllocate, CancellationToken ct = default);
+    Task<bool> ReleaseAllocationQuantityAsync(Guid lineId, decimal quantityToRelease, CancellationToken ct = default);
     Task<IReadOnlyList<GoodsReceipt>> ListAsync(int limit = 50, CancellationToken ct = default);
 }
 
@@ -42,11 +43,24 @@ public interface IReconciliationRepository
     Task<ReconciliationBatch?> GetBatchByIdAsync(Guid id, CancellationToken ct = default);
     Task AddResultAsync(ReconciliationResult result, CancellationToken ct = default);
     Task<ReconciliationResult?> GetResultByIdAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<ReconciliationResult>> GetResultsByInvoiceNumberAsync(string invoiceNumber, CancellationToken ct = default);
+    Task<IReadOnlyList<ReconciliationBatch>> ListBatchesAsync(int limit = 50, CancellationToken ct = default);
+    Task<DashboardMetricsDto> GetMetricsAsync(CancellationToken ct = default);
     Task<IReadOnlyList<Discrepancy>> GetDiscrepanciesAsync(DiscrepancyStatus? status = null, CancellationToken ct = default);
     Task<Discrepancy?> GetDiscrepancyByIdAsync(Guid id, CancellationToken ct = default);
     Task UpdateDiscrepancyAsync(Discrepancy discrepancy, CancellationToken ct = default);
     Task AddReviewDecisionAsync(ReviewDecision decision, CancellationToken ct = default);
 }
+
+public sealed record DashboardMetricsDto(
+    int TotalBatches,
+    int TotalInvoices,
+    int MatchedInvoices,
+    int DiscrepantInvoices,
+    int OpenDiscrepancies,
+    int ActiveConnectors,
+    int DeadLetterCount
+);
 
 public interface IAuditEventRepository
 {

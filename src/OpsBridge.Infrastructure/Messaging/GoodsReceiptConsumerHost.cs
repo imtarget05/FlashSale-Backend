@@ -137,7 +137,7 @@ public sealed class GoodsReceiptConsumerHost : BackgroundService
             {
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var contract = JsonSerializer.Deserialize<GoodsReceiptConfirmedV1>(rawPayload, options);
-                if (contract?.Data != null)
+                if (contract?.Data != null && !string.IsNullOrWhiteSpace(contract.Data.ReceiptNumber))
                 {
                     var existingGr = await grRepo.GetByReceiptNumberAsync(contract.Data.ReceiptNumber, ct);
                     if (existingGr == null)
