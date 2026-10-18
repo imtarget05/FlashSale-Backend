@@ -1,0 +1,40 @@
+{
+  "eventId": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+  "eventType": "GoodsReceiptConfirmed",
+  "schemaVersion": "1.0",
+  "source": "factoryflow.manufacturing.warehouse",
+  "occurredAt": "2026-10-18T10:00:00Z",
+  "correlationId": "f0e1d2c3-b4a5-9687-1234-56789abcdef0",
+  "data": {
+    "receiptId": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
+    "receiptNumber": "GR-2026-10042",
+    "purchaseOrderNumber": "PO-2026-0891",
+    "supplierCode": "SUP-ACME-01",
+    "receivedDate": "2026-10-18T09:45:00Z",
+    "warehouseCode": "WH-MAIN-01",
+    "receivedBy": "operator_nguyen",
+    "notes": "Delivered in full, packaging intact, QC inspection passed.",
+    "items": [
+      {
+        "itemCode": "RM-ALUM-SHEET-02",
+        "itemName": "Aluminum Sheet 2mm Standard",
+        "purchaseOrderLineNumber": 1,
+        "quantityReceived": 150.0,
+        "quantityRejected": 0.0,
+        "unitOfMeasure": "KG",
+        "lotNumber": "LOT-20261018-01",
+        "qcStatus": "Accepted"
+      },
+      {
+        "itemCode": "RM-STEEL-ROD-10",
+        "itemName": "Steel Rod 10mm High-Tensile",
+        "purchaseOrderLineNumber": 2,
+        "quantityReceived": 500.0,
+        "quantityRejected": 5.0,
+        "unitOfMeasure": "M",
+        "lotNumber": "LOT-20261018-02",
+        "qcStatus": "Accepted"
+      }
+    ]
+  }
+}

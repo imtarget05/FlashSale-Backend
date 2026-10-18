@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opsbridge.internal/schemas/goods-receipt-confirmed-v1.schema.json",
+  "title": "GoodsReceiptConfirmed",
+  "description": "Integration contract emitted when FactoryFlow / MiniERP confirms receiving materials at the warehouse.",
+  "type": "object",
+  "required": [
+    "eventId",
+    "eventType",
+    "schemaVersion",
+    "source",
+    "occurredAt",
+    "correlationId",
+    "data"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this event occurrence, used for deduplication."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "GoodsReceiptConfirmed"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "source": {
+      "type": "string",
+      "const": "factoryflow.manufacturing.warehouse"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlationId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "receiptId",
+        "receiptNumber",
+        "purchaseOrderNumber",
+        "supplierCode",
+        "receivedDate",
+        "warehouseCode",
+        "receivedBy",
+        "items"
+      ],
+      "properties": {
+        "receiptId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "receiptNumber": {
+          "type": "string",
+          "minLength": 1
+        },
+        "purchaseOrderNumber": {
+          "type": "string",
+          "minLength": 1
+        },
+        "supplierCode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "receivedDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "warehouseCode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "receivedBy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "notes": {
+          "type": ["string", "null"]
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "itemCode",
+              "itemName",
+              "purchaseOrderLineNumber",
+              "quantityReceived",
+              "quantityRejected",
+              "unitOfMeasure",
+              "lotNumber",
+              "qcStatus"
+            ],
+            "properties": {
+              "itemCode": { "type": "string", "minLength": 1 },
+              "itemName": { "type": "string", "minLength": 1 },
+              "purchaseOrderLineNumber": { "type": "integer", "minimum": 1 },
+              "quantityReceived": { "type": "number", "exclusiveMinimum": 0 },
+              "quantityRejected": { "type": "number", "minimum": 0 },
+              "unitOfMeasure": { "type": "string", "minLength": 1 },
+              "lotNumber": { "type": "string", "minLength": 1 },
+              "qcStatus": { "type": "string", "enum": ["Accepted", "Rejected", "Quarantine"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}

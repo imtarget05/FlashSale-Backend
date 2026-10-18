@@ -1,0 +1,18 @@
+{
+  "eventId": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+  "eventType": "GoodsReceiptConfirmed",
+  "schemaVersion": "1.0",
+  "source": "factoryflow.manufacturing.warehouse",
+  "occurredAt": "2026-10-18T10:00:00Z",
+  "correlationId": "00000000-0000-0000-0000-000000000000",
+  "data": {
+    "receiptId": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
+    "receiptNumber": "",
+    "purchaseOrderNumber": "PO-2026-0891",
+    "supplierCode": "SUP-ACME-01",
+    "receivedDate": "2026-10-18T09:45:00Z",
+    "warehouseCode": "WH-MAIN-01",
+    "receivedBy": "operator_nguyen",
+    "items": []
+  }
+}

@@ -1,19 +1,32 @@
-# Current Plan: Phase 6–9 — Containerization, Azure Deployment, IaC, CI/CD
+# Current Plan: OpsBridge Platform — Enterprise Integration, Reconciliation & Operations
 
-**Current State**:
-Phases 1–5 complete with measured evidence:
-- Naive overselling reproduced (50/50 accepted, stock 10→9).
-- Fixed with an atomic conditional UPDATE (10/40, stock exactly 0).
-- Redis fast-fail reservation tier + asynchronous idempotent fulfillment added;
-  p95 of the hot path dropped from 574 ms → 29 ms. Idempotency (202/409-duplicate)
-  and async fulfillment (status polling) verified end-to-end locally.
+**Current Project**: OpsBridge (Enterprise Integration, Reconciliation & Operations Platform)  
+**Coordinating Project**: FactoryFlow (MiniERP, owned concurrently by Codex)  
+**Integration Contract**: `GoodsReceiptConfirmed v1`
 
-**Current Objective**:
-1. Phase 6 — finalize Docker Compose (API + worker + postgres + redis, healthchecks).
-2. Phase 7/8 — Terraform modules for Azure (Container Apps, PostgreSQL, Redis,
-   Service Bus, Key Vault, monitoring) + deploy workflow wiring.
-3. Phase 9 — CI (build + concurrency harness smoke) and CD (deploy to Container Apps).
+---
 
-**Goal**:
-A deployable, reproducible system the user can push to Azure and demo end-to-end,
-then AKS/GitOps hardening (Phase 10–12) with 02/03 projects.
+## 1. Current State
+
+- **G0 Baseline Audit**: Complete. Reused backend foundations from `FlashSale-Backend` (Durable Inbox/Outbox patterns, Clean Architecture, EF Core PostgreSQL schema runner, Testcontainers xUnit harness). Verified 172/172 unit tests and 62/62 integration tests passing.
+- **G1 Foundation & Webhook Ingestion**: Complete.
+  - Implemented `OpsBridge.slnx` with Clean Architecture (`Domain`, `Application`, `Infrastructure`, `Api`, `UnitTests`, `ContractTests`, `IntegrationTests`).
+  - Defined `GoodsReceiptConfirmed v1` JSON Schema and sample fixtures in `docs/contracts/` and `tests/fixtures/`.
+  - Implemented `HmacWebhookVerifier` supporting Svix standard headers (`svix-id`, `svix-timestamp`, `svix-signature`) and OpsBridge custom headers with 300s anti-replay protection and constant-time comparison.
+  - Implemented `ReceiveWebhookUseCase` with durable deduplication via `IInboxRepository` and PostgreSQL persistence via `IIngestedEventRepository`.
+  - Implemented `MockFactoryFlowClient` for local development and contract testing.
+  - Test Suite:
+    - `OpsBridge.UnitTests`: 12/12 Passed (144 ms)
+    - `OpsBridge.ContractTests`: 6/6 Passed (95 ms)
+    - `OpsBridge.IntegrationTests`: 4/4 Passed (711 ms, real PostgreSQL Testcontainer)
+    - Total: 22/22 OpsBridge tests passing, zero regression on baseline.
+
+---
+
+## 2. Next Engineering Objective: Phase G2
+
+- **RabbitMQ Worker & Event Pipeline**:
+  - Configure RabbitMQ topology: exchange `opsbridge.events.inbound`, queue `opsbridge.goods-receipts.v1`, dead-letter exchange `opsbridge.events.dlq`.
+  - Implement asynchronous background worker `GoodsReceiptConsumerHost` consuming from RabbitMQ.
+  - Implement exponential backoff retry with jitter and dead-letter capture for poisoned payloads.
+  - Implement manual replay endpoint `POST /api/v1/events/replay/{eventId}`.

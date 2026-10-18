@@ -1,13 +1,28 @@
-# Current Tasks — ACTIVE GOAL (2026-09-23, LOCAL v2 Platform Evolution)
+# Current Tasks — ACTIVE GOAL: OpsBridge Platform
 
-> **⛔ NOTICE TO ALL AGENTS (2026-09-24): plan V2 là đủ — KHÔNG cần AI/LLM.**
-> Scope Ollama/qwen3/AI-assistant/content-generation đã DROP. Không chạy/không fix smoke AI.
-> Chi tiết: `plans/plan-20260923-2349-local-v2-platform.md`.
-> Focus: kind + payment-service CrashLoop + saga smoke + Kafka/observability/KEDA.
+## Phase G0 — Baseline Audit & Reusability Verification (COMPLETED)
+- [x] Run baseline test suite: 172/172 UnitTests passed, 62/62 IntegrationTests passed.
+- [x] Audit reusable patterns: Clean Architecture layout, Durable Inbox/Outbox, RabbitMQ topic exchange topology, Testcontainers Postgres fixture, JWT auth.
 
-> Focus plan: `plans/plan-20260923-2349-local-v2-platform.md` (Active). Trước đó: cline-helper plan DONE (3B/3C ticked).
-> V2 scope: Payment.Service + Checkout.Saga (V2.1 DONE) → Kafka KRaft + Outbox/Inbox (V2.2 DONE) → Tempo+Loki (V2.3 DONE) → Envoy + KEDA (V2.4 DONE) → demo + evidence (V2.5 DONE). Budget: Docker VM 7.75 GiB.
-> Status 2026-09-24: V2.1-V2.5 PASS (saga 21/21, Kafka-down no-loss, trace Tempo, KEDA ScalingActive, demo verified). `tasks/current.md` synced với `plans/plan-20260923-2349-local-v2-platform.md`. Không còn Next V2.1→V2.2.
+## Phase G1 — Core Architecture, Ingestion & Contract Fixtures (COMPLETED)
+- [x] Create `OpsBridge.slnx` with clean layer separation (`Domain`, `Application`, `Infrastructure`, `Api`, `Worker`).
+- [x] Define `GoodsReceiptConfirmed v1` integration contract (`docs/contracts/goods-receipt-confirmed-v1.schema.json` and samples).
+- [x] Implement `HmacWebhookVerifier` supporting Svix (`svix-id`, `svix-timestamp`, `svix-signature`) and custom headers with 300s replay window.
+- [x] Implement `ReceiveWebhookUseCase` with durable deduplication via `IInboxRepository`.
+- [x] Implement `MockFactoryFlowClient` for local development.
+- [x] Implement API endpoints: `POST /api/v1/webhooks/factoryflow`, `/api/v1/connectors`, `/api/v1/ingestion/events`.
+- [x] Verify Unit Tests (12/12 passed), Contract Tests (6/6 passed), and Integration Tests with Testcontainers PostgreSQL (4/4 passed). Total: 22/22 OpsBridge tests passing.
+
+## Phase G2 — RabbitMQ Worker, Backoff Retry & DLQ Replay (NEXT)
+- [ ] Implement RabbitMQ event publisher for ingested webhook events (`opsbridge.events.inbound`).
+- [ ] Implement `GoodsReceiptConsumerHost` in `OpsBridge.Worker`.
+- [ ] Add exponential backoff retry with jitter (3 retries).
+- [ ] Route poison messages to dead-letter exchange `opsbridge.events.dlq`.
+- [ ] Implement manual replay endpoint `POST /api/v1/events/replay/{id}`.
+
+---
+
+# Previous FlashSale Baseline History (Retained for Reference)
 
 # Prev Goal (2026-09-23, Cline-helper / Antigravity finish — DONE)
 
