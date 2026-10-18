@@ -12,11 +12,17 @@ public sealed class EfInboxRepository(OpsBridgeDbContext db) : IInboxRepository
             i => i.MessageId == messageId && i.ConsumerGroup == consumerGroup, ct);
     }
 
+    public async Task AddAsync(InboxMessage inboxMessage, CancellationToken ct = default)
+    {
+        await db.InboxMessages.AddAsync(inboxMessage, ct);
+    }
+
     public async Task MarkProcessedAsync(
         Guid messageId,
         string consumerGroup,
         string eventType,
         string source,
+        string payloadHash = "",
         CancellationToken ct = default)
     {
         var inboxEntry = new InboxMessage
@@ -25,6 +31,7 @@ public sealed class EfInboxRepository(OpsBridgeDbContext db) : IInboxRepository
             ConsumerGroup = consumerGroup,
             EventType = eventType,
             Source = source,
+            PayloadHash = payloadHash,
             ProcessedAt = DateTimeOffset.UtcNow
         };
 

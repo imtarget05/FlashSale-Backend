@@ -31,6 +31,8 @@ public static class DependencyInjection
         services.AddScoped<IConnectorRepository, EfConnectorRepository>();
         services.AddScoped<IIngestedEventRepository, EfIngestedEventRepository>();
         services.AddScoped<IInboxRepository, EfInboxRepository>();
+        services.AddScoped<IOutboxRepository, EfOutboxRepository>();
+        services.AddScoped<OpsBridge.Application.Common.IUnitOfWork, EfUnitOfWork>();
 
         // Adapters
         services.AddSingleton<IWebhookSignatureVerifier, HmacWebhookVerifier>();

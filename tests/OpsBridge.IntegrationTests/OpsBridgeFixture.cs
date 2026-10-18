@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using OpsBridge.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
+using Testcontainers.RabbitMq;
 
 namespace OpsBridge.IntegrationTests;
 
@@ -16,13 +17,20 @@ public sealed class OpsBridgeFixture : IAsyncLifetime
         .WithPassword("postgres")
         .Build();
 
+    private readonly RabbitMqContainer _rabbit = new RabbitMqBuilder()
+        .WithImage("rabbitmq:3-management-alpine")
+        .WithUsername("guest")
+        .WithPassword("guest")
+        .Build();
+
     public string ConnectionString => _postgres.GetConnectionString();
+    public string RabbitMqConnectionString => _rabbit.GetConnectionString();
 
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
+        await Task.WhenAll(_postgres.StartAsync(), _rabbit.StartAsync());
 
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
@@ -53,6 +61,8 @@ public sealed class OpsBridgeFixture : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
         db.IngestedEvents.RemoveRange(db.IngestedEvents);
         db.InboxMessages.RemoveRange(db.InboxMessages);
+        db.OutboxMessages.RemoveRange(db.OutboxMessages);
+        db.DeadLetterEvents.RemoveRange(db.DeadLetterEvents);
         db.Connectors.RemoveRange(db.Connectors);
         await db.SaveChangesAsync();
     }
@@ -63,6 +73,6 @@ public sealed class OpsBridgeFixture : IAsyncLifetime
         {
             await Factory.DisposeAsync();
         }
-        await _postgres.DisposeAsync();
+        await Task.WhenAll(_postgres.DisposeAsync().AsTask(), _rabbit.DisposeAsync().AsTask());
     }
 }

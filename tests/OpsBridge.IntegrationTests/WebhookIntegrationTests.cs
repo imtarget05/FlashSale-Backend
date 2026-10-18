@@ -16,7 +16,8 @@ public class OpsBridgeCollection : ICollectionFixture<OpsBridgeFixture> { }
 [Collection("OpsBridgeIntegration")]
 public class WebhookIntegrationTests(OpsBridgeFixture fixture)
 {
-    private const string Secret = "live-factoryflow-test-secret-999";
+    private const string Secret = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw=";
+    private const string EventIdStr = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
 
     private async Task SeedConnectorAsync()
     {
@@ -38,20 +39,20 @@ public class WebhookIntegrationTests(OpsBridgeFixture fixture)
     }
 
     [Fact]
-    public async Task PostWebhook_ValidSignedPayload_PersistsToPostgresAndReturns202()
+    public async Task PostWebhook_ValidSignedPayload_PersistsAtomicallyToPostgresAndReturns202()
     {
         await SeedConnectorAsync();
         var client = fixture.Factory.CreateClient();
 
         var payload = File.ReadAllText(Path.Combine("..", "..", "..", "..", "fixtures", "valid-goods-receipt-v1.json"));
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        var signature = HmacWebhookVerifier.ComputeSignatureHeader(payload, timestamp, Secret, "v1=");
+        var signature = HmacWebhookVerifier.ComputeSvixSignatureHeader(payload, timestamp, EventIdStr, Secret);
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/webhooks/factoryflow")
         {
             Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json")
         };
-        request.Headers.Add("svix-id", "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d");
+        request.Headers.Add("svix-id", EventIdStr);
         request.Headers.Add("svix-timestamp", timestamp);
         request.Headers.Add("svix-signature", signature);
 
@@ -59,20 +60,29 @@ public class WebhookIntegrationTests(OpsBridgeFixture fixture)
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
 
-        // Verify PostgreSQL persistence
+        // Verify PostgreSQL atomic persistence: Event + Inbox + Outbox
         using var scope = fixture.Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
 
-        var eventId = Guid.Parse("a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d");
-        var savedEvent = await db.IngestedEvents.FirstOrDefaultAsync(e => e.EventId == eventId);
+        var eventId = Guid.Parse(EventIdStr);
 
+        // 1. IngestedEvents
+        var savedEvent = await db.IngestedEvents.FirstOrDefaultAsync(e => e.EventId == eventId);
         Assert.NotNull(savedEvent);
         Assert.Equal("GoodsReceiptConfirmed", savedEvent.EventType);
         Assert.Equal(EventProcessingStatus.Received, savedEvent.Status);
 
+        // 2. InboxMessages
         var inboxEntry = await db.InboxMessages.FirstOrDefaultAsync(i => i.MessageId == eventId);
         Assert.NotNull(inboxEntry);
         Assert.Equal("webhook-ingestion", inboxEntry.ConsumerGroup);
+        Assert.False(string.IsNullOrWhiteSpace(inboxEntry.PayloadHash));
+
+        // 3. OutboxMessages
+        var outboxEntry = await db.OutboxMessages.FirstOrDefaultAsync(o => o.Payload.Contains(EventIdStr));
+        Assert.NotNull(outboxEntry);
+        Assert.Equal("Pending", outboxEntry.Status);
+        Assert.Equal("opsbridge.events.inbound.goods-receipt", outboxEntry.Topic);
     }
 
     [Fact]
@@ -83,14 +93,14 @@ public class WebhookIntegrationTests(OpsBridgeFixture fixture)
 
         var payload = File.ReadAllText(Path.Combine("..", "..", "..", "..", "fixtures", "valid-goods-receipt-v1.json"));
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        var signature = HmacWebhookVerifier.ComputeSignatureHeader(payload, timestamp, Secret, "v1=");
+        var signature = HmacWebhookVerifier.ComputeSvixSignatureHeader(payload, timestamp, EventIdStr, Secret);
 
         // First attempt -> 202 Accepted
         var req1 = new HttpRequestMessage(HttpMethod.Post, "/api/v1/webhooks/factoryflow")
         {
             Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json")
         };
-        req1.Headers.Add("svix-id", "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d");
+        req1.Headers.Add("svix-id", EventIdStr);
         req1.Headers.Add("svix-timestamp", timestamp);
         req1.Headers.Add("svix-signature", signature);
 
@@ -102,7 +112,7 @@ public class WebhookIntegrationTests(OpsBridgeFixture fixture)
         {
             Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json")
         };
-        req2.Headers.Add("svix-id", "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d");
+        req2.Headers.Add("svix-id", EventIdStr);
         req2.Headers.Add("svix-timestamp", timestamp);
         req2.Headers.Add("svix-signature", signature);
 
@@ -112,11 +122,57 @@ public class WebhookIntegrationTests(OpsBridgeFixture fixture)
         var json = await res2.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("Duplicate", json.GetProperty("status").GetString());
 
-        // Verify only 1 row in IngestedEvents
+        // Verify only 1 row in IngestedEvents and OutboxMessages
         using var scope = fixture.Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
-        var count = await db.IngestedEvents.CountAsync(e => e.EventId == Guid.Parse("a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"));
+        var count = await db.IngestedEvents.CountAsync(e => e.EventId == Guid.Parse(EventIdStr));
         Assert.Equal(1, count);
+        var outboxCount = await db.OutboxMessages.CountAsync(o => o.Payload.Contains(EventIdStr));
+        Assert.Equal(1, outboxCount);
+    }
+
+    [Fact]
+    public async Task PostWebhook_ConcurrentIdenticalWebhooks_HandledIdempotentlyWithoutOrphanedRows()
+    {
+        // P0 Verification: 10 parallel threads sending identical event simultaneously
+        await SeedConnectorAsync();
+        var client = fixture.Factory.CreateClient();
+
+        var payload = File.ReadAllText(Path.Combine("..", "..", "..", "..", "fixtures", "valid-goods-receipt-v1.json"));
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        var signature = HmacWebhookVerifier.ComputeSvixSignatureHeader(payload, timestamp, EventIdStr, Secret);
+
+        var tasks = Enumerable.Range(0, 10).Select(async _ =>
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/webhooks/factoryflow")
+            {
+                Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json")
+            };
+            req.Headers.Add("svix-id", EventIdStr);
+            req.Headers.Add("svix-timestamp", timestamp);
+            req.Headers.Add("svix-signature", signature);
+            return await client.SendAsync(req);
+        }).ToArray();
+
+        var responses = await Task.WhenAll(tasks);
+
+        var acceptedCount = responses.Count(r => r.StatusCode == HttpStatusCode.Accepted);
+        var duplicateCount = responses.Count(r => r.StatusCode == HttpStatusCode.OK);
+
+        Assert.Equal(1, acceptedCount);
+        Assert.Equal(9, duplicateCount);
+
+        // Verify exactly 1 row exists in Postgres tables
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
+
+        var eventCount = await db.IngestedEvents.CountAsync(e => e.EventId == Guid.Parse(EventIdStr));
+        var inboxCount = await db.InboxMessages.CountAsync(i => i.MessageId == Guid.Parse(EventIdStr));
+        var outboxCount = await db.OutboxMessages.CountAsync(o => o.Payload.Contains(EventIdStr));
+
+        Assert.Equal(1, eventCount);
+        Assert.Equal(1, inboxCount);
+        Assert.Equal(1, outboxCount);
     }
 
     [Fact]
@@ -127,13 +183,13 @@ public class WebhookIntegrationTests(OpsBridgeFixture fixture)
 
         var payload = File.ReadAllText(Path.Combine("..", "..", "..", "..", "fixtures", "valid-goods-receipt-v1.json"));
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        var badSignature = "v1=0000000000000000000000000000000000000000000000000000000000000000";
+        var badSignature = "v1,0000000000000000000000000000000000000000000=";
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/webhooks/factoryflow")
         {
             Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json")
         };
-        request.Headers.Add("svix-id", "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d");
+        request.Headers.Add("svix-id", EventIdStr);
         request.Headers.Add("svix-timestamp", timestamp);
         request.Headers.Add("svix-signature", badSignature);
 
@@ -150,13 +206,13 @@ public class WebhookIntegrationTests(OpsBridgeFixture fixture)
 
         var payload = File.ReadAllText(Path.Combine("..", "..", "..", "..", "fixtures", "valid-goods-receipt-v1.json"));
         var expiredTimestamp = DateTimeOffset.UtcNow.AddMinutes(-10).ToUnixTimeSeconds().ToString();
-        var signature = HmacWebhookVerifier.ComputeSignatureHeader(payload, expiredTimestamp, Secret, "v1=");
+        var signature = HmacWebhookVerifier.ComputeSvixSignatureHeader(payload, expiredTimestamp, EventIdStr, Secret);
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/webhooks/factoryflow")
         {
             Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json")
         };
-        request.Headers.Add("svix-id", "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d");
+        request.Headers.Add("svix-id", EventIdStr);
         request.Headers.Add("svix-timestamp", expiredTimestamp);
         request.Headers.Add("svix-signature", signature);
 
