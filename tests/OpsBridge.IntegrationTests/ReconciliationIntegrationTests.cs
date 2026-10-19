@@ -12,7 +12,7 @@ namespace OpsBridge.IntegrationTests;
 [Collection("OpsBridgeIntegration")]
 public class ReconciliationIntegrationTests(OpsBridgeFixture fixture)
 {
-    private HttpClient CreateClient() => fixture.Factory.CreateClient();
+    private HttpClient CreateClient() => fixture.AuthenticatedClient;
 
     [Fact]
     public async Task E2E_PurchaseOrder_Ingestion_PersistsInPostgres()
@@ -299,34 +299,32 @@ public class ReconciliationIntegrationTests(OpsBridgeFixture fixture)
         Assert.Equal(MatchStatus.Discrepancy, runResult!.Status);
         var disc = Assert.Single(runResult.Discrepancies);
 
-        // Attempt review with unauthorized role "Guest" -> 403 Forbidden
+        // Attempt review with insufficient role (Operator lacks FinanceReviewer) -> 403 Forbidden
+        var forbiddenClient = fixture.ClientForRole(OpsBridgeRoles.Auditor);
         var unauthorizedReq = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/reconciliation/discrepancies/{disc.Id}/review")
         {
             Content = JsonContent.Create(new ReviewDiscrepancyRequest(ReviewAction.ApprovedWithTolerance, "Attempted bypass"))
         };
-        unauthorizedReq.Headers.Add("X-User-Role", "Guest");
-        unauthorizedReq.Headers.Add("X-User-Id", "GuestUser");
 
-        var forbiddenResp = await client.SendAsync(unauthorizedReq);
+        var forbiddenResp = await forbiddenClient.SendAsync(unauthorizedReq);
         Assert.Equal(HttpStatusCode.Forbidden, forbiddenResp.StatusCode);
 
-        // Review with authorized role "FinanceReviewer" -> 200 OK
+        // Review with authorized FinanceReviewer JWT -> 200 OK
+        var financeClient = fixture.ClientForRole(OpsBridgeRoles.FinanceReviewer);
         var authorizedReq = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/reconciliation/discrepancies/{disc.Id}/review")
         {
             Content = JsonContent.Create(new ReviewDiscrepancyRequest(ReviewAction.ApprovedWithTolerance, "Executive price variance approved for batch"))
         };
-        authorizedReq.Headers.Add("X-User-Role", OpsBridgeRoles.FinanceReviewer);
-        authorizedReq.Headers.Add("X-User-Id", "HeadOfFinance");
 
-        var successResp = await client.SendAsync(authorizedReq);
+        var successResp = await financeClient.SendAsync(authorizedReq);
         Assert.Equal(HttpStatusCode.OK, successResp.StatusCode);
 
         // Verify audit trail in PostgreSQL
-        var auditResp = await client.GetAsync("/api/v1/reconciliation/audit-trail");
+        var auditResp = await financeClient.GetAsync("/api/v1/reconciliation/audit-trail");
         Assert.Equal(HttpStatusCode.OK, auditResp.StatusCode);
         var auditEvents = await auditResp.Content.ReadFromJsonAsync<List<AuditEvent>>();
         Assert.NotNull(auditEvents);
-        Assert.Contains(auditEvents, a => a.EntityType == "Discrepancy" && a.UserId == "HeadOfFinance");
+        Assert.Contains(auditEvents, a => a.EntityType == "Discrepancy" && a.UserId.StartsWith("int-", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -374,15 +372,13 @@ public class ReconciliationIntegrationTests(OpsBridgeFixture fixture)
         Assert.Equal(MatchStatus.Discrepancy, runResult!.Status);
         var disc = Assert.Single(runResult.Discrepancies);
 
-        // 5. Review decision: ApprovedWithTolerance by FinanceReviewer
+        // 5. Review decision: ApprovedWithTolerance by FinanceReviewer JWT
         var reviewReq = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/reconciliation/discrepancies/{disc.Id}/review")
         {
             Content = JsonContent.Create(new ReviewDiscrepancyRequest(ReviewAction.ApprovedWithTolerance, "Approved acceptable price surge"))
         };
-        reviewReq.Headers.Add("X-User-Role", OpsBridgeRoles.FinanceReviewer);
-        reviewReq.Headers.Add("X-User-Id", "FinanceManager-1");
 
-        var reviewResp = await client.SendAsync(reviewReq);
+        var reviewResp = await fixture.ClientForRole(OpsBridgeRoles.FinanceReviewer).SendAsync(reviewReq);
         Assert.Equal(HttpStatusCode.OK, reviewResp.StatusCode);
 
         // 6. Verify in DB: Invoice status updated to ApprovedWithVariance and GR allocations committed
@@ -442,15 +438,13 @@ public class ReconciliationIntegrationTests(OpsBridgeFixture fixture)
         var runResult = await runResp.Content.ReadFromJsonAsync<ReconciliationResult>();
         var disc = Assert.Single(runResult!.Discrepancies);
 
-        // 5. Review decision: Rejected by FinanceReviewer
+        // 5. Review decision: Rejected by FinanceReviewer JWT
         var reviewReq = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/reconciliation/discrepancies/{disc.Id}/review")
         {
             Content = JsonContent.Create(new ReviewDiscrepancyRequest(ReviewAction.Rejected, "Unacceptable price jump, rejected"))
         };
-        reviewReq.Headers.Add("X-User-Role", OpsBridgeRoles.FinanceReviewer);
-        reviewReq.Headers.Add("X-User-Id", "FinanceManager-2");
 
-        var reviewResp = await client.SendAsync(reviewReq);
+        var reviewResp = await fixture.ClientForRole(OpsBridgeRoles.FinanceReviewer).SendAsync(reviewReq);
         Assert.Equal(HttpStatusCode.OK, reviewResp.StatusCode);
 
         // 6. Verify in DB: Invoice status is Rejected, GR inventory remains 100% available (0 allocated)

@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using OpsBridge.Application.InboxOutbox;
 using OpsBridge.Application.Ingestion;
 using OpsBridge.Application.Reconciliation;
+using OpsBridge.Domain;
 using OpsBridge.Domain.Connectors;
 using OpsBridge.Domain.DLQ;
 using OpsBridge.Domain.InboxOutbox;
@@ -309,9 +310,9 @@ public class FailureDrillIntegrationTests(OpsBridgeFixture fixture)
             await db.SaveChangesAsync();
         }
 
-        // 1st Replay Request
+        // 1st Replay Request (Operator JWT; backdoor header removed in F2)
         var req1 = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/events/replay/{eventId}");
-        req1.Headers.Add("X-Test-Bypass-Auth", "1");
+        req1.Headers.Authorization = fixture.AuthenticatedClient.DefaultRequestHeaders.Authorization;
         var res1 = await client.SendAsync(req1);
         Assert.Equal(HttpStatusCode.OK, res1.StatusCode);
         var json1 = await res1.Content.ReadFromJsonAsync<JsonElement>();
@@ -319,7 +320,7 @@ public class FailureDrillIntegrationTests(OpsBridgeFixture fixture)
 
         // 2nd Replay Request (Duplicate)
         var req2 = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/events/replay/{eventId}");
-        req2.Headers.Add("X-Test-Bypass-Auth", "1");
+        req2.Headers.Authorization = fixture.AuthenticatedClient.DefaultRequestHeaders.Authorization;
         var res2 = await client.SendAsync(req2);
         Assert.Equal(HttpStatusCode.OK, res2.StatusCode);
         var json2 = await res2.Content.ReadFromJsonAsync<JsonElement>();
@@ -332,5 +333,45 @@ public class FailureDrillIntegrationTests(OpsBridgeFixture fixture)
             var outboxCount = await db.OutboxMessages.CountAsync(o => o.Payload.Contains(eventId.ToString()));
             Assert.Equal(1, outboxCount);
         }
+    }
+
+    [Fact]
+    public async Task FailureDrill6_ConcurrentManualReplay_QueuesExactlyOnce()
+    {
+        await fixture.ResetAsync();
+
+        var eventId = Guid.NewGuid();
+        using (var scope = fixture.Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
+            db.DeadLetterEvents.Add(new DeadLetterEvent
+            {
+                Id = Guid.NewGuid(),
+                EventId = eventId,
+                EventType = "GoodsReceiptConfirmed",
+                Topic = "opsbridge.events.inbound.goods-receipt",
+                Payload = $"{{\"eventId\":\"{eventId}\"}}",
+                Reason = "Concurrent replay test",
+                FailedAt = DateTimeOffset.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var requests = Enumerable.Range(0, 12).Select(async _ =>
+        {
+            using var client = fixture.ClientForRole(OpsBridgeRoles.Operator);
+            using var response = await client.PostAsync($"/api/v1/events/replay/{eventId}", content: null);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+            return body.GetProperty("status").GetString();
+        });
+
+        var statuses = await Task.WhenAll(requests);
+        Assert.Single(statuses, status => status == "ReplayQueued");
+        Assert.Equal(11, statuses.Count(status => status == "AlreadyReplayed"));
+
+        using var verifyScope = fixture.Factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
+        Assert.Equal(1, await verifyDb.OutboxMessages.CountAsync(message => message.Payload.Contains(eventId.ToString())));
     }
 }

@@ -1,5 +1,11 @@
 # Current Tasks — ACTIVE GOAL: OpsBridge Platform
 
+## Senior Engineering Phase Pack — F2 (local gates PASS; commit pending)
+- OpsBridge F2 implementation complete on the current working tree. Local gates verified in this phase: `dotnet format --verify-no-changes` PASS, `dotnet build AzureFlashSale.slnx -c Release` PASS, FlashSale unit 172/172, FlashSale integration (Testcontainers) 62/62, OpsBridge unit 41/41, OpsBridge integration 21/21, isolated 50/10 concurrency harness PASS (no oversell). Total tests run in F2 = 296. Evidence: `docs/evidence/F2/66dca40/`.
+- Not run in F2: NuGet audit, Trivy, and OCI image scans were exercised in F1, not re-run here. Remote GitHub CI is `NOT_RUN` because this branch is uncommitted and no push was authorized.
+- Human acceptance is pending; do not begin F3 until commit + human acceptance are recorded.
+- Base/HEAD remains `66dca40380e352757a84d1bf47a7de3a6ed77fe0`; the worktree contains this phase's additions (not yet committed).
+
 ## Phase G0 — Baseline Audit & Reusability Verification (COMPLETED)
 - [x] Run baseline test suite: 172/172 UnitTests passed, 62/62 IntegrationTests passed.
 - [x] Audit reusable patterns: Clean Architecture layout, Durable Inbox/Outbox, RabbitMQ topic exchange topology, Testcontainers Postgres fixture, JWT auth.

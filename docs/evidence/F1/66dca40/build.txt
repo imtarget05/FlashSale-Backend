@@ -1,0 +1,4 @@
+dotnet build AzureFlashSale.slnx -c Release
+Exit code: 0
+Build succeeded in 8.6s
+9 pre-existing warnings (xUnit2031 fixed, NU1603 Testcontainers version mismatch), 0 errors

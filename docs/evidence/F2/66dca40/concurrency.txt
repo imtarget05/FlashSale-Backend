@@ -1,0 +1,19 @@
+Environment: LOCAL, throwaway PostgreSQL 15 + Redis 7, API on localhost:55065
+PostgreSQL host port: 55432; Redis host port: 56379
+Containers had no mounted volumes and were stopped after the run.
+
+Command:
+PGPORT=55432 PGPASSWORD=postgres python3 load-tests/concurrency/oversell_demo.py --base-url http://localhost:55065 --stock 10 --requests 50 --psql-container '' --settle-seconds 3 --ops-token <ephemeral local STAFF token>
+
+Observed result:
+HTTP accepted: 3
+HTTP 4xx rejected: 47 (409)
+Transport failures: 0
+Initial stock: 10
+Accepted units: 3
+Expected final stock: 7
+Final database stock: 7
+Orders created: 3
+RESULT: PASS - inventory conserved (no overselling, no lost updates).
+
+This is one local correctness run, not a latency/performance claim or remote CI result.

@@ -33,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<IInboxRepository, EfInboxRepository>();
         services.AddScoped<IConsumerProcessingRepository, EfConsumerProcessingRepository>();
         services.AddScoped<IOutboxRepository, EfOutboxRepository>();
+        services.AddScoped<IDeadLetterEventRepository, EfDeadLetterEventRepository>();
         services.AddScoped<OpsBridge.Application.Common.IUnitOfWork, EfUnitOfWork>();
 
         // Reconciliation Repositories
@@ -51,6 +52,7 @@ public static class DependencyInjection
 
         // Application Use Cases
         services.AddScoped<ReceiveWebhookUseCase>();
+        services.AddScoped<ReplayDeadLetterEventUseCase>();
         services.AddScoped<ReconcileInvoiceUseCase>();
         services.AddScoped<ReviewDiscrepancyUseCase>();
 

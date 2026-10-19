@@ -1,8 +1,12 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using OpsBridge.Domain;
 using OpsBridge.Infrastructure.Persistence;
+using OpsBridge.Infrastructure.Security;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
 
@@ -28,12 +32,38 @@ public sealed class OpsBridgeFixture : IAsyncLifetime
 
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
 
+    public HttpClient AuthenticatedClient { get; private set; } = null!;
+
+    public HttpClient ClientForRole(string role)
+    {
+        var issuer = new OpsBridgeJwtTokenIssuer();
+        var client = Factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue(
+                JwtBearerDefaults.AuthenticationScheme,
+                issuer.IssueToken($"int-{role}", $"int-{role}", role));
+        return client;
+    }
+
+    public HttpClient AnonymousClient() => Factory.CreateClient();
+
     public async Task InitializeAsync()
     {
         await Task.WhenAll(_postgres.StartAsync(), _rabbit.StartAsync());
 
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
+            builder.UseEnvironment("Test");
+            builder.ConfigureAppConfiguration(config =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Jwt:SigningKey"] = OpsBridgeJwtTokenIssuer.DefaultSigningKey,
+                    ["Jwt:Issuer"] = OpsBridgeJwtTokenIssuer.DefaultIssuer,
+                    ["Jwt:Audience"] = OpsBridgeJwtTokenIssuer.DefaultAudience,
+                    ["Messaging:Provider"] = "InMemory"
+                });
+            });
             builder.ConfigureServices(services =>
             {
                 // Remove existing DbContext registration
@@ -53,6 +83,8 @@ public sealed class OpsBridgeFixture : IAsyncLifetime
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
         await db.Database.EnsureCreatedAsync();
+
+        AuthenticatedClient = ClientForRole(OpsBridgeRoles.Operator);
     }
 
     public async Task ResetAsync()

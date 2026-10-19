@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using OpsBridge.Api.Auth;
 using OpsBridge.Application.Ingestion;
 
 namespace OpsBridge.Api.Endpoints;
@@ -10,7 +12,8 @@ public static class IngestionEndpoints
     public static IEndpointRouteBuilder MapIngestionEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/ingestion")
-            .WithTags("Ingestion");
+            .WithTags("Ingestion")
+            .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         group.MapGet("/events", async (IIngestedEventRepository repo, int limit = 50, CancellationToken ct = default) =>
         {
@@ -29,6 +32,7 @@ public static class IngestionEndpoints
                 e.ProcessedAt
             }));
         })
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove)
         .WithName("ListRecentIngestedEvents");
 
         group.MapGet("/events/{id:guid}", async (Guid id, IIngestedEventRepository repo, CancellationToken ct) =>
@@ -54,6 +58,7 @@ public static class IngestionEndpoints
                 ev.RawPayload
             });
         })
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove)
         .WithName("GetIngestedEventById");
 
         return app;
