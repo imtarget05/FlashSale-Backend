@@ -8,6 +8,7 @@ public static class OpsBridgeAuthPolicies
     public const string AdminOnly = "AdminOnly";
     public const string OperatorOrAdmin = "OperatorOrAdmin";
     public const string AuditorOrAbove = "AuditorOrAbove";
+    public const string Review = "Review";
 
     public static void AddOpsBridgePolicies(this AuthorizationOptions options)
     {
@@ -21,6 +22,13 @@ public static class OpsBridgeAuthPolicies
 
         options.AddPolicy(AuditorOrAbove, policy => policy
             .RequireAuthenticatedUser()
-            .RequireRole(OpsBridgeRoles.Admin, OpsBridgeRoles.Operator, OpsBridgeRoles.Auditor));
+            .RequireRole(OpsBridgeRoles.Admin, OpsBridgeRoles.Operator, OpsBridgeRoles.Auditor, OpsBridgeRoles.FinanceReviewer));
+
+        // FinanceReviewer + Admin are the only roles that may approve/reject
+        // discrepancies. Auditor can READ reconciliation artefacts but may not
+        // issue a review decision.
+        options.AddPolicy(Review, policy => policy
+            .RequireAuthenticatedUser()
+            .RequireRole(OpsBridgeRoles.Admin, OpsBridgeRoles.FinanceReviewer));
     }
 }

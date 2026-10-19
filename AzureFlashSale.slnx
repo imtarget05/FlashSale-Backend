@@ -4,6 +4,10 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Payment.Service/Payment.Service.csproj" />
+    <Project Path="src/OpsBridge.Domain/OpsBridge.Domain.csproj" />
+    <Project Path="src/OpsBridge.Application/OpsBridge.Application.csproj" />
+    <Project Path="src/OpsBridge.Infrastructure/OpsBridge.Infrastructure.csproj" />
+    <Project Path="src/OpsBridge.Api/OpsBridge.Api.csproj" />
   </Folder>
   <Folder Name="/src/Application/">
     <Project Path="src/FlashSale.Application/FlashSale.Application.csproj" />
@@ -20,8 +24,11 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/UnitTests/FlashSale.UnitTests.csproj" />
+    <Project Path="tests/OpsBridge.UnitTests/OpsBridge.UnitTests.csproj" />
   </Folder>
   <Folder Name="/tests/IntegrationTests/">
     <Project Path="tests/IntegrationTests/FlashSale.IntegrationTests.csproj" />
+    <Project Path="tests/OpsBridge.IntegrationTests/OpsBridge.IntegrationTests.csproj" />
+    <Project Path="tests/OpsBridge.ContractTests/OpsBridge.ContractTests.csproj" />
   </Folder>
 </Solution>

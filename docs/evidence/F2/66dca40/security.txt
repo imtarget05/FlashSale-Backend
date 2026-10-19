@@ -1,0 +1,22 @@
+NuGet audit:
+Command: dotnet list <project> package --vulnerable --include-transitive for every csproj under src/ and tests/.
+Result: PASS; no vulnerable packages from the current NuGet advisory source.
+Remediation: OpsBridge.IntegrationTests pins SSH.NET 2026.0.0; resolved SSH.NET 2023.0.0 previously had two HIGH advisories.
+
+Trivy filesystem:
+Command: trivy fs --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --exit-code 1 --skip-files '*.tfstate*,.env' .
+Result: PASS; no blocking vulnerabilities, secrets, or misconfigurations reported.
+
+Trivy configuration:
+Command: trivy config --severity HIGH,CRITICAL --exit-code 1 .
+Result: PASS; 0 HIGH/CRITICAL misconfigurations across 23 detected config files.
+
+API image:
+Command: trivy image --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed flashsale/order-api:ci-local-f2
+Result: PASS; 0 HIGH/CRITICAL OS or .NET findings.
+
+Worker image:
+Command: trivy image --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed flashsale/order-worker:ci-local-f2
+Result: PASS; 0 HIGH/CRITICAL OS or .NET findings.
+
+All results are local scans on 2026-10-19; remote GitHub CI was not run.

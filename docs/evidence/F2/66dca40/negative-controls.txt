@@ -1,0 +1,15 @@
+Production auth:
+- POST /api/v1/auth/login with role=Admin: 404 (demo persona route not mapped).
+- Production startup without Jwt:SigningKey: fails fast.
+- Production startup with the built-in development signing key: fails fast.
+
+OpsBridge route authorization:
+- Anonymous GET /api/v1/connectors: 401.
+- CUSTOMER GET /api/v1/connectors: 403.
+- Auditor GET /api/v1/connectors: 200; auditor POST: 403.
+- Operator POST /api/v1/connectors: 201; response does not contain the connector secret.
+- FinanceReviewer discrepancy review: 200; Auditor review: 403.
+
+DLQ replay:
+- 12 concurrent Operator replay requests: exactly one ReplayQueued and 11 AlreadyReplayed.
+- Exactly one matching OutboxMessage persisted.

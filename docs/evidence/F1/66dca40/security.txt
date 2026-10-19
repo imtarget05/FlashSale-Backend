@@ -1,0 +1,11 @@
+Trivy image scan — order-api:ci-local
+Exit code: 0
+Target: flashsale/order-api:ci-local (ubuntu 24.04) — Vulnerabilities: 0
+dotnet-core: 0
+
+Trivy image scan — order-worker:ci-local
+Exit code: 0
+Target: flashsale/order-worker:ci-local (ubuntu 24.04) — Vulnerabilities: 0
+dotnet-core: 0
+
+Base image mcr.microsoft.com/dotnet/aspnet:10.0 scanned separately: 0 HIGH/CRITICAL.

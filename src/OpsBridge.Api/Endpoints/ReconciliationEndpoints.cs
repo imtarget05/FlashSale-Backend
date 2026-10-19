@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using OpsBridge.Api.Auth;
+using OpsBridge.Application.InboxOutbox;
 using OpsBridge.Application.Reconciliation;
 using OpsBridge.Application.UseCases;
 using OpsBridge.Domain;
@@ -69,6 +72,7 @@ public static class ReconciliationEndpoints
             return Results.Created($"/api/v1/purchase-orders/{purchaseOrder.OrderNumber}", purchaseOrder);
         })
         .WithTags("Procurement")
+        .RequireAuthorization(OpsBridgeAuthPolicies.OperatorOrAdmin)
         .Produces(StatusCodes.Status201Created)
         .Produces(StatusCodes.Status400BadRequest);
 
@@ -79,7 +83,8 @@ public static class ReconciliationEndpoints
             var pos = await poRepo.ListAsync(100, ct);
             return Results.Ok(pos);
         })
-        .WithTags("Procurement");
+        .WithTags("Procurement")
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         app.MapGet("/api/v1/purchase-orders/{orderNumber}", async (
             string orderNumber,
@@ -89,7 +94,8 @@ public static class ReconciliationEndpoints
             var po = await poRepo.GetByOrderNumberAsync(orderNumber, ct);
             return po != null ? Results.Ok(po) : Results.NotFound(new { error = "NotFound", message = $"Purchase order '{orderNumber}' not found." });
         })
-        .WithTags("Procurement");
+        .WithTags("Procurement")
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         // Goods Receipts
         app.MapPost("/api/v1/goods-receipts", async (
@@ -125,6 +131,7 @@ public static class ReconciliationEndpoints
             return Results.Created($"/api/v1/goods-receipts/{gr.ReceiptNumber}", gr);
         })
         .WithTags("Procurement")
+        .RequireAuthorization(OpsBridgeAuthPolicies.OperatorOrAdmin)
         .Produces(StatusCodes.Status201Created);
 
         app.MapGet("/api/v1/goods-receipts", async (
@@ -134,7 +141,8 @@ public static class ReconciliationEndpoints
             var grs = await grRepo.ListAsync(100, ct);
             return Results.Ok(grs);
         })
-        .WithTags("Procurement");
+        .WithTags("Procurement")
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         app.MapGet("/api/v1/goods-receipts/{receiptNumber}", async (
             string receiptNumber,
@@ -144,7 +152,8 @@ public static class ReconciliationEndpoints
             var gr = await grRepo.GetByReceiptNumberAsync(receiptNumber, ct);
             return gr != null ? Results.Ok(gr) : Results.NotFound(new { error = "NotFound", message = $"Goods receipt '{receiptNumber}' not found." });
         })
-        .WithTags("Procurement");
+        .WithTags("Procurement")
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         // Supplier Invoices
         app.MapPost("/api/v1/invoices", async (
@@ -215,6 +224,7 @@ public static class ReconciliationEndpoints
             return Results.Created($"/api/v1/invoices/{invoice.Id}", invoice);
         })
         .WithTags("Invoices")
+        .RequireAuthorization(OpsBridgeAuthPolicies.OperatorOrAdmin)
         .Produces(StatusCodes.Status201Created)
         .Produces(StatusCodes.Status409Conflict);
 
@@ -225,7 +235,8 @@ public static class ReconciliationEndpoints
             var invoices = await invoiceRepo.ListAsync(100, ct);
             return Results.Ok(invoices);
         })
-        .WithTags("Invoices");
+        .WithTags("Invoices")
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         app.MapGet("/api/v1/invoices/{id:guid}", async (
             Guid id,
@@ -235,7 +246,8 @@ public static class ReconciliationEndpoints
             var invoice = await invoiceRepo.GetByIdAsync(id, ct);
             return invoice != null ? Results.Ok(invoice) : Results.NotFound(new { error = "NotFound", message = $"Invoice '{id}' not found." });
         })
-        .WithTags("Invoices");
+        .WithTags("Invoices")
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         // 3-Way Reconciliation Execution
         group.MapPost("/run", async (
@@ -252,6 +264,7 @@ public static class ReconciliationEndpoints
             var result = await reconcileUseCase.ExecuteAsync(request.InvoiceId, policy, request.BatchId, ct);
             return Results.Ok(result);
         })
+        .RequireAuthorization(OpsBridgeAuthPolicies.OperatorOrAdmin)
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status404NotFound);
 
@@ -263,7 +276,8 @@ public static class ReconciliationEndpoints
         {
             var result = await reconRepo.GetResultByIdAsync(id, ct);
             return result != null ? Results.Ok(result) : Results.NotFound(new { error = "NotFound", message = $"Reconciliation result '{id}' not found." });
-        });
+        })
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         // Discrepancies
         group.MapGet("/discrepancies", async (
@@ -273,7 +287,8 @@ public static class ReconciliationEndpoints
         {
             var list = await reconRepo.GetDiscrepanciesAsync(status, ct);
             return Results.Ok(list);
-        });
+        })
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         // Discrepancy Review
         group.MapPost("/discrepancies/{id:guid}/review", async (
@@ -283,17 +298,20 @@ public static class ReconciliationEndpoints
             ReviewDiscrepancyUseCase reviewUseCase,
             CancellationToken ct) =>
         {
-            // Determine role from Claims or Header
+            // Determine role from JWT claims only. Header spoofing (X-User-Role)
+            // was removed for F2: callers must authenticate; operator fallback
+            // is empty so an unauthenticated caller cannot gain staff roles.
             var user = context.User;
             var role = user.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role)?.Value
-                ?? context.Request.Headers["X-User-Role"].FirstOrDefault()
                 ?? (user.IsInRole(OpsBridgeRoles.Admin) ? OpsBridgeRoles.Admin :
                     user.IsInRole(OpsBridgeRoles.FinanceReviewer) ? OpsBridgeRoles.FinanceReviewer :
                     user.IsInRole(OpsBridgeRoles.Operator) ? OpsBridgeRoles.Operator : "");
 
             var userId = user.Identity?.Name
-                ?? context.Request.Headers["X-User-Id"].FirstOrDefault()
-                ?? "Operator-1";
+                ?? (user.IsInRole(OpsBridgeRoles.Admin) ? "Admin"
+                    : user.IsInRole(OpsBridgeRoles.FinanceReviewer) ? "FinanceReviewer"
+                    : user.IsInRole(OpsBridgeRoles.Operator) ? "Operator"
+                    : "Unknown");
 
             var command = new ReviewDiscrepancyCommand(
                 DiscrepancyId: id,
@@ -313,6 +331,7 @@ public static class ReconciliationEndpoints
                 return Results.Json(new { error = "Forbidden", message = ex.Message }, statusCode: StatusCodes.Status403Forbidden);
             }
         })
+        .RequireAuthorization(OpsBridgeAuthPolicies.Review)
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);
@@ -336,7 +355,8 @@ public static class ReconciliationEndpoints
             };
             await mappingRepo.AddAsync(rule, ct);
             return Results.Created($"/api/v1/reconciliation/mapping-rules/{rule.Id}", rule);
-        });
+        })
+        .RequireAuthorization(OpsBridgeAuthPolicies.OperatorOrAdmin);
 
         // Batches
         group.MapGet("/batches", async (
@@ -345,7 +365,8 @@ public static class ReconciliationEndpoints
         {
             var batches = await reconRepo.ListBatchesAsync(50, ct);
             return Results.Ok(batches);
-        });
+        })
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         // Dashboard Metrics
         app.MapGet("/api/v1/dashboard/metrics", async (
@@ -355,18 +376,19 @@ public static class ReconciliationEndpoints
             var metrics = await reconRepo.GetMetricsAsync(ct);
             return Results.Ok(metrics);
         })
-        .WithTags("Dashboard");
+        .WithTags("Dashboard")
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         // Dead Letter Events (for integration operations monitoring)
         app.MapGet("/api/v1/events/dead-letter", async (
-            OpsBridge.Infrastructure.Persistence.OpsBridgeDbContext db,
+            IDeadLetterEventRepository deadLetterRepository,
             CancellationToken ct) =>
         {
-            var deadLetters = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
-                db.DeadLetterEvents.OrderByDescending(d => d.FailedAt).Take(100), ct);
+            var deadLetters = await deadLetterRepository.GetRecentAsync(100, ct);
             return Results.Ok(deadLetters);
         })
-        .WithTags("Integration");
+        .WithTags("Integration")
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         // Audit Trail
         group.MapGet("/audit-trail", async (
@@ -375,7 +397,8 @@ public static class ReconciliationEndpoints
         {
             var events = await auditRepo.GetRecentAsync(100, ct);
             return Results.Ok(events);
-        });
+        })
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         return app;
     }

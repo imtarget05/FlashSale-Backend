@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using OpsBridge.Api.Auth;
 using OpsBridge.Api.Endpoints;
 using OpsBridge.Infrastructure;
 using OpsBridge.Infrastructure.Security;
@@ -26,7 +28,29 @@ builder.Services.AddCors(options =>
 });
 
 // Authentication & Authorization
-var signingKey = builder.Configuration["Jwt:SigningKey"] ?? OpsBridgeJwtTokenIssuer.DefaultSigningKey;
+var configuredSigningKey = builder.Configuration["Jwt:SigningKey"];
+if (string.IsNullOrWhiteSpace(configuredSigningKey))
+{
+    if (builder.Environment.IsProduction())
+    {
+        throw new InvalidOperationException("Jwt:SigningKey must be configured in Production.");
+    }
+
+    configuredSigningKey = OpsBridgeJwtTokenIssuer.DefaultSigningKey;
+}
+
+if (builder.Environment.IsProduction() &&
+    string.Equals(configuredSigningKey, OpsBridgeJwtTokenIssuer.DefaultSigningKey, StringComparison.Ordinal))
+{
+    throw new InvalidOperationException("Jwt:SigningKey must not use the built-in development key in Production.");
+}
+
+if (Encoding.UTF8.GetByteCount(configuredSigningKey) < 32)
+{
+    throw new InvalidOperationException("Jwt:SigningKey must contain at least 32 UTF-8 bytes.");
+}
+
+var signingKey = configuredSigningKey;
 var issuer = builder.Configuration["Jwt:Issuer"] ?? OpsBridgeJwtTokenIssuer.DefaultIssuer;
 var audience = builder.Configuration["Jwt:Audience"] ?? OpsBridgeJwtTokenIssuer.DefaultAudience;
 
@@ -45,7 +69,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options => options.AddOpsBridgePolicies());
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -67,7 +91,7 @@ app.MapGet("/healthz", () => Results.Ok(new { status = "Healthy", service = "Ops
    .WithTags("Health");
 
 // Map Domain & Ingestion Endpoints
-app.MapAuthEndpoints();
+app.MapAuthEndpoints(app.Environment);
 app.MapWebhookEndpoints();
 app.MapConnectorEndpoints();
 app.MapIngestionEndpoints();

@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using OpsBridge.Api.Auth;
 using OpsBridge.Application.Connectors;
 using OpsBridge.Domain.Connectors;
 
@@ -11,7 +13,8 @@ public static class ConnectorEndpoints
     public static IEndpointRouteBuilder MapConnectorEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/connectors")
-            .WithTags("Connectors");
+            .WithTags("Connectors")
+            .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove);
 
         group.MapGet("/", async (IConnectorRepository repo, CancellationToken ct) =>
         {
@@ -27,6 +30,7 @@ public static class ConnectorEndpoints
                 c.UpdatedAt
             }));
         })
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove)
         .WithName("ListConnectors");
 
         group.MapGet("/{id:guid}", async (Guid id, IConnectorRepository repo, CancellationToken ct) =>
@@ -48,6 +52,7 @@ public static class ConnectorEndpoints
                 connector.UpdatedAt
             });
         })
+        .RequireAuthorization(OpsBridgeAuthPolicies.AuditorOrAbove)
         .WithName("GetConnectorById");
 
         group.MapPost("/", async (SaveConnectorDto dto, IConnectorRepository repo, CancellationToken ct) =>
@@ -72,6 +77,7 @@ public static class ConnectorEndpoints
                 connector.IsActive
             });
         })
+        .RequireAuthorization(OpsBridgeAuthPolicies.OperatorOrAdmin)
         .WithName("SaveConnector");
 
         return app;

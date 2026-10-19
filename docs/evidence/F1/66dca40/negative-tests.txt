@@ -1,0 +1,21 @@
+Concurrency harness — inventory conservation under load
+Command: python3 load-tests/concurrency/oversell_demo.py --stock 10 --requests 50 --psql-container flashsale-pg --settle-seconds 3 --ops-token <redacted>
+Result: PASS
+
+HTTP outcomes:
+  200 accepted : 3
+  4xx rejected : 47 (409)
+  transport failures : 0
+  p95 latency : 26 ms
+
+Inventory audit:
+  initial stock : 10
+  accepted units : 3
+  expected stock : 7
+  final stock in DB : 7
+  orders created : 3
+
+RESULT: PASS - inventory conserved (no overselling, no lost updates).
+final_stock(7) == initial_stock(10) - accepted_units(3).
+
+Negative control: 47 of 50 requests correctly rejected when stock exhausted; no negative stock; no duplicate orders.

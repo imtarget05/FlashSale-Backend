@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -9,42 +10,47 @@ namespace OpsBridge.Api.Endpoints;
 
 public static class AuthEndpoints
 {
-    public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
+    public static IEndpointRouteBuilder MapAuthEndpoints(
+        this IEndpointRouteBuilder app,
+        IWebHostEnvironment environment)
     {
         var group = app.MapGroup("/api/v1/auth")
             .WithTags("Auth");
 
-        group.MapPost("/login", (LoginRequest request, IOpsBridgeTokenIssuer tokenIssuer) =>
+        if (environment.IsDevelopment() || environment.IsEnvironment("Test"))
         {
-            if (string.IsNullOrWhiteSpace(request.Username))
+            group.MapPost("/login", (LoginRequest request, IOpsBridgeTokenIssuer tokenIssuer) =>
             {
-                return Results.BadRequest(new { error = "Username is required." });
-            }
+                if (string.IsNullOrWhiteSpace(request.Username))
+                {
+                    return Results.BadRequest(new { error = "Username is required." });
+                }
 
-            // Supported default roles: Admin, Operator, FinanceReviewer, Auditor
-            var role = request.Role ?? request.Username switch
-            {
-                var u when u.Contains("finance", StringComparison.OrdinalIgnoreCase) => OpsBridgeRoles.FinanceReviewer,
-                var u when u.Contains("admin", StringComparison.OrdinalIgnoreCase) => OpsBridgeRoles.Admin,
-                var u when u.Contains("auditor", StringComparison.OrdinalIgnoreCase) => OpsBridgeRoles.Auditor,
-                _ => OpsBridgeRoles.Operator
-            };
+                // Persona selection is a local demo convenience, never production authentication.
+                var role = request.Role ?? request.Username switch
+                {
+                    var u when u.Contains("finance", StringComparison.OrdinalIgnoreCase) => OpsBridgeRoles.FinanceReviewer,
+                    var u when u.Contains("admin", StringComparison.OrdinalIgnoreCase) => OpsBridgeRoles.Admin,
+                    var u when u.Contains("auditor", StringComparison.OrdinalIgnoreCase) => OpsBridgeRoles.Auditor,
+                    _ => OpsBridgeRoles.Operator
+                };
 
-            var userId = request.Username.ToLowerInvariant();
-            var token = tokenIssuer.IssueToken(userId, request.Username, role);
+                var userId = request.Username.ToLowerInvariant();
+                var token = tokenIssuer.IssueToken(userId, request.Username, role);
 
-            return Results.Ok(new AuthResponse(
-                AccessToken: token,
-                TokenType: "Bearer",
-                ExpiresIn: 28800, // 8 hours
-                User: new UserDto(
-                    Id: userId,
-                    Username: request.Username,
-                    Role: role,
-                    Email: $"{userId}@opsbridge.internal"
-                )
-            ));
-        });
+                return Results.Ok(new AuthResponse(
+                    AccessToken: token,
+                    TokenType: "Bearer",
+                    ExpiresIn: 28800,
+                    User: new UserDto(
+                        Id: userId,
+                        Username: request.Username,
+                        Role: role,
+                        Email: $"{userId}@opsbridge.internal"
+                    )
+                ));
+            });
+        }
 
         group.MapGet("/me", (ClaimsPrincipal principal) =>
         {
