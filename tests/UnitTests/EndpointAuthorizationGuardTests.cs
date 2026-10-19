@@ -155,7 +155,7 @@ public partial class EndpointAuthorizationGuardTests
     [InlineData("GET /api/saga/{idempotencyKey}")]
     public void PreviouslyOpenRoute_IsNowAuthorized(string display)
     {
-        var route = Assert.Single(ReadRoutes().Where(r => r.Display == display));
+        var route = Assert.Single(ReadRoutes(), r => r.Display == display);
         Assert.True(route.IsAuthorized, $"{display} is mapped with no authorization requirement.");
     }
 
