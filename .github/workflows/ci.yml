@@ -7,6 +7,7 @@ name: FlashSale CI (DevSecOps)
 # Jobs:
 #   build-and-unit        dotnet build + unit tests + NuGet audit
 #   integration-tests     Testcontainers (real Postgres/Redis/RabbitMQ)
+#   opsbridge-tests       OpsBridge unit + contract + integration (68+ tests)
 #   concurrency-harness   50 buyers vs stock 10 — oversell must not happen
 #   security-scan         Trivy fs (vuln + secret + IaC misconfig)
 #   docker-build-scan     build API+worker images, Trivy image scan
@@ -42,12 +43,11 @@ jobs:
           dotnet test tests/UnitTests/FlashSale.UnitTests.csproj
           --no-build -v normal --logger trx --results-directory ./test-results
           --collect:"XPlat Code Coverage"
-      # Coverage is measurable locally (cobertura.xml produced offline on
-      # SDK 10.0.401, 2026-09-27) but the suite is NOT green locally (161/162:
-      # EndpointAuthorizationGuardTests.EveryMappedRoute fails on GET /metrics
-      # missing RequireAuthorization), so NO fail-under threshold is set here.
-      # The report is published as an artifact for trend inspection only.
-      - name: Coverage report (artifact only, no threshold — suite red locally)
+      # Re-verified 2026-10-19 on fd7eb3e (SDK 10.0.400): 172/172 PASS.
+      # The earlier "161/162 red" state was fixed in 66dca40. A fail-under
+      # threshold is still NOT set — enabling one is a separate decision that
+      # needs a measured coverage baseline, not a guess.
+      - name: Coverage report (artifact only, no threshold)
         if: always()
         run: |
           echo "Coverage files (if any):"
@@ -112,6 +112,48 @@ jobs:
         with:
           name: integration-test-results
           path: test-results/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # OpsBridge bounded-context suites. Added 2026-10-19 after AI-0 found that
+  # OpsBridge had 70 green tests locally while CI referenced none of them:
+  # `dotnet build AzureFlashSale.slnx` compiled the projects but every gate
+  # below only ran the FlashSale suites. A green workflow therefore proved
+  # nothing about OpsBridge. This job closes that gap and is wired into ci-gate.
+  #
+  # Local evidence at fd7eb3e (SDK 10.0.400, 2026-10-19):
+  #   OpsBridge.UnitTests          41/41 PASS
+  #   OpsBridge.ContractTests       7/7  PASS
+  #   OpsBridge.IntegrationTests   22/22 PASS (Testcontainers)
+  # ---------------------------------------------------------------------------
+  opsbridge-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build OpsBridge solution
+        run: dotnet build OpsBridge.slnx
+      - name: OpsBridge unit tests
+        run: >
+          dotnet test tests/OpsBridge.UnitTests/OpsBridge.UnitTests.csproj
+          --no-build -v normal --logger trx --results-directory ./test-results/opsbridge
+      - name: OpsBridge contract tests
+        run: >
+          dotnet test tests/OpsBridge.ContractTests/OpsBridge.ContractTests.csproj
+          --no-build -v normal --logger trx --results-directory ./test-results/opsbridge
+      # Testcontainers needs the runner's Docker daemon (present on ubuntu-latest)
+      # and boots real Postgres per fixture, exactly as the local run above did.
+      - name: "OpsBridge integration tests (Testcontainers: Postgres)"
+        run: >
+          dotnet test tests/OpsBridge.IntegrationTests/OpsBridge.IntegrationTests.csproj
+          --no-build -v normal --logger trx --results-directory ./test-results/opsbridge
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opsbridge-test-results
+          path: test-results/opsbridge/
           if-no-files-found: ignore
 
   concurrency-harness:
@@ -478,6 +520,7 @@ jobs:
     needs:
       - build-and-unit
       - integration-tests
+      - opsbridge-tests
       - concurrency-harness
       - security-scan
       - docker-build-scan
@@ -489,6 +532,7 @@ jobs:
         run: |
           echo "build-and-unit       = ${{ needs.build-and-unit.result }}"
           echo "integration-tests    = ${{ needs.integration-tests.result }}"
+          echo "opsbridge-tests      = ${{ needs.opsbridge-tests.result }}"
           echo "concurrency-harness  = ${{ needs.concurrency-harness.result }}"
           echo "security-scan        = ${{ needs.security-scan.result }}"
           echo "docker-build-scan    = ${{ needs.docker-build-scan.result }}"
@@ -496,6 +540,7 @@ jobs:
           fail=0
           [ "${{ needs.build-and-unit.result }}"      = "success" ] || { echo "GATE FAIL: build-and-unit";      fail=1; }
           [ "${{ needs.integration-tests.result }}"   = "success" ] || { echo "GATE FAIL: integration-tests";   fail=1; }
+          [ "${{ needs.opsbridge-tests.result }}"     = "success" ] || { echo "GATE FAIL: opsbridge-tests";     fail=1; }
           [ "${{ needs.concurrency-harness.result }}" = "success" ] || { echo "GATE FAIL: concurrency-harness"; fail=1; }
           [ "${{ needs.security-scan.result }}"       = "success" ] || { echo "GATE FAIL: security-scan";       fail=1; }
           [ "${{ needs.docker-build-scan.result }}"   = "success" ] || { echo "GATE FAIL: docker-build-scan";   fail=1; }
