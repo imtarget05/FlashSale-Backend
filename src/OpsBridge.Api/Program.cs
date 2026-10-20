@@ -8,12 +8,128 @@ using OpenTelemetry.Trace;
 using OpsBridge.Api.Auth;
 using OpsBridge.Api.Endpoints;
 using OpsBridge.Infrastructure;
+using OpsBridge.Infrastructure.Persistence;
 using OpsBridge.Infrastructure.Security;
 using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.AddJsonConsole();
+
+// ------------------------------------------------------------------
+// Schema operation entrypoints (ADR-018): `--migrate` and `--baseline-legacy`.
+//
+// Positioned HERE — before the DI registration and, critically, before the JWT
+// validation block below — because a schema deployment step must depend on PostgreSQL
+// and nothing else. The JWT block throws when Jwt:SigningKey is missing, too short, or
+// (in Production) still the built-in development key. A key-less production migration
+// job would therefore refuse to start even though it has everything it needs: a
+// database and a migration. Same reasoning as the FlashSale migration Job in
+// src/Order.Api/Program.cs — the branch has to come before every other gate.
+//
+// The logger is created directly instead of through the ASP.NET host, because these
+// branches run BEFORE `builder.Build()`: there is no service provider yet, and the
+// ASP0000 throwaway-provider pattern used by the FlashSale equivalent is not needed
+// when the logger is the only thing the branch requires.
+// ------------------------------------------------------------------
+var wantsMigrate = args.Contains("--migrate");
+var wantsBaselineLegacy = args.Contains("--baseline-legacy");
+
+if (wantsMigrate || wantsBaselineLegacy)
+{
+    if (wantsMigrate && wantsBaselineLegacy)
+    {
+        Console.Error.WriteLine("--migrate and --baseline-legacy are mutually exclusive.");
+        return OpsBridgeMigrationRunner.ExitCodeFailure;
+    }
+
+    using var schemaLoggerFactory = LoggerFactory.Create(logging => logging
+        .AddSimpleConsole()
+        .SetMinimumLevel(LogLevel.Information));
+    var schemaLogger = schemaLoggerFactory.CreateLogger("OpsBridge.Schema");
+
+    // No localhost fallback here: a schema operation that silently targets the
+    // developer's local database would report success while the intended target stays
+    // untouched. See OpsBridgeConnectionStringResolver.ResolveForMigration.
+    string schemaConnectionString;
+    try
+    {
+        schemaConnectionString = OpsBridgeConnectionStringResolver.ResolveForMigration(builder.Configuration);
+    }
+    catch (InvalidOperationException ex)
+    {
+        // The resolver throws on purpose; the deployment entrypoint still has to exit
+        // with a code from the contract instead of an unhandled-exception abort. A
+        // configuration problem is a one-line operator message: the stack trace of an
+        // InvalidOperationException says nothing the message does not.
+        schemaLogger.LogError("Schema operation refused: {Message}", ex.Message);
+        return OpsBridgeMigrationRunner.ExitCodeFailure;
+    }
+
+    var commandTimeoutSeconds = builder.Configuration.GetValue(
+        "OpsBridge:MigrationCommandTimeoutSeconds",
+        OpsBridgeMigrationRunner.DefaultCommandTimeoutSeconds);
+
+    // NOTHING may escape this entrypoint. The deployment contract is an exit code, so
+    // an unhandled exception here would abort the process with exit code 134 and a
+    // stack trace instead of the contract code the pipeline expects.
+    var schemaExitCode = OpsBridgeMigrationRunner.ExitCodeFailure;
+    try
+    {
+        schemaExitCode = wantsMigrate
+            ? await RunMigrationAsync(schemaConnectionString, schemaLogger, commandTimeoutSeconds)
+            : await RunBaselineLegacyAsync(schemaConnectionString, schemaLogger);
+    }
+    catch (OperationCanceledException ex)
+    {
+        schemaLogger.LogError("Schema operation CANCELLED: {Message}", ex.Message);
+        schemaExitCode = OpsBridgeMigrationRunner.ExitCodeFailure;
+    }
+    catch (Exception ex)
+    {
+        schemaLogger.LogError(ex, "Schema operation FAILED unexpectedly: {Message}", ex.Message);
+        schemaExitCode = OpsBridgeMigrationRunner.ExitCodeFailure;
+    }
+
+    schemaLogger.LogInformation(
+        "Schema entrypoint {Command} finished with exit code {ExitCode}.",
+        wantsMigrate ? "--migrate" : "--baseline-legacy",
+        schemaExitCode);
+
+    return schemaExitCode;
+}
+
+// ------------------------------------------------------------------
+// Controlled runtime initialisation (ADR-018).
+//
+// `OpsBridge:AutoMigrate` is OFF by default, so nothing about the existing behaviour
+// changes: the API and the integration fixture (which migrates explicitly) all keep
+// working exactly as before.
+//
+// When it IS switched on:
+//   * Development / Test  -> the schema is migrated at startup and the application
+//                           FAILS CLOSED: a failed migration must stop the process
+//                           rather than let it serve traffic against a wrong schema.
+//   * Anything else      -> REFUSED. Production schema changes belong to the
+//                           dedicated `--migrate` deployment step, which runs with a
+//                           DDL-capable identity; the runtime identity must hold only
+//                           DML rights. A runtime identity that can also change the
+//                           schema would make every rollout a schema event.
+// ------------------------------------------------------------------
+var autoMigrateEnabled = builder.Configuration.GetValue("OpsBridge:AutoMigrate", false);
+var isLocalEnvironment =
+    builder.Environment.IsDevelopment()
+    || builder.Environment.IsEnvironment("Test");
+
+if (autoMigrateEnabled && !isLocalEnvironment)
+{
+    throw new InvalidOperationException(
+        "OpsBridge:AutoMigrate is enabled but the environment is not Development or Test. " +
+        "Production schema changes must be applied by the dedicated `--migrate` deployment step, " +
+        "running with a DDL-capable identity; the runtime identity must hold only DML rights " +
+        "(SELECT/INSERT/UPDATE/DELETE) and must never be able to change the schema. " +
+        "Disable OpsBridge:AutoMigrate outside Development and Test.");
+}
 
 // ------------------------------------------------------------------
 // Clean Architecture Composition Root: OpsBridge API
@@ -106,6 +222,51 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Controlled runtime initialisation (ADR-018). Development/Test only — the Production
+// and any-other-environment case was already refused above, before the host was built.
+// Fail closed: if the schema cannot be brought up to date, the process must not go on
+// to serve traffic against a schema it does not know.
+if (autoMigrateEnabled)
+{
+    using var autoMigrateLoggerFactory = LoggerFactory.Create(logging => logging
+        .AddSimpleConsole()
+        .SetMinimumLevel(LogLevel.Information));
+    var autoMigrateLogger = autoMigrateLoggerFactory.CreateLogger("OpsBridge.AutoMigrate");
+
+    // The runtime path resolves the connection string the SAME way the application
+    // does (localhost fallback included): the schema that is migrated at startup has to
+    // be the schema the application then talks to.
+    var autoMigrateConnectionString =
+        OpsBridgeConnectionStringResolver.ResolveForApplication(app.Configuration);
+    var autoMigrateTimeoutSeconds = app.Configuration.GetValue(
+        "OpsBridge:MigrationCommandTimeoutSeconds",
+        OpsBridgeMigrationRunner.DefaultCommandTimeoutSeconds);
+
+    // No cancellation token here: the auto-migration runs BEFORE `app.Run()`, so no
+    // host lifetime token exists yet — `ApplicationStopping` is never signalled while
+    // this code runs, and passing it would suggest a clean interruption that cannot
+    // happen. The migration is bounded by the command timeout instead, and the
+    // process is terminated by the orchestrator if it has to be.
+    var autoMigrateOutcome = await OpsBridgeMigrationRunner.RunAsync(
+        autoMigrateConnectionString,
+        autoMigrateLogger,
+        autoMigrateTimeoutSeconds,
+        CancellationToken.None);
+
+    if (autoMigrateOutcome.ExitCode != OpsBridgeMigrationRunner.ExitCodeSuccess)
+    {
+        throw new InvalidOperationException(
+            $"OpsBridge:AutoMigrate is enabled but the migration failed with exit code " +
+            $"{autoMigrateOutcome.ExitCode}. Failure: {autoMigrateOutcome.Failure}. " +
+            "The application will not start against an unknown schema.");
+    }
+
+    autoMigrateLogger.LogInformation(
+        "Auto-migration finished. AlreadyAtHead={AlreadyAtHead}, AppliedByThisRun=[{Applied}].",
+        autoMigrateOutcome.AlreadyAtHead,
+        string.Join(", ", autoMigrateOutcome.AppliedMigrations));
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -131,6 +292,64 @@ app.MapReconciliationEndpoints();
 app.MapMetrics("/metrics").AllowAnonymous().WithTags("Metrics");
 
 app.Run();
+
+// Explicit, because the schema entrypoint branches above return an int: once one
+// top-level code path returns a value, every path has to.
+return 0;
+
+// ------------------------------------------------------------------
+// Schema entrypoint helpers.
+//
+// Deliberately thin: what "success" means, what counts as drift and what the tool is
+// allowed to write live in Infrastructure, where they can be exercised without a web
+// host. Program.cs only maps configuration and log output onto exit codes:
+//   0 = success (or "already at head")
+//   1 = failure
+//   2 = drift detected (the baseline refused to adopt the database)
+// ------------------------------------------------------------------
+static async Task<int> RunMigrationAsync(
+    string connectionString, ILogger logger, int commandTimeoutSeconds)
+{
+    var outcome = await OpsBridgeMigrationRunner.RunAsync(connectionString, logger, commandTimeoutSeconds);
+
+    logger.LogInformation(
+        "Migration outcome: ExitCode={ExitCode}, AlreadyAtHead={AlreadyAtHead}, Pending=[{Pending}], " +
+        "AppliedByThisRun=[{Applied}], NewlyRecorded=[{NewlyRecorded}], Recorded=[{Recorded}], Failure={Failure}",
+        outcome.ExitCode,
+        outcome.AlreadyAtHead,
+        string.Join(", ", outcome.PendingMigrations),
+        string.Join(", ", outcome.AppliedMigrations),
+        string.Join(", ", outcome.NewlyRecordedMigrations),
+        string.Join(", ", outcome.RecordedMigrations),
+        outcome.Failure ?? "(none)");
+
+    return outcome.ExitCode;
+}
+
+static async Task<int> RunBaselineLegacyAsync(string connectionString, ILogger logger)
+{
+    var outcome = await OpsBridgeLegacyBaseline.AdoptAsync(connectionString, logger);
+
+    foreach (var difference in outcome.Differences)
+    {
+        logger.LogError("Baseline difference: {Difference}", difference);
+    }
+
+    logger.LogInformation(
+        "Baseline outcome: ExitCode={ExitCode}, AlreadyManaged={AlreadyManaged}, DriftDetected={DriftDetected}, " +
+        "HistoryWritten={HistoryWritten}, VerificationRan={VerificationRan}, Differences={DifferenceCount}, " +
+        "PendingMigrations=[{Pending}], Failure={Failure}",
+        outcome.ExitCode,
+        outcome.AlreadyManaged,
+        outcome.DriftDetected,
+        outcome.HistoryWritten,
+        outcome.VerificationRan,
+        outcome.Differences.Count,
+        string.Join(", ", outcome.PendingMigrations),
+        outcome.Failure ?? "(none)");
+
+    return outcome.ExitCode;
+}
 
 // Required for WebApplicationFactory in integration tests
 public partial class Program { }
