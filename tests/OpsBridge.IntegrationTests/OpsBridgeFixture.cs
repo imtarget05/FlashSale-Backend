@@ -79,10 +79,11 @@ public sealed class OpsBridgeFixture : IAsyncLifetime
             });
         });
 
-        // Ensure database schema is created
+        // Apply the EF Core migrations so the schema matches a deployed database
+        // (migration history included) instead of being created ad hoc.
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<OpsBridgeDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        await db.Database.MigrateAsync();
 
         AuthenticatedClient = ClientForRole(OpsBridgeRoles.Operator);
     }
