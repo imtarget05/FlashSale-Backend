@@ -37,9 +37,16 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\FlashSale.Application\FlashSale.Application.csproj" />
     <ProjectReference Include="..\..\src\FlashSale.Infrastructure\FlashSale.Infrastructure.csproj" />
-    <!-- Phase IV: the E2E test drives the API host itself (Program.cs), so the
-         composition root is under test rather than trusted. -->
-    <ProjectReference Include="..\..\src\Order.Api\Order.Api.csproj" />
+    <!-- Order.Api and Payment.Service both expose a top-level <c>Program</c> class;
+         aliasing the references keeps the two from colliding (CS0433) in this
+         shared test assembly. Order.Api tests reference `Order` (its original
+         alias), Payment tests reference `payment`. -->
+    <ProjectReference Include="..\..\src\Order.Api\Order.Api.csproj">
+      <Aliases>order</Aliases>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Payment.Service\Payment.Service.csproj">
+      <Aliases>payment</Aliases>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>
