@@ -25,6 +25,7 @@ public partial class OpsBridgeAuthorizationGuardTests
     {
         ["POST /api/v1/auth/login"] = "Anonymous login endpoint; accepts credentials and returns a JWT.",
         ["GET /healthz"] = "Liveness probe; must answer without credentials.",
+        ["GET /metrics"] = "Aggregate Prometheus scrape endpoint; no business identifiers or auth counters.",
         ["POST /api/v1/webhooks/factoryflow"] = "External webhook; protected by Svix/HMAC signature, not bearer token.",
     };
 
@@ -64,7 +65,13 @@ public partial class OpsBridgeAuthorizationGuardTests
             Receiver = m.Groups["receiver"].Value,
             Verb = m.Groups["verb"].Value.ToUpperInvariant(),
             Route = m.Groups["route"].Value,
-        }).ToList();
+        }).Concat(MapMetricsRegex().Matches(source).Select(m => new
+        {
+            Start = m.Index,
+            Receiver = "app",
+            Verb = "GET",
+            Route = m.Groups["route"].Value,
+        })).OrderBy(m => m.Start).ToList();
 
         for (var i = 0; i < maps.Count; i++)
         {
@@ -95,6 +102,8 @@ public partial class OpsBridgeAuthorizationGuardTests
 
     [GeneratedRegex(@"\b(?<receiver>app|group)\.Map(?<verb>Get|Post|Put|Patch|Delete)\(\s*""(?<route>[^""]*)""")]
     private static partial Regex MapCallRegex();
+    [GeneratedRegex(@"\bapp\.MapMetrics\(\s*""(?<route>[^""]*)""")]
+    private static partial Regex MapMetricsRegex();
     [GeneratedRegex(@".MapGroup\(\s*""(?<prefix>[^""]*)""")]
     private static partial Regex GroupRegex();
 }

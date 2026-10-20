@@ -58,4 +58,18 @@ public class OrderProcessorTests
 
         Assert.Equal(1, repo.PersistCalls);
     }
+
+    [Fact]
+    public async Task ProcessAsync_ThrowsStockDrift_WhenRepositoryRejects_LogsDriftDlq()
+    {
+        // StockDriftException is a business-error, not a transport failure.
+        // The OrderProcessor immediately dead-letters without retry.
+        var repo = new FakeOrderRepository { NextPersistSucceeds = false };
+
+        await Assert.ThrowsAsync<StockDriftException>(
+            () => CreateProcessor(repo).ProcessAsync(Message(), CancellationToken.None));
+
+        // Drift is logged and dead-lettered; persist attempt count = 1
+        Assert.Equal(1, repo.PersistCalls);
+    }
 }

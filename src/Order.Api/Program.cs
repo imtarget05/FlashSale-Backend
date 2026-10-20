@@ -36,6 +36,8 @@ using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.AddJsonConsole();
+
 // ---------------------------------------------------------------
 // Composition root: PostgreSQL stays the source of truth; Redis is a
 // fast pre-filter; the queue decouples acceptance from fulfillment.

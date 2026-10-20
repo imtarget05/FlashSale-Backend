@@ -47,6 +47,7 @@ public sealed class OrderProcessorHost(
             try
             {
                 await processor.ProcessAsync(entry.Message, stoppingToken);
+                WorkerTelemetry.QueueMessagesProcessed.Add(1, new KeyValuePair<string, object?>("outcome", "succeeded"));
                 if (entry.Complete is not null) await entry.Complete();
             }
             catch (Domain.StockDriftException)
@@ -55,6 +56,7 @@ public sealed class OrderProcessorHost(
                 logger.LogCritical(
                     "STOCK-DRIFT for {Key} (product {Pid}) — dead-lettering. Runbook: resolve drift, then POST /internal/resync-stock/{{id}}.",
                     entry.Message.IdempotencyKey, entry.Message.ProductId);
+                WorkerTelemetry.QueueMessagesProcessed.Add(1, new KeyValuePair<string, object?>("outcome", "stock_drift"));
                 await DeadLetterAsync(entry);
             }
             catch (Exception ex) when (entry.Message.Attempt + 1 < OrderProcessor.MaxAttempts)
@@ -66,6 +68,7 @@ public sealed class OrderProcessorHost(
                     OrderProcessor.MaxAttempts, delay);
                 await Task.Delay(delay, stoppingToken);
                 await producer.EnqueueAsync(entry.Message with { Attempt = entry.Message.Attempt + 1 }, stoppingToken);
+                WorkerTelemetry.QueueMessageRetries.Add(1);
                 if (entry.Complete is not null) await entry.Complete(); // original handled; copy re-queued
             }
             catch (Exception ex)
@@ -73,6 +76,7 @@ public sealed class OrderProcessorHost(
                 logger.LogCritical(ex,
                     "Message {Key} exhausted {Attempt} attempts — moving to DLQ.",
                     entry.Message.IdempotencyKey, entry.Message.Attempt + 1);
+                WorkerTelemetry.QueueMessagesProcessed.Add(1, new KeyValuePair<string, object?>("outcome", "dead_lettered"));
                 await DeadLetterAsync(entry);
             }
         }

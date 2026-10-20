@@ -1,9 +1,12 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using OpenTelemetry.Resources;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.AddJsonConsole();
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -20,6 +23,11 @@ builder.Services
         {
             tracing.AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint));
         }
+    })
+    .WithMetrics(metrics =>
+    {
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+            metrics.AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint));
     });
 
 var app = builder.Build();

@@ -12,12 +12,16 @@ services:
     restart: unless-stopped
     ports:
       - "${PROMETHEUS_PORT:-9105}:9090"
+    environment:
+      - FLASHSALE_API_TARGET=${FLASHSALE_API_TARGET:-host.docker.internal:5000}
+      - OPSBRIDGE_API_TARGET=${OPSBRIDGE_API_TARGET:-host.docker.internal:5001}
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--config.expand-env'
       - '--storage.tsdb.path=/prometheus'
       - '--web.enable-lifecycle'
     extra_hosts:

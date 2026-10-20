@@ -30,11 +30,16 @@ curl -XPOST http://localhost:9105/-/reload
 | Job | Metrics path | Port | Service |
 |---|---|---|---|
 | `flashsale` | `/metrics` | 5000 | FlashSale Backend |
+| `opsbridge` | `/metrics` | 5001 | OpsBridge API |
 
 ## Dashboards
 
 - `project-flashsale.json` - FlashSale - orders accepted/rejected, stock-guard drift (oversell), in-flight
 - `golden-signals.json` - Golden signals - QPS / error rate / P95 / saturation per scrape job
+
+Set `FLASHSALE_API_TARGET` / `OPSBRIDGE_API_TARGET` when the APIs are not
+listening on their defaults (`host.docker.internal:5000` and
+`host.docker.internal:5001`).
 
 ## Metrics this repo exposes
 
