@@ -75,8 +75,20 @@ public sealed class PaymentRecord
             TransactionId = TransactionId,
             FailureReason = FailureReason,
             IsTransientError = IsTransientError,
-            ProcessedAt = DateTimeOffset.UtcNow,
+            ProcessedAt = TruncateToMicroseconds(DateTimeOffset.UtcNow),
         };
+
+    /// <summary>
+    /// PostgreSQL <c>timestamptz</c> stores whole microseconds while .NET ticks
+    /// are 100ns. Normalize before persistence so first delivery and replay use
+    /// the same timestamp at the API boundary.
+    /// </summary>
+    private static DateTimeOffset TruncateToMicroseconds(DateTimeOffset value)
+    {
+        const long ticksPerMicrosecond = 10;
+        var truncatedTicks = value.Ticks - (value.Ticks % ticksPerMicrosecond);
+        return new DateTimeOffset(truncatedTicks, value.Offset);
+    }
 
     public PaymentRecordDto ToDto() => new(
         Success,
