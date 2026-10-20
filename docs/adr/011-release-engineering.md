@@ -9,11 +9,12 @@
 ## Decision
 
 1. **Immutable, content-addressed images.** Every green push to `main` builds
-   both images and pushes them to ACR tagged with the commit SHA:
+   all first-party images and pushes them to ACR tagged with the commit SHA:
 
    ```text
    <acr>.azurecr.io/order-api:<git-sha>
    <acr>.azurecr.io/order-worker:<git-sha>
+   <acr>.azurecr.io/payment-service:<git-sha>
    ```
 
    Rules: an image tag is written **once** and never re-built under the same
@@ -21,9 +22,18 @@
    humans but is never the deploy source; rollback = deploy the previous SHA.
 2. **Push via OIDC, no client secrets.** GitHub Actions authenticates to Azure
    with a federated credential (Workload identity federation): the workflow
-   exchanges its OIDC token for an Entra token against a user-assigned managed
-   identity that holds `AcrPush` on the registry. No `ACR_PASSWORD` in GitHub
+   exchanges its OIDC token for an Entra token against a service principal
+   that holds `AcrPush` on the registry. No `ACR_PASSWORD` in GitHub
    Secrets; a leaked runner cannot push after the trust is removed.
+
+   > Amendment (2026-10-20): the trust is an Entra **app registration**
+   > (`github-opsbridge-release`) with two federated credentials scoped to
+   > `ref:refs/heads/main` — one in the canonical `repo:owner/repo:` form and
+   > one matching the subject form GitHub actually mints for this repo
+   > (`repo:owner@<id>/repo@<n>:…`, discovered from an AADSTS700213 failure).
+   > The original registry and app were deleted from the subscription at some
+   > point after Phase 6; both were recreated and re-trusted, and the release
+   > path was re-verified end-to-end with a real `workflow_dispatch` run.
 3. **GitOps contract.** CI owns *building and verifying*; the **Git state owns
    the desired runtime state**. After images are pushed, CI updates the
    kustomize overlay tag (`infrastructure/kubernetes/overlays/prod/…`) in a
