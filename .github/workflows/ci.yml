@@ -384,7 +384,15 @@ jobs:
     needs: [ci-gate, detect-changes]
     # Publish only artefact-changing commits; docs-only commits run CI checks but
     # mint no image and move no GitOps SHA. workflow_dispatch can force a release.
+    #
+    # vars.AZURE_RELEASE_ENABLED is a deliberate kill switch, mirroring the
+    # vars.SONAR_ENABLED gate on the sonarqube job: the Azure OIDC app
+    # registration is not provisioned in the current tenant (AADSTS700016,
+    # run 39371950228), so until the variable is set to 'true' this job and
+    # gitops-update are skipped instead of going red on an environment that is
+    # not wired up. The code gates in ci-gate are unaffected.
     if: >-
+      vars.AZURE_RELEASE_ENABLED == 'true' &&
       github.actor != 'github-actions[bot]' &&
       (github.event_name == 'workflow_dispatch' ||
        (github.ref == 'refs/heads/main' && github.event_name == 'push' &&
