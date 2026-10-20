@@ -295,6 +295,14 @@ jobs:
           push: false
           load: true
           tags: flashsale/order-worker:ci-${{ github.sha }}
+      - name: Build payment-service image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.payment
+          push: false
+          load: true
+          tags: flashsale/payment-service:ci-${{ github.sha }}
       - name: Trivy image scan — order-api (HIGH+ blocks)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -306,6 +314,13 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: flashsale/order-worker:ci-${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+      - name: Trivy image scan — payment-service (HIGH+ blocks)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: flashsale/payment-service:ci-${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: true
@@ -424,6 +439,7 @@ jobs:
         run: |
           echo "api=${{ vars.ACR_LOGIN_SERVER }}/order-api:${GITHUB_SHA}"     >> "$GITHUB_OUTPUT"
           echo "worker=${{ vars.ACR_LOGIN_SERVER }}/order-worker:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "payment=${{ vars.ACR_LOGIN_SERVER }}/payment-service:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - name: Build and push order-api:<sha>
         uses: docker/build-push-action@v6
@@ -439,6 +455,13 @@ jobs:
           file: ./Dockerfile.worker
           push: true
           tags: ${{ steps.tags.outputs.worker }}
+      - name: Build and push payment-service:<sha>
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.payment
+          push: true
+          tags: ${{ steps.tags.outputs.payment }}
       - name: Verify the pushed tags resolve to digests (immutable artifact exists)
         id: push
         run: |
@@ -446,10 +469,14 @@ jobs:
             --name order-api --query "[?tags[0]=='${GITHUB_SHA}'].digest | [0]" -o tsv)
           WORKER_DIGEST=$(az acr manifest list-metadata --registry ${{ vars.ACR_NAME }} \
             --name order-worker --query "[?tags[0]=='${GITHUB_SHA}'].digest | [0]" -o tsv)
-          echo "order-api    ${GITHUB_SHA} → ${API_DIGEST}"
-          echo "order-worker ${GITHUB_SHA} → ${WORKER_DIGEST}"
+          PAYMENT_DIGEST=$(az acr manifest list-metadata --registry ${{ vars.ACR_NAME }} \
+            --name payment-service --query "[?tags[0]=='${GITHUB_SHA}'].digest | [0]" -o tsv)
+          echo "order-api      ${GITHUB_SHA} → ${API_DIGEST}"
+          echo "order-worker   ${GITHUB_SHA} → ${WORKER_DIGEST}"
+          echo "payment-service ${GITHUB_SHA} → ${PAYMENT_DIGEST}"
           [ -n "$API_DIGEST" ] && [ "$API_DIGEST" != "None" ] || { echo "order-api:$GITHUB_SHA not found in ACR"; exit 1; }
           [ -n "$WORKER_DIGEST" ] && [ "$WORKER_DIGEST" != "None" ] || { echo "order-worker:$GITHUB_SHA not found in ACR"; exit 1; }
+          [ -n "$PAYMENT_DIGEST" ] && [ "$PAYMENT_DIGEST" != "None" ] || { echo "payment-service:$GITHUB_SHA not found in ACR"; exit 1; }
           echo "digest=${API_DIGEST}" >> "$GITHUB_OUTPUT"
           echo "worker_digest=${WORKER_DIGEST}" >> "$GITHUB_OUTPUT"
       - name: Summary
@@ -457,6 +484,7 @@ jobs:
           echo "### Released artifacts" >> "$GITHUB_STEP_SUMMARY"
           echo "- ${{ steps.tags.outputs.api }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- ${{ steps.tags.outputs.worker }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ${{ steps.tags.outputs.payment }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- order-api digest: ${{ steps.push.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
 
   gitops-update:
@@ -472,9 +500,10 @@ jobs:
       # from this commit; nothing is ever kubectl-applied by CI.
       - name: Pin the overlay to the released SHA
         # Logic lives in scripts/gitops-pin-overlay.py rather than an inline
-        # heredoc so it can be re-run and unit-tested locally. It pins BOTH
-        # order-api and order-worker, and exits non-zero if either pin did not
-        # land — the old inline version matched `- name: <registry>/order-api`,
+        # heredoc so it can be re-run and unit-tested locally. It pins every
+        # first-party image (order-api, order-worker, payment-service) and
+        # exits non-zero if any pin did not land — the old inline version
+        # matched `- name: <registry>/order-api`,
         # a pattern that stopped existing once base became registry-neutral,
         # and it only ever touched order-api.
         run: >
