@@ -31,12 +31,14 @@ public sealed class OutboxDispatcherHostedService(
                 var count = await dispatcher.ExecuteBatchAsync(50, stoppingToken);
                 if (count > 0)
                 {
+                    Messaging.WorkerTelemetry.OutboxMessagesDispatched.Add(count);
                     logger.LogInformation("Dispatched {Count} outbox messages.", count);
                 }
 
                 // Edge-triggered: log when the stuck set appears or changes size,
                 // not every 2 s.
                 var stuck = await outbox.CountStuckAsync(stoppingToken);
+                Messaging.WorkerTelemetry.SetOutboxStuckMessages(stuck);
                 if (stuck != lastReportedStuck)
                 {
                     if (stuck > 0)

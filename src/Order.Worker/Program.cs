@@ -12,9 +12,31 @@ using FlashSale.Infrastructure.Redis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using StackExchange.Redis;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+builder.Logging.AddJsonConsole();
+var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+builder.Services
+    .AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService(
+        serviceName: "order-worker",
+        serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString()))
+    .WithMetrics(metrics =>
+    {
+        metrics.AddRuntimeInstrumentation();
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+            metrics.AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint));
+    })
+    .WithTracing(tracing =>
+    {
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+            tracing.AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint));
+    });
 
 // Clean Architecture: the worker is another composition root over the same
 // Application ports — the use case (OrderProcessor) is shared with the API.

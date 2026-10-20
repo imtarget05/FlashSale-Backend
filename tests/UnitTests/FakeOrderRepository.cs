@@ -12,6 +12,7 @@ internal sealed class FakeOrderRepository : IOrderRepository
     private readonly HashSet<string> _seen = [];
     public int PersistCalls { get; private set; }
     public bool NextPersistSucceeds { get; set; } = true;
+    public bool ThrowOnPersist { get; set; } = false;
 
     public void SeedExisting(string idempotencyKey) => _seen.Add(idempotencyKey);
 
@@ -21,6 +22,7 @@ internal sealed class FakeOrderRepository : IOrderRepository
     public Task<bool> PersistAsync(OrderMessage message, CancellationToken ct = default)
     {
         PersistCalls++;
+        if (ThrowOnPersist) throw new InvalidOperationException("Simulated transient failure");
         if (!NextPersistSucceeds) return Task.FromResult(false);
         _seen.Add(message.IdempotencyKey);
         _ids[message.IdempotencyKey] = _nextId++;

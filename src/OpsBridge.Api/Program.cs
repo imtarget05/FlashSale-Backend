@@ -2,12 +2,18 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using OpsBridge.Api.Auth;
 using OpsBridge.Api.Endpoints;
 using OpsBridge.Infrastructure;
 using OpsBridge.Infrastructure.Security;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.AddJsonConsole();
 
 // ------------------------------------------------------------------
 // Clean Architecture Composition Root: OpsBridge API
@@ -71,6 +77,30 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization(options => options.AddOpsBridgePolicies());
 
+var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+builder.Services
+    .AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService(
+        serviceName: "opsbridge-api",
+        serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString()))
+    .WithTracing(tracing =>
+    {
+        tracing.AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation();
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        {
+            tracing.AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint));
+        }
+    })
+    .WithMetrics(metrics =>
+    {
+        metrics.AddRuntimeInstrumentation();
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        {
+            metrics.AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint));
+        }
+    });
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -83,6 +113,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("OpsBridgeWebPolicy");
+app.UseHttpMetrics(options => options.ReduceStatusCodeCardinality());
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -97,6 +128,7 @@ app.MapConnectorEndpoints();
 app.MapIngestionEndpoints();
 app.MapReplayEndpoints();
 app.MapReconciliationEndpoints();
+app.MapMetrics("/metrics").AllowAnonymous().WithTags("Metrics");
 
 app.Run();
 

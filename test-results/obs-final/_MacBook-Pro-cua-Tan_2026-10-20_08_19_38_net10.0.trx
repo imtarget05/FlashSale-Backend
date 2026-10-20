@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="fd4bff6b-f625-4f18-9d3b-70123b61cc8f" name="@MacBook-Pro-cua-Tan 2026-10-20 08:19:38" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-20T08:19:38.3663530+07:00" queuing="2026-10-20T08:19:38.3663530+07:00" start="2026-10-20T08:19:36.9450160+07:00" finish="2026-10-20T08:19:38.3781050+07:00" />
+  <TestSettings name="default" id="ec163144-934b-42a2-8492-e7839f347586">
+    <Deployment runDeploymentRoot="_MacBook-Pro-cua-Tan_2026-10-20_08_19_38" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="4ee0a352-a604-432b-865d-e0d3dff10647" testId="1d717ade-a53f-d9c3-1f12-569cf5388d30" testName="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_MissingRequiredFields_FailsWithDescriptiveError" computerName="MacBook-Pro-cua-Tan" duration="00:00:00.0005504" startTime="2026-10-20T08:19:38.0987670+07:00" endTime="2026-10-20T08:19:38.0987980+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4ee0a352-a604-432b-865d-e0d3dff10647" />
+    <UnitTestResult executionId="e4204720-02c5-4689-a162-6ccba514d54f" testId="16eaa99f-9619-31e2-83b2-e5fc81d080dd" testName="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_ValidContractSample_Succeeds" computerName="MacBook-Pro-cua-Tan" duration="00:00:00.0092838" startTime="2026-10-20T08:19:38.0990010+07:00" endTime="2026-10-20T08:19:38.0990360+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e4204720-02c5-4689-a162-6ccba514d54f" />
+    <UnitTestResult executionId="89b00bc2-d265-4402-b67c-e48694832159" testId="12e0a007-8494-e838-2dcc-e80832bd98a6" testName="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_PayloadWithPurchaseOrderNoAlias_Succeeds" computerName="MacBook-Pro-cua-Tan" duration="00:00:00.0043815" startTime="2026-10-20T08:19:38.0988880+07:00" endTime="2026-10-20T08:19:38.0989140+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="89b00bc2-d265-4402-b67c-e48694832159" />
+    <UnitTestResult executionId="fdb0284b-ba67-4e0f-88d9-3bee40209486" testId="f6c3130c-bb5d-7f49-3a7a-537d0e1e1ccc" testName="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_InvalidQcStatus_Fails(invalidStatus: &quot;Pending&quot;)" computerName="MacBook-Pro-cua-Tan" duration="00:00:00.0003012" startTime="2026-10-20T08:19:38.0973600+07:00" endTime="2026-10-20T08:19:38.0974200+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="fdb0284b-ba67-4e0f-88d9-3bee40209486" />
+    <UnitTestResult executionId="344f5ba3-2605-431f-ab7d-263e4144202c" testId="680f2b17-5c06-eb8a-beb3-ebf360d3baeb" testName="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_InvalidQcStatus_Fails(invalidStatus: &quot;InvalidStatus&quot;)" computerName="MacBook-Pro-cua-Tan" duration="00:00:00.1862823" startTime="2026-10-20T08:19:37.8735870+07:00" endTime="2026-10-20T08:19:38.0826020+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="344f5ba3-2605-431f-ab7d-263e4144202c" />
+    <UnitTestResult executionId="ec9c78e1-e3d4-49c2-8281-5681137b27c5" testId="84cbc399-74f7-6e28-d688-be6c8d02364e" testName="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_InvalidQcStatus_Fails(invalidStatus: &quot;Done&quot;)" computerName="MacBook-Pro-cua-Tan" duration="00:00:00.0000675" startTime="2026-10-20T08:19:38.0982110+07:00" endTime="2026-10-20T08:19:38.0982420+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ec9c78e1-e3d4-49c2-8281-5681137b27c5" />
+    <UnitTestResult executionId="279b9098-ad26-47ed-b65e-c70e4db4ce04" testId="75400a2e-520a-f4e6-574a-8dbfe056c4be" testName="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_UnsupportedSchemaVersion_Fails" computerName="MacBook-Pro-cua-Tan" duration="00:00:00.0008350" startTime="2026-10-20T08:19:38.0991110+07:00" endTime="2026-10-20T08:19:38.0991360+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="279b9098-ad26-47ed-b65e-c70e4db4ce04" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_MissingRequiredFields_FailsWithDescriptiveError" storage="/users/mainguyenbinhtan/downloads/opsbridge/tests/opsbridge.contracttests/bin/release/net10.0/opsbridge.contracttests.dll" id="1d717ade-a53f-d9c3-1f12-569cf5388d30">
+      <Execution id="4ee0a352-a604-432b-865d-e0d3dff10647" />
+      <TestMethod codeBase="/Users/mainguyenbinhtan/Downloads/OpsBridge/tests/OpsBridge.ContractTests/bin/Release/net10.0/OpsBridge.ContractTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="OpsBridge.ContractTests.GoodsReceiptContractTests" name="Validate_MissingRequiredFields_FailsWithDescriptiveError" />
+    </UnitTest>
+    <UnitTest name="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_ValidContractSample_Succeeds" storage="/users/mainguyenbinhtan/downloads/opsbridge/tests/opsbridge.contracttests/bin/release/net10.0/opsbridge.contracttests.dll" id="16eaa99f-9619-31e2-83b2-e5fc81d080dd">
+      <Execution id="e4204720-02c5-4689-a162-6ccba514d54f" />
+      <TestMethod codeBase="/Users/mainguyenbinhtan/Downloads/OpsBridge/tests/OpsBridge.ContractTests/bin/Release/net10.0/OpsBridge.ContractTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="OpsBridge.ContractTests.GoodsReceiptContractTests" name="Validate_ValidContractSample_Succeeds" />
+    </UnitTest>
+    <UnitTest name="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_UnsupportedSchemaVersion_Fails" storage="/users/mainguyenbinhtan/downloads/opsbridge/tests/opsbridge.contracttests/bin/release/net10.0/opsbridge.contracttests.dll" id="75400a2e-520a-f4e6-574a-8dbfe056c4be">
+      <Execution id="279b9098-ad26-47ed-b65e-c70e4db4ce04" />
+      <TestMethod codeBase="/Users/mainguyenbinhtan/Downloads/OpsBridge/tests/OpsBridge.ContractTests/bin/Release/net10.0/OpsBridge.ContractTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="OpsBridge.ContractTests.GoodsReceiptContractTests" name="Validate_UnsupportedSchemaVersion_Fails" />
+    </UnitTest>
+    <UnitTest name="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_InvalidQcStatus_Fails(invalidStatus: &quot;InvalidStatus&quot;)" storage="/users/mainguyenbinhtan/downloads/opsbridge/tests/opsbridge.contracttests/bin/release/net10.0/opsbridge.contracttests.dll" id="680f2b17-5c06-eb8a-beb3-ebf360d3baeb">
+      <Execution id="344f5ba3-2605-431f-ab7d-263e4144202c" />
+      <TestMethod codeBase="/Users/mainguyenbinhtan/Downloads/OpsBridge/tests/OpsBridge.ContractTests/bin/Release/net10.0/OpsBridge.ContractTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="OpsBridge.ContractTests.GoodsReceiptContractTests" name="Validate_InvalidQcStatus_Fails" />
+    </UnitTest>
+    <UnitTest name="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_InvalidQcStatus_Fails(invalidStatus: &quot;Pending&quot;)" storage="/users/mainguyenbinhtan/downloads/opsbridge/tests/opsbridge.contracttests/bin/release/net10.0/opsbridge.contracttests.dll" id="f6c3130c-bb5d-7f49-3a7a-537d0e1e1ccc">
+      <Execution id="fdb0284b-ba67-4e0f-88d9-3bee40209486" />
+      <TestMethod codeBase="/Users/mainguyenbinhtan/Downloads/OpsBridge/tests/OpsBridge.ContractTests/bin/Release/net10.0/OpsBridge.ContractTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="OpsBridge.ContractTests.GoodsReceiptContractTests" name="Validate_InvalidQcStatus_Fails" />
+    </UnitTest>
+    <UnitTest name="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_PayloadWithPurchaseOrderNoAlias_Succeeds" storage="/users/mainguyenbinhtan/downloads/opsbridge/tests/opsbridge.contracttests/bin/release/net10.0/opsbridge.contracttests.dll" id="12e0a007-8494-e838-2dcc-e80832bd98a6">
+      <Execution id="89b00bc2-d265-4402-b67c-e48694832159" />
+      <TestMethod codeBase="/Users/mainguyenbinhtan/Downloads/OpsBridge/tests/OpsBridge.ContractTests/bin/Release/net10.0/OpsBridge.ContractTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="OpsBridge.ContractTests.GoodsReceiptContractTests" name="Validate_PayloadWithPurchaseOrderNoAlias_Succeeds" />
+    </UnitTest>
+    <UnitTest name="OpsBridge.ContractTests.GoodsReceiptContractTests.Validate_InvalidQcStatus_Fails(invalidStatus: &quot;Done&quot;)" storage="/users/mainguyenbinhtan/downloads/opsbridge/tests/opsbridge.contracttests/bin/release/net10.0/opsbridge.contracttests.dll" id="84cbc399-74f7-6e28-d688-be6c8d02364e">
+      <Execution id="ec9c78e1-e3d4-49c2-8281-5681137b27c5" />
+      <TestMethod codeBase="/Users/mainguyenbinhtan/Downloads/OpsBridge/tests/OpsBridge.ContractTests/bin/Release/net10.0/OpsBridge.ContractTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="OpsBridge.ContractTests.GoodsReceiptContractTests" name="Validate_InvalidQcStatus_Fails" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="1d717ade-a53f-d9c3-1f12-569cf5388d30" executionId="4ee0a352-a604-432b-865d-e0d3dff10647" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="16eaa99f-9619-31e2-83b2-e5fc81d080dd" executionId="e4204720-02c5-4689-a162-6ccba514d54f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="12e0a007-8494-e838-2dcc-e80832bd98a6" executionId="89b00bc2-d265-4402-b67c-e48694832159" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f6c3130c-bb5d-7f49-3a7a-537d0e1e1ccc" executionId="fdb0284b-ba67-4e0f-88d9-3bee40209486" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="680f2b17-5c06-eb8a-beb3-ebf360d3baeb" executionId="344f5ba3-2605-431f-ab7d-263e4144202c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="84cbc399-74f7-6e28-d688-be6c8d02364e" executionId="ec9c78e1-e3d4-49c2-8281-5681137b27c5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="75400a2e-520a-f4e6-574a-8dbfe056c4be" executionId="279b9098-ad26-47ed-b65e-c70e4db4ce04" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="7" executed="7" passed="7" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)
+[xUnit.net 00:00:00.09]   Discovering: OpsBridge.ContractTests
+[xUnit.net 00:00:00.14]   Discovered:  OpsBridge.ContractTests
+[xUnit.net 00:00:00.20]   Starting:    OpsBridge.ContractTests
+[xUnit.net 00:00:00.45]   Finished:    OpsBridge.ContractTests
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

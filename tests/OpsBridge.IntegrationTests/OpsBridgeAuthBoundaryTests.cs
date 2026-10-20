@@ -12,6 +12,21 @@ namespace OpsBridge.IntegrationTests;
 public sealed class OpsBridgeAuthBoundaryTests(OpsBridgeFixture fixture)
 {
     [Fact]
+    public async Task MetricsEndpoint_IsPublicAndUsesPrometheusText()
+    {
+        using var client = fixture.AnonymousClient();
+        using var health = await client.GetAsync("/healthz");
+        Assert.Equal(HttpStatusCode.OK, health.StatusCode);
+
+        using var response = await client.GetAsync("/metrics");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("text/plain", response.Content.Headers.ContentType?.MediaType, StringComparison.Ordinal);
+        Assert.Contains("http_requests", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Production_DoesNotExpose_DemoRoleLogin()
     {
         using var productionFactory = fixture.Factory.WithWebHostBuilder(builder =>
