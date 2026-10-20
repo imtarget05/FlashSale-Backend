@@ -20,9 +20,11 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("OpsBridgeDb")
-            ?? configuration.GetConnectionString("DefaultConnection")
-            ?? "Host=localhost;Port=5432;Database=OpsBridgeDb;Username=postgres;Password=postgres";
+        // The connection string is resolved in one place (OpsBridgeConnectionStringResolver)
+        // so the application wiring and the deployment-time schema tools can never drift
+        // apart. The application path keeps the historical localhost fallback; the
+        // migration and baseline entrypoints deliberately do not (see ADR-018).
+        var connectionString = OpsBridgeConnectionStringResolver.ResolveForApplication(configuration);
 
         services.AddDbContext<OpsBridgeDbContext>(options =>
             options.UseNpgsql(connectionString));
