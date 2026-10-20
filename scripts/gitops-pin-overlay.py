@@ -15,7 +15,7 @@ import sys
 
 # Every workload image we own. Third-party images (postgres/redis/rabbitmq) are
 # intentionally NOT rewritten: they are upstream-pinned by tag in base.
-WANTED = ("order-api", "order-worker")
+WANTED = ("order-api", "order-worker", "payment-service")
 
 
 def pin(path: str, acr: str, sha: str) -> int:
