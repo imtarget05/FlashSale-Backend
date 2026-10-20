@@ -64,19 +64,19 @@ public sealed class PaymentRecord
         string? TransactionId,
         string? FailureReason,
         bool IsTransientError) => new()
-    {
-        IdempotencyKey = request.IdempotencyKey,
-        PaymentId = request.PaymentId,
-        OrderId = request.OrderId,
-        Amount = request.Amount,
-        Currency = request.Currency,
-        Success = Success,
-        Status = Status,
-        TransactionId = TransactionId,
-        FailureReason = FailureReason,
-        IsTransientError = IsTransientError,
-        ProcessedAt = DateTimeOffset.UtcNow,
-    };
+        {
+            IdempotencyKey = request.IdempotencyKey,
+            PaymentId = request.PaymentId,
+            OrderId = request.OrderId,
+            Amount = request.Amount,
+            Currency = request.Currency,
+            Success = Success,
+            Status = Status,
+            TransactionId = TransactionId,
+            FailureReason = FailureReason,
+            IsTransientError = IsTransientError,
+            ProcessedAt = DateTimeOffset.UtcNow,
+        };
 
     public PaymentRecordDto ToDto() => new(
         Success,
