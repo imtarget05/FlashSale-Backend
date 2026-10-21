@@ -4,6 +4,8 @@
 
 interface Env {
   API_BACKEND_URL?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  CLOUDFLARE_API_TOKEN?: string;
 }
 
 export const onRequest: PagesFunction<Env> = async (context) => {
@@ -1058,10 +1060,19 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   if (subPath === "/copilot/chat" && context.request.method === "POST") {
     try {
       const reqBody = (await context.request.json()) as any;
-      const accountId = reqBody.accountId || "REDACTED_CLOUDFLARE_ACCOUNT_ID";
-      const apiToken = reqBody.apiToken || "REDACTED_CLOUDFLARE_TOKEN";
+      const accountId = context.env.CLOUDFLARE_ACCOUNT_ID || reqBody.accountId || "";
+      const apiToken = context.env.CLOUDFLARE_API_TOKEN || reqBody.apiToken || "";
       const model = reqBody.model || "@cf/meta/llama-3.1-8b-instruct";
       const messages = reqBody.messages || [];
+
+      if (!accountId || !apiToken) {
+        return new Response(
+          JSON.stringify({
+            error: "Cloudflare Workers AI credentials missing. Please configure CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN in environment or Copilot Settings.",
+          }),
+          { status: 400, headers: jsonHeaders }
+        );
+      }
 
       const cfUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
       const cfResp = await fetch(cfUrl, {
