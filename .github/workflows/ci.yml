@@ -1029,7 +1029,13 @@ jobs:
           base="https://github.com/yannh/kubeconform/releases/download/${version}"
           curl -fsSL -o "/tmp/${asset}" "${base}/${asset}"
           curl -fsSL -o /tmp/CHECKSUMS "${base}/CHECKSUMS"
-          grep " ${asset}\$" /tmp/CHECKSUMS | sha256sum --check --strict
+          # The checksum line names the asset by its bare file name, and
+          # `sha256sum --check` resolves it against the CURRENT directory.
+          # The archive was downloaded to /tmp, so the check has to run there -
+          # otherwise it reports "No such file or directory" for a file that is
+          # present, and the gate fails for a reason that has nothing to do with
+          # the manifests.
+          ( cd /tmp && grep " ${asset}\$" CHECKSUMS | sha256sum --check --strict )
           tar -xzf "/tmp/${asset}" -C /usr/local/bin kubeconform
           kubeconform -v
       - name: Validate the rendered manifests against the schema catalog
