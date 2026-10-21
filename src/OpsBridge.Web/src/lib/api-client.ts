@@ -265,6 +265,12 @@ class ApiClient {
     return this.request<any[]>('/connectors');
   }
 
+  async pingConnector(id: string): Promise<{ success: boolean; latencyMs: number; message: string; targetUrl: string }> {
+    return this.request<{ success: boolean; latencyMs: number; message: string; targetUrl: string }>(`/connectors/${id}/ping`, {
+      method: 'POST',
+    });
+  }
+
   async getIngestedEvents(): Promise<any[]> {
     return this.request<any[]>('/ingestion/events');
   }

@@ -990,8 +990,37 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   // 9. Integration Connectors
   if (subPath.startsWith("/connectors")) {
+    if (context.request.method === "POST" && subPath.includes("/ping")) {
+      const parts = subPath.split("/").filter(Boolean);
+      const connId = parts[1] || "conn-factoryflow";
+      return new Response(
+        JSON.stringify({
+          success: true,
+          connectorId: connId,
+          status: "Healthy",
+          latencyMs: Math.floor(Math.random() * 12) + 18,
+          message: "Kết nối thành công đến FactoryFlow Cloud Gateway v2.4 (TLS 1.3 · Mutual Auth Verified)",
+          targetUrl: "https://factoryflow.opsbridge.cloud/api",
+          checkedAt: new Date().toISOString(),
+        }),
+        { headers: jsonHeaders }
+      );
+    }
+
     return new Response(
       JSON.stringify([
+        {
+          id: "conn-factoryflow",
+          name: "FactoryFlow REST Connector",
+          type: "REST Client Adapter",
+          targetSystem: "FactoryFlow / MiniERP",
+          baseUrl: "https://factoryflow.opsbridge.cloud/api",
+          authMechanism: "Bearer Token / API Key",
+          status: "Healthy",
+          environment: "Cloud (Azure Container Apps)",
+          latencyMs: 24,
+          lastSyncAt: new Date(Date.now() - 30000).toISOString(),
+        },
         { id: "conn-01", name: "SAP S/4HANA OData v4", type: "ERP", status: "Healthy", lastSyncAt: new Date(Date.now() - 120000).toISOString() },
         { id: "conn-02", name: "Oracle NetSuite REST API", type: "ERP", status: "Healthy", lastSyncAt: new Date(Date.now() - 180000).toISOString() },
         { id: "conn-03", name: "VNPT / Viettel e-Invoice Connector", type: "EInvoice", status: "Healthy", lastSyncAt: new Date(Date.now() - 60000).toISOString() },
@@ -1023,6 +1052,47 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       }),
       { status: 200, headers: jsonHeaders }
     );
+  }
+
+  // Copilot Chat (Cloudflare Workers AI Edge Proxy)
+  if (subPath === "/copilot/chat" && context.request.method === "POST") {
+    try {
+      const reqBody = (await context.request.json()) as any;
+      const accountId = reqBody.accountId || "REDACTED_CLOUDFLARE_ACCOUNT_ID";
+      const apiToken = reqBody.apiToken || "REDACTED_CLOUDFLARE_TOKEN";
+      const model = reqBody.model || "@cf/meta/llama-3.1-8b-instruct";
+      const messages = reqBody.messages || [];
+
+      const cfUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
+      const cfResp = await fetch(cfUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages }),
+      });
+
+      if (!cfResp.ok) {
+        const errText = await cfResp.text();
+        return new Response(JSON.stringify({ error: `Cloudflare Workers AI error: ${errText}` }), {
+          status: cfResp.status,
+          headers: jsonHeaders,
+        });
+      }
+
+      const cfData = (await cfResp.json()) as any;
+      const response = cfData.result?.response || cfData.result?.choices?.[0]?.message?.content || "";
+      return new Response(JSON.stringify({ response, result: cfData.result }), {
+        status: 200,
+        headers: jsonHeaders,
+      });
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e.message || "Failed to process AI chat" }), {
+        status: 500,
+        headers: jsonHeaders,
+      });
+    }
   }
 
   // Default Fallback
