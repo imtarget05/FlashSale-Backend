@@ -17,7 +17,7 @@ export ASPNETCORE_URLS=http://127.0.0.1:5099
 export ConnectionStrings__DefaultConnection='Host=localhost;Port=5432;Database=FlashSaleDb;Username=postgres;Password=postgres'
 export ConnectionStrings__Redis='localhost:6379'
 export ConnectionStrings__RabbitMQ='amqp://guest:guest@localhost:5672/'
-export Auth__Jwt__SigningKey='dev-only-insecure-local-signing-key-change-me'
+export Auth__Jwt__SigningKey='REQUIRED_GENERATE_SECURE_32_BYTE_KEY_HERE'
 export Messaging__Provider=RabbitMQ
 export Automation__Inventory__DefaultReorderThreshold=5
 

@@ -18,7 +18,7 @@ export ConnectionStrings__DefaultConnection='Host=localhost;Port=5432;Database=F
 export ConnectionStrings__Redis='localhost:6379'
 export ConnectionStrings__RabbitMQ='amqp://guest:guest@rabbitmq:5672/'  # placeholder overwritten below
 export ConnectionStrings__RabbitMQ='amqp://guest:guest@localhost:5672/'
-export Auth__Jwt__SigningKey='dev-only-insecure-local-signing-key-change-me'
+export Auth__Jwt__SigningKey='REQUIRED_GENERATE_SECURE_32_BYTE_KEY_HERE'
 export Messaging__Provider=RabbitMQ
 
 # The /internal/** and /api/outbox/** runbook endpoints are STAFF/ADMIN only.
