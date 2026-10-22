@@ -14,13 +14,13 @@ replicas:
 images:
   - name: order-api
     newName: acrflashsalep6.azurecr.io/order-api
-    newTag: 8ab99d89ff882f1a112b30515f475181f5b4bf49
+    newTag: 2711763e9d722d97464719b569bf79e8b492dfb4
   - name: order-worker
     newName: acrflashsalep6.azurecr.io/order-worker
-    newTag: 8ab99d89ff882f1a112b30515f475181f5b4bf49
+    newTag: 2711763e9d722d97464719b569bf79e8b492dfb4
   - name: payment-service
     newName: acrflashsalep6.azurecr.io/payment-service
-    newTag: 8ab99d89ff882f1a112b30515f475181f5b4bf49
+    newTag: 2711763e9d722d97464719b569bf79e8b492dfb4
 
 commonLabels:
   env: prod
