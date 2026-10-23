@@ -8,9 +8,9 @@ This project evolves through an evidence-driven engineering workflow. Technologi
 - [x] **Phase 4**: Evaluate Redis (justified by Phase 4 measurement: 90% wasted DB hits, p95 574 ms → ADR-003)
 - [x] **Phase 5**: Asynchronous processing (queue + worker, idempotency, DLQ → ADR-004; p95 29 ms)
 - [ ] **Phase 6**: Containerization (Docker Compose refinement)
-- [ ] **Phase 7**: Azure deployment (Container Apps)
+- [ ] **Phase 7**: AKS/GitOps deployment (Container Apps path superseded; runtime not verified)
 - [ ] **Phase 8**: Terraform (Infrastructure as Code)
-- [x] **Phase 9**: CI/CD (GitHub Actions) *(ci.yml: build + concurrency harness với services postgres/redis; deploy.yml: build/push API + Worker, deploy Container Apps)*
+- [ ] **Phase 9**: CI/CD *(ci.yml gates tests and publishes FlashSale order-api/worker/payment images via ACR when enabled; OpsBridge API/Web have no verified CI-gated ACR image or pinned AKS release yet. Legacy GHCR/Container Apps workflow removed.)*
 - [ ] **Phase 10**: Observability (OpenTelemetry, App Insights) *(Log Analytics + Container Insights đã provision; wiring OTel SDK còn lại)*
 - [x] **Phase 11**: Failure experiments (Chaos engineering & Postmortems) *(postmortem overselling + drift-DLQ runbook)*
 - [x] **Phase 12**: AKS / GitOps (Advanced platform-engineering phase) *(kustomize base/overlays + ArgoCD/KEDA trong 03-AKS-SRE-Platform)*
