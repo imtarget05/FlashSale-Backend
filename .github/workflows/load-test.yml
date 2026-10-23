@@ -15,6 +15,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create shared Compose network
+        run: docker network inspect portfolio-net >/dev/null 2>&1 || docker network create portfolio-net
+
       # No explicit -f: compose merges docker-compose.yml + docker-compose.override.yml,
       # so order-api is published on host port 5001 (override pins "5001:8080").
       - name: Start API dependencies (PostgreSQL, Redis, RabbitMQ)
@@ -39,18 +42,17 @@ jobs:
           curl -sf http://localhost:5001/health/live \
             || { echo "❌ API never became live"; docker compose logs --tail 100 order-api; exit 1; }
 
-      # grafana/k6-action@v0.2.0 installs k6 AND runs the script in one step (docker
-      # action, 4 inputs: cloud/token/filename/flags). Passing `filename` is required —
-      # it defaults to a non-existent `test.js`. Threshold verdict comes from k6 itself:
-      # a breached threshold (defined in load-tests/k6/flash-sale.js) exits non-zero,
-      # which fails this step and the job.
+      # k6 runs on the runner's host network so localhost:5001 reaches order-api.
+      # A breached threshold exits non-zero and fails the job.
       - name: Run k6 load test
-        uses: grafana/k6-action@v0.2.0
-        with:
-          filename: load-tests/k6/flash-sale.js
-          flags: --out json=results.json --summary-export=summary.json
-        env:
-          BASE_URL: http://localhost:5001
+        id: k6
+        run: |
+          docker run --rm --network host --user "$(id -u):$(id -g)" \
+            -e BASE_URL=http://127.0.0.1:5001 \
+            -v "$PWD:/workspace" -w /workspace \
+            grafana/k6:0.57.0 run \
+            --out json=results.json --summary-export=summary.json \
+            load-tests/k6/flash-sale.js
 
       - name: Upload k6 results
         if: always()
@@ -62,29 +64,55 @@ jobs:
             summary.json
           retention-days: 30
 
-      - name: Post results to PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            // --summary-export emits a single JSON object (results.json is JSON-lines,
-            // which JSON.parse cannot read as a whole document).
-            const summary = JSON.parse(fs.readFileSync('summary.json', 'utf8'));
-            const metrics = summary.metrics;
-            const p95 = metrics.http_req_duration?.values?.['p(95)'];
-            const failRate = metrics.http_req_failed?.values?.rate;
-            const reqs = metrics.http_reqs?.values?.count;
-            const body = `## k6 Load Test Results
-            | Metric | Value | Threshold | Status |
-            |--------|-------|-----------|--------|
-            | http_req_duration p95 | ${p95 != null ? p95.toFixed(2) : 'n/a'}ms | <250ms | ${p95 != null && p95 < 250 ? '✅' : '❌'} |
-            | http_req_failed rate | ${failRate != null ? (failRate * 100).toFixed(2) : 'n/a'}% | <5% | ${failRate != null && failRate < 0.05 ? '✅' : '❌'} |
-            | http_reqs | ${reqs ?? 'n/a'} | - | - |
-            `;
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+      - name: Report k6 results in job summary
+        if: always()
+        env:
+          K6_STEP_OUTCOME: ${{ steps.k6.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          summary_path = Path('summary.json')
+          if not summary_path.exists():
+              message = '## k6 load test\nSummary unavailable; inspect the earlier workflow steps.\n'
+              with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+                  output.write(message)
+              print(message)
+              if os.environ.get('K6_STEP_OUTCOME') == 'success':
+                  raise FileNotFoundError('k6 succeeded but did not write summary.json')
+              raise SystemExit(0)
+
+          summary = json.loads(summary_path.read_text())
+          metrics = summary['metrics']
+
+          def metric(name, key):
+              data = metrics[name]
+              return data.get(key, data.get('values', {}).get(key))
+
+          p95 = metric('http_req_duration', 'p(95)')
+          failure_rate = metric('http_req_failed', 'value')
+          requests = metric('http_reqs', 'count')
+          checks = metric('checks', 'value')
+          if any(value is None for value in (p95, failure_rate, requests, checks)):
+              raise ValueError('k6 summary is missing a required metric')
+
+          rows = [
+              '## k6 load test',
+              f'- Commit: `{os.environ["GITHUB_SHA"]}`',
+              '- Environment: GitHub Actions `ubuntu-latest`, Docker Compose',
+              '',
+              '| Metric | Value | Gate |',
+              '| --- | ---: | --- |',
+              f'| Requests | {requests} | Recorded |',
+              f'| HTTP p95 | {p95:.2f} ms | {"PASS" if p95 < 250 else "FAIL"} (<250 ms) |',
+              f'| HTTP failure rate | {failure_rate:.2%} | {"PASS" if failure_rate < 0.05 else "FAIL"} (<5%) |',
+              f'| Checks | {checks:.2%} | {"PASS" if checks > 0.95 else "FAIL"} (>95%) |',
+              '',
+              'Full k6 JSON is attached as the `k6-results` artifact.',
+          ]
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+              output.write('\n'.join(rows) + '\n')
+          print('\n'.join(rows))
+          PY

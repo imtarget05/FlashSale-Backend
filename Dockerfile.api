@@ -3,13 +3,16 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy solution and project files
-COPY *.slnx .
+COPY OpsBridge.slnx .
 COPY src/OpsBridge.Api/OpsBridge.Api.csproj src/OpsBridge.Api/
 COPY src/OpsBridge.Application/OpsBridge.Application.csproj src/OpsBridge.Application/
 COPY src/OpsBridge.Domain/OpsBridge.Domain.csproj src/OpsBridge.Domain/
 COPY src/OpsBridge.Infrastructure/OpsBridge.Infrastructure.csproj src/OpsBridge.Infrastructure/
+COPY tests/OpsBridge.UnitTests/OpsBridge.UnitTests.csproj tests/OpsBridge.UnitTests/
+COPY tests/OpsBridge.IntegrationTests/OpsBridge.IntegrationTests.csproj tests/OpsBridge.IntegrationTests/
+COPY tests/OpsBridge.ContractTests/OpsBridge.ContractTests.csproj tests/OpsBridge.ContractTests/
 
-RUN dotnet restore
+RUN dotnet restore OpsBridge.slnx
 
 # Copy all source
 COPY . .

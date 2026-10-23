@@ -1,12 +1,22 @@
 # ADR-011 — Release Engineering (immutable artifacts, ACR via OIDC, GitOps contract)
 
-- Status: Accepted (Phase 6)
+- Status: Accepted (Phase 6; manual-promotion amendment 2026-10-23)
 - Context: CI (Phase 5) proves build + tests + security on every PR, but nothing
   yet turns a green `main` commit into a **deployable, traceable artifact**.
   Local builds (`docker build` on a laptop) and mutable tags (`latest`) are
   exactly the gap between "CI passes" and "we know what is running".
 
 ## Decision
+
+> **Amendment (2026-10-23): manual promotion pending the AKS golden-path gate.**
+> The automatic `main`-push release described below is historical. Pushes and PRs
+> now run verification only. A maintainer must explicitly dispatch `FlashSale CI`
+> from `main`; `release-push` runs only after that dispatch's `ci-gate` succeeds
+> and `AZURE_RELEASE_ENABLED` is true. `gitops-update` runs only after a successful
+> manual release. Before dispatch, the maintainer must review the AKS golden-path
+> evidence and intended overlay change. The workflow does not yet enforce that
+> platform review automatically; dispatch can commit desired state that ArgoCD
+> may reconcile. This amendment does not claim an OpsBridge API/Web ACR release.
 
 1. **Immutable, content-addressed images.** Every green push to `main` builds
    all first-party images and pushes them to ACR tagged with the commit SHA:

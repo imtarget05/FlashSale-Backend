@@ -64,6 +64,12 @@ current numbers.
   PSP contract, credential or behaviour is exercised anywhere in this repository.
 - The Kubernetes `prod` overlay is **configuration, not a deployed system** — it
   has not been applied to a real AKS cluster (ADR-020, `docs/evidence/kubernetes/phase7c-readiness.md`).
+- **OpsBridge API/Web deployment: NOT_VERIFIED.** CI builds their local images for
+  tests, but its ACR `release-push` publishes only FlashSale order-api, worker and
+  payment images. The legacy GHCR/Container Apps workflow was removed because it
+  bypassed the CI gate and targeted a superseded runtime. OpsBridge needs a
+  CI-gated ACR image and pinned AKS overlay before the Phase 7–9 golden path can
+  be verified; a passing local Docker build is not release evidence.
 - The worker has a **container-level healthcheck** but no Pod-level
   liveness/readiness probe; a Pod probe would need a real health endpoint, and
   that decision was explicitly not taken (`docs/known-issues.md`).
