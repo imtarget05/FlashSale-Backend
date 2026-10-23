@@ -20,8 +20,7 @@ on:
   push:
     branches: [main]
   pull_request:
-  # The release-push job's condition explicitly honours workflow_dispatch as a
-  # forced-release path, so the trigger has to exist here for that to be true.
+  # A release requires an explicit main-branch dispatch after ci-gate succeeds.
   workflow_dispatch:
 
 permissions:
@@ -853,25 +852,19 @@ jobs:
           fi
 
   # ---------------------------------------------------------------------------
-  # Phase 6 — Release engineering (only on main, only after the CI gate passes)
+  # Phase 6 — Manual promotion (main dispatch, after the CI gate passes)
   # ---------------------------------------------------------------------------
   release-push:
-    needs: [ci-gate, detect-changes]
-    # Publish only artefact-changing commits; docs-only commits run CI checks but
-    # mint no image and move no GitOps SHA. workflow_dispatch can force a release.
-    #
-    # vars.AZURE_RELEASE_ENABLED is a deliberate kill switch, mirroring the
-    # vars.SONAR_ENABLED gate on the sonarqube job: the Azure OIDC app
-    # registration is not provisioned in the current tenant (AADSTS700016,
-    # run 39371950228), so until the variable is set to 'true' this job and
-    # gitops-update are skipped instead of going red on an environment that is
-    # not wired up. The code gates in ci-gate are unaffected.
+    needs: ci-gate
+    # Main pushes and PRs run verification only. A release requires a deliberate
+    # workflow_dispatch from main after the same run's ci-gate succeeds.
+    # AZURE_RELEASE_ENABLED remains an operator-controlled kill switch.
     if: >-
       vars.AZURE_RELEASE_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
       github.actor != 'github-actions[bot]' &&
-      (github.event_name == 'workflow_dispatch' ||
-       (github.ref == 'refs/heads/main' && github.event_name == 'push' &&
-        needs.detect-changes.outputs.runtime == 'true'))
+      needs.ci-gate.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -946,8 +939,12 @@ jobs:
 
   gitops-update:
     needs: release-push
-    # the bot commit from gitops-update must not re-trigger a release build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && github.actor != 'github-actions[bot]'
+    # Pin desired state only after an explicitly dispatched, successful release.
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      github.actor != 'github-actions[bot]' &&
+      needs.release-push.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write        # the GitOps commit is the deployment contract
