@@ -86,4 +86,64 @@ public class SubmitOrderCompensationFailureTests
         Assert.True(repaired, "Reconciler must successfully record compensation outbox event once database is healthy");
         Assert.Contains(outboxRepo.Enqueued, m => m.EventType == "inventory.released");
     }
+
+    [Fact]
+    public async Task WhenQueueRejectsAndCompensationOutboxFails_FailedMarkerIsWrittenToOutbox_ThenReconcilerRepairs()
+    {
+        var gateway = new FakeStockReservationGateway();
+        var outboxRepo = new FakeOutboxRepository();
+        var outboxWriter = new OutboxEventWriter(outboxRepo);
+        var transaction = new FakeWriteTransaction();
+        var readModel = new FakeReadModel();
+        var queue = new RejectingQueueProducer();
+        var processor = new OrderProcessor(
+            new FakeOrderRepository(),
+            transaction,
+            outboxWriter,
+            NullLogger<OrderProcessor>.Instance);
+        var useCase = new SubmitOrderUseCase(
+            gateway,
+            queue,
+            readModel,
+            processor,
+            transaction,
+            outboxWriter,
+            new PaymentAutomationOptions(),
+            NullLogger<SubmitOrderUseCase>.Instance);
+
+        const int productId = 101;
+        const int quantity = 2;
+        const string key = "remediation-marker-test-key";
+        var correlationId = Guid.NewGuid();
+
+        // 1. Simulate transient DB outage on the inventory.released compensation write.
+        outboxRepo.EnqueueFailureFactory = msg => msg.EventType == "inventory.released"
+            ? new InvalidOperationException("Simulated transient database failure during inventory.released outbox write.")
+            : null;
+
+        var result = await useCase.ExecuteAsync(productId, quantity, key, correlationId, CancellationToken.None);
+
+        // 2. Caller receives SystemBusy (HTTP 503) — no crash, no retry of the outbox write.
+        Assert.Equal(SubmitOrderOutcome.SystemBusy, result.Outcome);
+
+        // 3. Redis reservation is released promptly (backpressure shed load).
+        Assert.Equal(1, gateway.ReleaseCalls);
+        Assert.Contains(gateway.ReleasedReservations,
+            r => r.ProductId == productId && r.Quantity == quantity && r.Key == key);
+
+        // 4. Outbox data plane (reproduced failure window):
+        //    - inventory.reserved is committed (order accepted)
+        //    - inventory.released is NOT written (compensation failed)
+        //    - inventory.compensation_failed IS written (durable marker for reconciler)
+        Assert.Contains(outboxRepo.Enqueued, m => m.EventType == "inventory.reserved");
+        Assert.DoesNotContain(outboxRepo.Enqueued, m => m.EventType == "inventory.released");
+        Assert.Contains(outboxRepo.Enqueued, m => m.EventType == "inventory.compensation_failed");
+
+        // 5. Database is recovered; reconciler re-runs.
+        outboxRepo.EnqueueFailureFactory = null;
+        bool repaired = await useCase.ReconcileOrphanReservationAsync(productId, quantity, key, correlationId, CancellationToken.None);
+
+        Assert.True(repaired, "Reconciler must repair the orphan reservation once the database is healthy");
+        Assert.Contains(outboxRepo.Enqueued, m => m.EventType == "inventory.released");
+    }
 }

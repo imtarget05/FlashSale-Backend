@@ -114,6 +114,25 @@ public sealed record InventoryReleasedEvent(
     public override object Payload => new { OrderId, ProductId, Quantity };
 }
 
+/// <summary>
+/// Durable state: the compensation of a committed <c>inventory.reserved</c> event
+/// failed after bounded retries (transient DB outage). Written to the outbox
+/// inside the same transaction as the failed <c>inventory.released</c> attempt.
+/// A reconciling process reads this event to repair the orphan reservation by
+/// re-emitting <c>inventory.released</c> exactly once.
+/// </summary>
+public sealed record InventoryCompensationFailedEvent(
+    string EventId,
+    string IdempotencyKey,
+    Guid CorrelationId,
+    string Source,
+    DateTimeOffset OccurredAt,
+    int ProductId,
+    int Quantity) : DomainEvent(EventId, "inventory.compensation_failed", OccurredAt, CorrelationId, Source)
+{
+    public override object Payload => new { IdempotencyKey, ProductId, Quantity };
+}
+
 /// <summary>Low-stock alert raised (spec §6).</summary>
 public sealed record InventoryLowStockEvent(
     string EventId,

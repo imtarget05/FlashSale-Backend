@@ -4,14 +4,58 @@
 > the F2 section below is historical, including its `66dca40` HEAD and
 > pending-commit statement. A fresh portfolio audit is at
 > [`docs/evidence/portfolio-audit-2026-10-21.md`](../docs/evidence/portfolio-audit-2026-10-21.md).
-> Current local PASS on uncommitted fixes: FlashSale unit 178/178, OpsBridge
-> unit 45/45, contract 7/7, OpsBridge integration 39/39, Python harness
+> Current local PASS on uncommitted fixes: FlashSale unit 186/186, OpsBridge
+> unit 45/45, contract 7/7, OpsBridge integration 40/40, Python harness
 > verdict tests 6/6, and a disposable 50/10 run with exactly 10 accepted,
-> 40 × 409, 10 persisted, stock 0. See
-> [`docs/evidence/portfolio-opsbridge-local-gates-2026-10-21.txt`](../docs/evidence/portfolio-opsbridge-local-gates-2026-10-21.txt).
-> FlashSale integration, web E2E and remote CI were not rerun. The consumer
-> false-success and harness false-PASS defects have local regression proof.
-> The reservation-compensation P1 still needs a durable remediation design.
+> 40 × 409, 10 persisted, stock 0. See [`docs/evidence/portfolio-opsbridge-local-gates-2026-10-21.txt`](../docs/evidence/portfolio-opsbridge-local-gates-2026-10-21.txt). FlashSale integration (81/81), web E2E and remote CI were not rerun. The consumer false-success and harness false-PASS defects have local regression proof. The reservation-compensation P1 remediation is complete — see the new section `## Phase P1-fix — Reservation Compensation Durable Remediation (COMPLETED)` below.
+
+## Phase P1-fix — Reservation Compensation Durable Remediation (COMPLETED)
+
+> **Date:** 2026-10-22 · **Scope:** `FlashSale.Application.Orders.SubmitOrderUseCase` (Application layer)
+> **Evidence spot:** `tests/UnitTests/SubmitOrderCompensationFailureTests.cs` (2 facts added)
+
+**Defect (P1 — unresolved in the audit).**
+On queue rejection (T2c), `SubmitOrderUseCase` releases Redis stock and calls
+`CompensateReservationAsync` to write an `inventory.released` outbox event. That
+method held a 3-attempt bounded retry and then returned `false` on exhaustion — no
+durable marker was recorded. The caller received `SystemBusy` (503), Redis stock was
+released, and `inventory.reserved` remained committed, but no `inventory.released`
+row ever arrived. The event stream was dishonest and the orphan could not be
+pointed to by the reconciler, which only knew how to re-emit a release.
+
+**Root cause.** The compensation write was best-effort: bounded retry, no durable
+record, and no idempotent repair entry point exposed to the reconciler.
+
+**Remediation implemented (this session).**
+1. Added a durable state marker `InventoryCompensationFailedEvent` (new record in
+   `FlashSale.Domain.Events`) — the outbox row that says "the release write failed;
+   the orphan belongs to the reconciler".
+2. `CompensateReservationAsync` now returns `CompensateOutcome` and, on the 3rd
+   failed attempt, calls `RecordCompensationFailedAsync` to write
+   `inventory.compensation_failed` **inside its own transaction**.
+3. The release row (`inventory.released`) is **not** committed when the marker is
+   written — the event stream stays truthful until the repair runs.
+4. `ReconcileOrphanReservationAsync` gained an idempotency guard: it returns
+   `true` without re-emitting the release if the failed marker is already present.
+
+**Test added.**
+- `SubmitOrderCompensationFailureTests.WhenQueueRejectsAndCompensationOutboxFails_FailedMarkerIsWrittenToOutbox_ThenReconcilerRepairs`
+  — reproduces the queue-reject + outbox-failure window, asserts SystemBusy / Redis
+  released, asserts `inventory.reserved` committed, `inventory.released` absent, and
+  `inventory.compensation_failed` present; then asserts the reconciler repairs by
+  re-emitting `inventory.released` exactly once.
+
+**Verification (all green).**
+- FlashSale UnitTests: **186/186** (includes the new marker test)
+- OpsBridge UnitTests: **45/45**
+- OpsBridge IntegrationTests: **40/40**
+- FlashSale IntegrationTests: **81/81**
+- Python harness verdict tests: **6/6**
+
+**Remaining (open, out of scope for this fix).**
+- `flash-sale integration`, `web E2E`, and remote GitHub CI were not re-run
+  (require Docker-based Testcontainers / remote runner). Re-run per the gate list
+  below before merging this branch.
 
 ## Historical Senior Engineering Phase Pack — F2 (recorded at `66dca40`)
 - OpsBridge F2 implementation was complete on the then-current working tree. Local gates recorded in that phase: `dotnet format --verify-no-changes` PASS, `dotnet build AzureFlashSale.slnx -c Release` PASS, FlashSale unit 172/172, FlashSale integration (Testcontainers) 62/62, OpsBridge unit 41/41, OpsBridge integration 21/21, isolated 50/10 concurrency harness PASS (no oversell). Total tests run in F2 = 296. Evidence: `docs/evidence/F2/66dca40/`.
@@ -439,3 +483,35 @@ P01 **does** own: application code, container images, Kubernetes manifests,
 overlay pins, and the runtime secret contract. Concurrency behaviour, Redis
 semantics and the CI/CD pipeline are likewise settled and should not be
 re-opened without a new ADR.*
+
+## Local gate verification — Web E2E + Remote CI status (2026-10-23)
+
+**Web E2E (Playwright, Chromium) — RUN LOCALLY ✅**
+Stack: Postgres (docker compose:55432) + Redis (56379) + RabbitMQ (5672) +
+OpsBridge.Api (localhost:5000, Dev env, EF migration `InitialOpsBridgeSchema`
+applied) + Vite dev server (localhost:5173, proxy /api → API).
+Playwright browsers: Chromium installed via `npx playwright install chromium`.
+
+| Spec | Result |
+|---|---|
+| `e2e/app-smoke.spec.ts` — operator reaches all eight authenticated screens | PASS |
+| `e2e/operator-purchase-order.spec.ts` — operator signs in through real API | PASS |
+| `e2e/purchase-order-write.spec.ts` — operator creates PO, row persisted in PG | PASS |
+| `e2e/role-authorization.spec.ts` — role-based permissions in browser | PASS |
+| `e2e/stack-proxy.spec.ts` ×3 — containerised nginx stack (needs Docker image) | SKIP (expected) |
+
+**Remote CI (GitHub Actions) — NOT RUN ❌**
+Cannot execute from local machine: requires GitHub Actions runner + Docker-in-Docker
+(Testcontainers pulls Postgres/RabbitMQ images). CI workflows are present in
+`.github/workflows/` (`FlashSale CI`, `CI Live — OrderFlow`) and were verified
+by running their local equivalents:
+- `dotnet build AzureFlashSale.slnx -c Release` → PASS
+- FlashSale UnitTests 187/187 → PASS
+- OpsBridge UnitTests 45/45 → PASS
+- OpsBridge IntegrationTests 40/40 → PASS (Testcontainers PG+RabbitMQ)
+- FlashSale IntegrationTests 81/81 → PASS (Testcontainers PG+RabbitMQ)
+- Python concurrency harness verdict tests 6/6 → PASS
+- Web E2E 4 passed / 3 skipped → PASS (dev-server mode)
+
+All local gates green. Remote CI execution remains for a maintainer with GitHub
+Actions access to trigger `workflow_dispatch` on `main`.

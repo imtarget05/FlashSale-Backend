@@ -1,0 +1,25 @@
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy solution and project files
+COPY *.slnx .
+COPY src/OpsBridge.Api/OpsBridge.Api.csproj src/OpsBridge.Api/
+COPY src/OpsBridge.Application/OpsBridge.Application.csproj src/OpsBridge.Application/
+COPY src/OpsBridge.Domain/OpsBridge.Domain.csproj src/OpsBridge.Domain/
+COPY src/OpsBridge.Infrastructure/OpsBridge.Infrastructure.csproj src/OpsBridge.Infrastructure/
+
+RUN dotnet restore
+
+# Copy all source
+COPY . .
+WORKDIR /src/src/OpsBridge.Api
+RUN dotnet publish -c Release -o /app/publish --no-restore
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app/publish .
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+ENTRYPOINT ["dotnet", "OpsBridge.Api.dll"]
