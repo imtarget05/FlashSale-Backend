@@ -15,6 +15,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create shared Compose network
+        run: docker network inspect portfolio-net >/dev/null 2>&1 || docker network create portfolio-net
+
       # No explicit -f: compose merges docker-compose.yml + docker-compose.override.yml,
       # so order-api is published on host port 5001 (override pins "5001:8080").
       - name: Start API dependencies (PostgreSQL, Redis, RabbitMQ)
@@ -39,18 +42,16 @@ jobs:
           curl -sf http://localhost:5001/health/live \
             || { echo "❌ API never became live"; docker compose logs --tail 100 order-api; exit 1; }
 
-      # grafana/k6-action@v0.2.0 installs k6 AND runs the script in one step (docker
-      # action, 4 inputs: cloud/token/filename/flags). Passing `filename` is required —
-      # it defaults to a non-existent `test.js`. Threshold verdict comes from k6 itself:
-      # a breached threshold (defined in load-tests/k6/flash-sale.js) exits non-zero,
-      # which fails this step and the job.
+      # k6 runs on the runner's host network so localhost:5001 reaches order-api.
+      # A breached threshold exits non-zero and fails the job.
       - name: Run k6 load test
-        uses: grafana/k6-action@v0.2.0
-        with:
-          filename: load-tests/k6/flash-sale.js
-          flags: --out json=results.json --summary-export=summary.json
-        env:
-          BASE_URL: http://localhost:5001
+        run: |
+          docker run --rm --network host --user "$(id -u):$(id -g)" \
+            -e BASE_URL=http://127.0.0.1:5001 \
+            -v "$PWD:/workspace" -w /workspace \
+            grafana/k6:0.57.0 run \
+            --out json=results.json --summary-export=summary.json \
+            load-tests/k6/flash-sale.js
 
       - name: Upload k6 results
         if: always()
