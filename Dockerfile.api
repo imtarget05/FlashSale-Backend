@@ -22,4 +22,7 @@ WORKDIR /app
 COPY --from=build /app/publish .
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
+# Non-root runtime (ADR-007): base image ships an `app` user (uid 1654).
+RUN chown -R app:app /app
+USER app
 ENTRYPOINT ["dotnet", "OpsBridge.Api.dll"]

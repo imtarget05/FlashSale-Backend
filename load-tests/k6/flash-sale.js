@@ -25,6 +25,9 @@ export const options = {
     http_req_duration: ['p(95)<250'],
     // sold-out 409s are a valid business outcome, not errors — count only real failures
     http_req_failed: [{ threshold: 'rate<0.05', delayAbortEval: '10s' }],
+    // Custom checks (202 accepted / 409 sold-out) must overwhelmingly pass —
+    // a broken app returns odd statuses and fails the whole run.
+    checks: ['rate>0.95'],
   },
 };
 
