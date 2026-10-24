@@ -13,7 +13,7 @@ public sealed class DeferredRabbitMqPublisher(
     ILogger<RabbitMqEventPublisher> logger) : IEventPublisher, IAsyncDisposable
 {
     private readonly SemaphoreSlim _initializationGate = new(1, 1);
-    private RabbitMqEventPublisher? _publisher;
+    private volatile RabbitMqEventPublisher? _publisher;
 
     public async Task<bool> PublishAsync(
         string topic,
