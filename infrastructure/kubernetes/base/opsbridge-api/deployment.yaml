@@ -66,6 +66,16 @@ spec:
                 secretKeyRef:
                   name: opsbridge-secrets
                   key: pg-connection
+            # The API owns the outbox publisher and GoodsReceipt consumer.
+            # Requiring this connection at startup prevents a healthy-looking
+            # webhook endpoint with no downstream event processing.
+            - name: OpsBridge__Messaging__Enabled
+              value: "true"
+            - name: ConnectionStrings__RabbitMQ
+              valueFrom:
+                secretKeyRef:
+                  name: opsbridge-secrets
+                  key: rabbitmq-connection
             # ADR-018 / ADR-013 §2: the JWT gate is in front of the HTTP
             # endpoints, so the runtime identity DOES need a signing key. The
             # signing key lives in the RUNTIME secret; the migration Job is not

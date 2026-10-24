@@ -9,6 +9,7 @@ using OpsBridge.Api;
 using OpsBridge.Api.Auth;
 using OpsBridge.Api.Endpoints;
 using OpsBridge.Infrastructure;
+using OpsBridge.Infrastructure.Messaging;
 using OpsBridge.Infrastructure.Persistence;
 using OpsBridge.Infrastructure.Security;
 using Prometheus;
@@ -338,6 +339,12 @@ app.UseAuthorization();
 
 // Liveness & readiness probes
 app.MapGet("/healthz", () => Results.Ok(new { status = "Healthy", service = "OpsBridge.Api", timestamp = DateTimeOffset.UtcNow }))
+   .WithTags("Health");
+app.MapGet("/health/messaging", (MessagingRuntimeStatus status) =>
+        status.ConsumerConnected
+            ? Results.Ok(new { status = "Connected", component = "RabbitMQ consumer" })
+            : Results.Json(new { status = "Degraded", component = "RabbitMQ consumer" }, statusCode: 503))
+   .AllowAnonymous()
    .WithTags("Health");
 
 // Map Domain & Ingestion Endpoints

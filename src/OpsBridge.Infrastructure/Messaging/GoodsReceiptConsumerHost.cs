@@ -22,6 +22,7 @@ public sealed class GoodsReceiptConsumerHost : BackgroundService
     private readonly IConnection _connection;
     private readonly IChannel _channel;
     public IChannel Channel => _channel;
+    public bool BrokerConnectionOpen => _connection.IsOpen && _channel.IsOpen;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<GoodsReceiptConsumerHost> _logger;
     private const string ConsumerGroup = "goods-receipt-consumer";

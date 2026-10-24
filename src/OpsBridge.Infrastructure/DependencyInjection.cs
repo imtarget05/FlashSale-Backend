@@ -5,10 +5,12 @@ using OpsBridge.Application.Connectors;
 using OpsBridge.Application.Contracts;
 using OpsBridge.Application.InboxOutbox;
 using OpsBridge.Application.Ingestion;
+using OpsBridge.Application.Messaging;
 using OpsBridge.Application.Security;
 using OpsBridge.Application.UseCases;
 using OpsBridge.Infrastructure.Connectors;
 using OpsBridge.Infrastructure.Contracts;
+using OpsBridge.Infrastructure.Messaging;
 using OpsBridge.Infrastructure.Persistence;
 using OpsBridge.Infrastructure.Security;
 
@@ -89,6 +91,31 @@ public static class DependencyInjection
         services.AddScoped<ReplayDeadLetterEventUseCase>();
         services.AddScoped<ReconcileInvoiceUseCase>();
         services.AddScoped<ReviewDiscrepancyUseCase>();
+        services.AddSingleton<MessagingRuntimeStatus>();
+
+        // Messaging is opt-in for local API tests, and mandatory for a workload
+        // that declares OpsBridge:Messaging:Enabled=true. Missing credentials
+        // fail at composition instead of leaving outbox rows undrained.
+        if (configuration.GetValue<bool>("OpsBridge:Messaging:Enabled"))
+        {
+            var broker = configuration.GetConnectionString("RabbitMQ");
+            if (!Uri.TryCreate(broker, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != "amqp" && uri.Scheme != "amqps"))
+            {
+                throw new InvalidOperationException(
+                    "OpsBridge messaging is enabled but ConnectionStrings:RabbitMQ is not a valid AMQP URI.");
+            }
+
+            services.AddSingleton<IEventPublisher>(sp =>
+                new DeferredRabbitMqPublisher(broker!, sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<RabbitMqEventPublisher>>()));
+            services.AddHostedService<OutboxPublisherHostedService>();
+            services.AddHostedService(sp =>
+                new GoodsReceiptConsumerBootstrap(
+                    broker!,
+                    sp.GetRequiredService<IServiceScopeFactory>(),
+                    sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<GoodsReceiptConsumerHost>>(),
+                    sp.GetRequiredService<MessagingRuntimeStatus>()));
+        }
 
         return services;
     }
