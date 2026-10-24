@@ -198,6 +198,54 @@ public sealed class OutboxEndpointTests : IAsyncLifetime
             "SELECT count(*)::integer AS \"Value\" FROM \"OutboxRecoveryCommands\" WHERE \"IdempotencyKey\" = 'requeue-specific-01'").SingleAsync());
     }
 
+    [Fact]
+    public async Task ApprovedAgentCommand_ConcurrentRequestsWithSameKey_HasNoDoubleEffect()
+    {
+        var targetId = Guid.NewGuid();
+        var deadLetteredAt = DateTimeOffset.UtcNow.AddMinutes(-2);
+        await using (var db = _fx.CreateDbContext())
+        {
+            db.OutboxMessages.Add(
+                new OutboxMessage { MessageId = targetId, EventType = "order.created", Topic = "orders", Payload = "{}", DeadLetteredAt = deadLetteredAt, RetryCount = 5 });
+            await db.SaveChangesAsync();
+        }
+
+        var path = $"/internal/agent/outbox/{targetId}/requeue";
+        var body = JsonSerializer.Serialize(new
+        {
+            intentId = "intent-concurrent-01",
+            intentHash = new string('c', 64),
+            idempotencyKey = "requeue-concurrent-01",
+            approvedBy = "human-sre-02",
+            expectedDeadLetteredAt = deadLetteredAt,
+        });
+
+        // Fire 2 concurrent HTTP requests with the exact same idempotency key and payload
+        var task1 = _client.SendAsync(SignedRequest(path, body));
+        var task2 = _client.SendAsync(SignedRequest(path, body));
+        var responses = await Task.WhenAll(task1, task2);
+
+        // Both must return 200 OK (one 'requeued', the other 'already_applied')
+        Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
+        var results = new List<AgentRecoveryResponse>();
+        foreach (var r in responses)
+        {
+            var res = await r.Content.ReadFromJsonAsync<AgentRecoveryResponse>();
+            Assert.NotNull(res);
+            results.Add(res!);
+        }
+
+        Assert.Contains(results, r => r.Status == "requeued");
+        Assert.Contains(results, r => r.Status == "already_applied");
+
+        // Verify only 1 audit command was written to the database
+        await using var verify = _fx.CreateDbContext();
+        var msg = await verify.OutboxMessages.AsNoTracking().SingleAsync(x => x.MessageId == targetId);
+        Assert.Null(msg.DeadLetteredAt);
+        Assert.Equal(1, await verify.Database.SqlQueryRaw<int>(
+            "SELECT count(*)::integer AS \"Value\" FROM \"OutboxRecoveryCommands\" WHERE \"IdempotencyKey\" = 'requeue-concurrent-01'").SingleAsync());
+    }
+
     private static HttpRequestMessage SignedRequest(string path, string body, HttpMethod? method = null)
     {
         method ??= HttpMethod.Post;
