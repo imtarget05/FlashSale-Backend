@@ -29,6 +29,7 @@ RABBIT_PASSWORD="$(hex 24)"
 # 48 random bytes, base64-encoded: >= 32 bytes for HS256 whether the app treats
 # the value as raw UTF-8 or decodes it as base64.
 JWT_SIGNING_KEY="$(openssl rand -base64 48 | tr -d '\n')"
+AGENT_RECOVERY_HMAC_KEY="$(openssl rand -base64 48 | tr -d '\n')"
 
 $KUBECTL create secret generic flashsale-secrets -n "$NS" \
   --from-literal=pg-password="${PG_PASSWORD}" \
@@ -37,10 +38,12 @@ $KUBECTL create secret generic flashsale-secrets -n "$NS" \
   --from-literal=rabbitmq-password="${RABBIT_PASSWORD}" \
   --from-literal=rabbitmq-connection="amqp://flashsale:${RABBIT_PASSWORD}@rabbitmq:5672" \
   --from-literal=jwt-signing-key="${JWT_SIGNING_KEY}" \
+  --from-literal=agent-recovery-hmac-key="${AGENT_RECOVERY_HMAC_KEY}" \
   --dry-run=client -o yaml | $KUBECTL apply -f - >/dev/null
 
 echo "flashsale-secrets applied in namespace ${NS}."
 echo "  pg-password        : ${#PG_PASSWORD} chars"
 echo "  rabbitmq-password  : ${#RABBIT_PASSWORD} chars"
 echo "  jwt-signing-key    : ${#JWT_SIGNING_KEY} chars (fingerprint $(printf '%s' "$JWT_SIGNING_KEY" | shasum -a 256 | cut -c1-12))"
+echo "  agent-recovery-hmac-key: ${#AGENT_RECOVERY_HMAC_KEY} chars (provision the same key to agent-hub namespace)"
 echo "  values are NOT printed and NOT committed."

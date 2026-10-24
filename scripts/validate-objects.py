@@ -36,6 +36,7 @@ SECRET_CONTRACT = {
     "flashsale-secrets": {
         "pg-connection", "pg-password", "redis-connection",
         "rabbitmq-connection", "rabbitmq-password", "jwt-signing-key",
+        "agent-recovery-hmac-key",
     }
 }
 

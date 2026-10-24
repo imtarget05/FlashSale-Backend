@@ -36,6 +36,7 @@ Namespace: `flash-sale-prod` (set by `overlays/prod`).
 | `redis-connection` | `order-api` | StackExchange.Redis endpoint | `redis:6379` |
 | `rabbitmq-connection` | `order-api`, `order-worker` | AMQP URI | `amqp://<user>:<pw>@rabbitmq:5672/` |
 | `jwt-signing-key` | `order-api` | HS256 signing key, **≥ 32 bytes** | `<random 32+ byte string>` |
+| `agent-recovery-hmac-key` | `order-api` | Separate random HMAC key, **≥ 32 bytes** | `<random 32+ byte string>` |
 | `pg-password` | `postgres` StatefulSet | bare password | `<pw>` |
 | `rabbitmq-password` | `rabbitmq` StatefulSet | bare password | `<pw>` |
 
@@ -64,6 +65,7 @@ kubectl -n flash-sale-prod create secret generic flashsale-secrets \
   --from-literal=redis-connection="redis:6379" \
   --from-literal=rabbitmq-connection="amqp://flashsale:$RBQ_PW@rabbitmq:5672/" \
   --from-literal=jwt-signing-key="$JWT_KEY" \
+  --from-literal=agent-recovery-hmac-key="$AGENT_RECOVERY_HMAC_KEY" \
   --from-literal=pg-password="$PG_PW" \
   --from-literal=rabbitmq-password="$RBQ_PW"
 ```
@@ -81,7 +83,7 @@ kubectl -n flash-sale-prod get secret flashsale-secrets \
   -o jsonpath='{.data}' | tr ',' '\n' | sed 's/:.*//'   # key names only, never values
 ```
 
-Expected: the five keys listed above. Reading values back out requires
+Expected: the seven keys listed above. Reading values back out requires
 base64-decoding and should not be part of routine evidence gathering.
 
 ## Why the provider must be set explicitly
