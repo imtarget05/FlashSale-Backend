@@ -165,8 +165,10 @@ public sealed class OutboxEndpointTests : IAsyncLifetime
         var secondPath = $"/internal/agent/outbox/{secondId}/requeue";
         var staleBody = JsonSerializer.Serialize(new
         {
-            intentId = "intent-stale-01", intentHash = new string('b', 64),
-            idempotencyKey = "requeue-stale-01", approvedBy = "human-sre-01",
+            intentId = "intent-stale-01",
+            intentHash = new string('b', 64),
+            idempotencyKey = "requeue-stale-01",
+            approvedBy = "human-sre-01",
             expectedDeadLetteredAt = deadLetteredAt.AddSeconds(-1),
         });
         using var staleVersion = SignedRequest(secondPath, staleBody);
