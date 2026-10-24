@@ -13,6 +13,12 @@ The schema contract itself is decided in
 [ADR-018](../../../../docs/adr/018-opsbridge-migration-and-legacy-baseline-strategy.md);
 this file states how the manifests implement it.
 
+The Deployment also enables the RabbitMQ outbox publisher and GoodsReceipt
+consumer per [ADR-024](../../../../docs/adr/024-opsbridge-broker-runtime-wiring.md).
+`opsbridge-secrets` must contain `rabbitmq-connection` as an AMQP URI.
+`/health/messaging` reports a broker consumer outage while `/healthz` stays
+the liveness probe; an outbox-age alert remains a release gate.
+
 ---
 
 ## 1. What the Job does

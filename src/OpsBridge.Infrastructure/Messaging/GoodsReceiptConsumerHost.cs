@@ -22,6 +22,7 @@ public sealed class GoodsReceiptConsumerHost : BackgroundService
     private readonly IConnection _connection;
     private readonly IChannel _channel;
     public IChannel Channel => _channel;
+    public bool BrokerConnectionOpen => _connection.IsOpen && _channel.IsOpen;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<GoodsReceiptConsumerHost> _logger;
     private const string ConsumerGroup = "goods-receipt-consumer";
@@ -46,15 +47,24 @@ public sealed class GoodsReceiptConsumerHost : BackgroundService
     {
         var factory = new ConnectionFactory { Uri = new Uri(connectionString) };
         var connection = await factory.CreateConnectionAsync();
-        // The failure path republishes before acknowledging the original
-        // delivery. Awaiting a broker confirm on this channel is required:
-        // a successful socket write alone does not prove the retry is safe.
-        var channel = await connection.CreateChannelAsync(new CreateChannelOptions(
-            publisherConfirmationsEnabled: true,
-            publisherConfirmationTrackingEnabled: true));
-
-        await RabbitMqTopology.InitializeTopologyAsync(channel);
-        return new GoodsReceiptConsumerHost(connection, channel, scopeFactory, logger);
+        IChannel? channel = null;
+        try
+        {
+            // The failure path republishes before acknowledging the original
+            // delivery. Awaiting a broker confirm on this channel is required:
+            // a successful socket write alone does not prove the retry is safe.
+            channel = await connection.CreateChannelAsync(new CreateChannelOptions(
+                publisherConfirmationsEnabled: true,
+                publisherConfirmationTrackingEnabled: true));
+            await RabbitMqTopology.InitializeTopologyAsync(channel);
+            return new GoodsReceiptConsumerHost(connection, channel, scopeFactory, logger);
+        }
+        catch
+        {
+            if (channel is not null) await channel.DisposeAsync();
+            await connection.DisposeAsync();
+            throw;
+        }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

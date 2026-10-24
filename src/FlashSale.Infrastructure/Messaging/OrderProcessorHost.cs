@@ -41,44 +41,56 @@ public sealed class OrderProcessorHost(
                 continue;
             }
 
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var processor = scope.ServiceProvider.GetRequiredService<OrderProcessor>();
+            await ProcessEntryAsync(entry, stoppingToken);
+        }
+    }
 
-            try
+    /// <summary>Process and settle one delivery. The original remains unacked if retry publishing fails.</summary>
+    public async Task ProcessEntryAsync(QueueEntry entry, CancellationToken stoppingToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var processor = scope.ServiceProvider.GetRequiredService<OrderProcessor>();
+
+        try
+        {
+            await processor.ProcessAsync(entry.Message, stoppingToken);
+            WorkerTelemetry.QueueMessagesProcessed.Add(1, new KeyValuePair<string, object?>("outcome", "succeeded"));
+            if (entry.Complete is not null) await entry.Complete();
+        }
+        catch (Domain.StockDriftException)
+        {
+            // Never retry drift: the reservation was wrong, not the transport.
+            logger.LogCritical(
+                "STOCK-DRIFT for {Key} (product {Pid}) — dead-lettering. Runbook: resolve drift, then POST /internal/resync-stock/{{id}}.",
+                entry.Message.IdempotencyKey, entry.Message.ProductId);
+            WorkerTelemetry.QueueMessagesProcessed.Add(1, new KeyValuePair<string, object?>("outcome", "stock_drift"));
+            await DeadLetterAsync(entry);
+        }
+        catch (Exception ex) when (entry.Message.Attempt + 1 < OrderProcessor.MaxAttempts)
+        {
+            var delay = TimeSpan.FromMilliseconds(200 * Math.Pow(2, entry.Message.Attempt));
+            logger.LogWarning(ex,
+                "Transient failure for {Key} (attempt {Attempt}/{Max}) — retrying in {Delay}.",
+                entry.Message.IdempotencyKey, entry.Message.Attempt + 1,
+                OrderProcessor.MaxAttempts, delay);
+            await Task.Delay(delay, stoppingToken);
+            if (!await producer.EnqueueAsync(entry.Message with { Attempt = entry.Message.Attempt + 1 }, stoppingToken))
             {
-                await processor.ProcessAsync(entry.Message, stoppingToken);
-                WorkerTelemetry.QueueMessagesProcessed.Add(1, new KeyValuePair<string, object?>("outcome", "succeeded"));
-                if (entry.Complete is not null) await entry.Complete();
+                // A rejected retry must never make the original delivery disappear.
+                // Let the host fail so the broker connection closes and redelivers it.
+                throw new InvalidOperationException(
+                    $"Retry publish was rejected for order {entry.Message.IdempotencyKey}.");
             }
-            catch (Domain.StockDriftException)
-            {
-                // Never retry drift: the reservation was wrong, not the transport.
-                logger.LogCritical(
-                    "STOCK-DRIFT for {Key} (product {Pid}) — dead-lettering. Runbook: resolve drift, then POST /internal/resync-stock/{{id}}.",
-                    entry.Message.IdempotencyKey, entry.Message.ProductId);
-                WorkerTelemetry.QueueMessagesProcessed.Add(1, new KeyValuePair<string, object?>("outcome", "stock_drift"));
-                await DeadLetterAsync(entry);
-            }
-            catch (Exception ex) when (entry.Message.Attempt + 1 < OrderProcessor.MaxAttempts)
-            {
-                var delay = TimeSpan.FromMilliseconds(200 * Math.Pow(2, entry.Message.Attempt));
-                logger.LogWarning(ex,
-                    "Transient failure for {Key} (attempt {Attempt}/{Max}) — retrying in {Delay}.",
-                    entry.Message.IdempotencyKey, entry.Message.Attempt + 1,
-                    OrderProcessor.MaxAttempts, delay);
-                await Task.Delay(delay, stoppingToken);
-                await producer.EnqueueAsync(entry.Message with { Attempt = entry.Message.Attempt + 1 }, stoppingToken);
-                WorkerTelemetry.QueueMessageRetries.Add(1);
-                if (entry.Complete is not null) await entry.Complete(); // original handled; copy re-queued
-            }
-            catch (Exception ex)
-            {
-                logger.LogCritical(ex,
-                    "Message {Key} exhausted {Attempt} attempts — moving to DLQ.",
-                    entry.Message.IdempotencyKey, entry.Message.Attempt + 1);
-                WorkerTelemetry.QueueMessagesProcessed.Add(1, new KeyValuePair<string, object?>("outcome", "dead_lettered"));
-                await DeadLetterAsync(entry);
-            }
+            WorkerTelemetry.QueueMessageRetries.Add(1);
+            if (entry.Complete is not null) await entry.Complete(); // original handled; copy re-queued
+        }
+        catch (Exception ex)
+        {
+            logger.LogCritical(ex,
+                "Message {Key} exhausted {Attempt} attempts — moving to DLQ.",
+                entry.Message.IdempotencyKey, entry.Message.Attempt + 1);
+            WorkerTelemetry.QueueMessagesProcessed.Add(1, new KeyValuePair<string, object?>("outcome", "dead_lettered"));
+            await DeadLetterAsync(entry);
         }
     }
 

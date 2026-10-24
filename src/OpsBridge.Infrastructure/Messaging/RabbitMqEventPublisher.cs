@@ -28,17 +28,24 @@ public sealed class RabbitMqEventPublisher : IEventPublisher, IAsyncDisposable
     {
         var factory = new ConnectionFactory { Uri = new Uri(connectionString) };
         var connection = await factory.CreateConnectionAsync();
-
-        // Enable Publisher Confirmations
-        var channelOptions = new CreateChannelOptions(
-            publisherConfirmationsEnabled: true,
-            publisherConfirmationTrackingEnabled: true
-        );
-        var channel = await connection.CreateChannelAsync(channelOptions);
-
-        await RabbitMqTopology.InitializeTopologyAsync(channel);
-
-        return new RabbitMqEventPublisher(connection, channel, logger);
+        IChannel? channel = null;
+        try
+        {
+            // Enable Publisher Confirmations
+            var channelOptions = new CreateChannelOptions(
+                publisherConfirmationsEnabled: true,
+                publisherConfirmationTrackingEnabled: true
+            );
+            channel = await connection.CreateChannelAsync(channelOptions);
+            await RabbitMqTopology.InitializeTopologyAsync(channel);
+            return new RabbitMqEventPublisher(connection, channel, logger);
+        }
+        catch
+        {
+            if (channel is not null) await channel.DisposeAsync();
+            await connection.DisposeAsync();
+            throw;
+        }
     }
 
     public async Task<bool> PublishAsync(

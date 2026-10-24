@@ -25,6 +25,7 @@ public partial class OpsBridgeAuthorizationGuardTests
     {
         ["POST /api/v1/auth/login"] = "Anonymous login endpoint; accepts credentials and returns a JWT.",
         ["GET /healthz"] = "Liveness probe; must answer without credentials.",
+        ["GET /health/messaging"] = "Dependency status only; reveals no broker URL or business identifiers.",
         ["GET /metrics"] = "Aggregate Prometheus scrape endpoint; no business identifiers or auth counters.",
         ["POST /api/v1/webhooks/factoryflow"] = "External webhook; protected by Svix/HMAC signature, not bearer token.",
     };
