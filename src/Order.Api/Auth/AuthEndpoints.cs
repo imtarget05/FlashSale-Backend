@@ -61,6 +61,7 @@ public static class AuthEndpoints
                 : ToProblem(result);
         })
         .AllowAnonymous()
+        .RequireRateLimiting("order-submission")
         .WithName("Register")
         .WithSummary("Create a CUSTOMER account and return a token pair. The role is always CUSTOMER — it is never read from the request body.");
 
@@ -71,6 +72,7 @@ public static class AuthEndpoints
             return result.Succeeded ? Results.Ok(result.Tokens) : ToProblem(result);
         })
         .AllowAnonymous()
+        .RequireRateLimiting("order-submission")
         .WithName("Login")
         .WithSummary("Exchange credentials for an access + refresh token pair.");
 

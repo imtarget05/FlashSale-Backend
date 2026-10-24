@@ -1,0 +1,39 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: flashsale
+  namespace: flashsale
+spec:
+  parentRefs:
+    - name: portfolio-gateway
+      namespace: platform-gateway
+      sectionName: https
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/orders
+      backendRefs:
+        - name: order-api
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/auth
+      backendRefs:
+        - name: order-api
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/payments
+      backendRefs:
+        - name: payment-service
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: opsbridge-web
+          port: 80

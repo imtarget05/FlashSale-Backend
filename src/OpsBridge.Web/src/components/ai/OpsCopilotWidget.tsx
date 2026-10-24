@@ -75,7 +75,7 @@ Nếu khớp 100% hoặc trong biên độ dung sai (Tolerance), hóa đơn sẽ
       return `🔍 **Phân tích Hóa đơn INV-2026-8803:**
 - **Nhà cung cấp:** Công ty TNHH Nguyên Liệu Trân Châu Đài Loan (SUP-TAIWAN-BOBA).
 - **Mã sản phẩm:** Trân Châu Đen Dẻo Cao Cấp (Bao 20kg) (SKU-BOBA-BLACK-20K).
-- **Thực tế:** 
+- **Thực tế:**
   + Hóa đơn NCC yêu cầu thanh toán: **200 bao** (thành tiền 60.000.000 VNĐ).
   + Thực tế thủ kho kiểm đếm nhận được (GR): **160 bao** (thành tiền 48.000.000 VNĐ).
 - **Sai lệch (Discrepancy):** Chênh lệch thiếu **40 bao**, tương đương giá trị vênh **12.000.000 VNĐ** (chưa VAT) / **13.200.000 VNĐ** (đã gồm 10% VAT).

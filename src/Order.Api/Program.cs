@@ -21,6 +21,8 @@ using FlashSale.Infrastructure.Payment;
 using FlashSale.Infrastructure.Persistence;
 using FlashSale.Infrastructure.Redis;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -250,6 +252,73 @@ builder.Services.AddScoped<OutboxRecoveryService>();
 builder.Services.AddScoped<StockResyncUseCase>();
 builder.Services.AddHostedService<OrderProcessorHost>();
 
+// ---------------------------------------------------------------
+// Authoritative Server-side Rate Limiting (ADR-025 / Phase 1)
+// Cloudflare edge rate limiting is approximate/per-colocation; the host API must
+// enforce strict rate limits to guarantee origin capacity protection.
+// ---------------------------------------------------------------
+var rateLimitingEnabled = builder.Configuration.GetValue("RateLimiting:Enabled", true);
+if (rateLimitingEnabled)
+{
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.OnRejected = async (context, token) =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            var clientIp = context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var path = context.HttpContext.Request.Path;
+            logger.LogWarning("Host rate limit exceeded for client {ClientIp} on {Path}", clientIp, path);
+
+            context.HttpContext.Response.ContentType = "application/problem+json";
+            var retrySeconds = 60;
+            if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+            {
+                retrySeconds = (int)Math.Max(1, retryAfter.TotalSeconds);
+            }
+            context.HttpContext.Response.Headers.RetryAfter = retrySeconds.ToString();
+
+            await context.HttpContext.Response.WriteAsJsonAsync(new
+            {
+                type = "https://tools.ietf.org/html/rfc7807",
+                title = "Too Many Requests",
+                status = StatusCodes.Status429TooManyRequests,
+                detail = "Authoritative server-side rate limit exceeded. Edge approximations reinforced by origin policy.",
+                retryAfterSeconds = retrySeconds
+            }, cancellationToken: token);
+        };
+
+        // Sensitive endpoint limiter: burst protection for orders and login
+        var orderPermitLimit = builder.Configuration.GetValue("RateLimiting:OrderTokenLimit", 30);
+        var orderTokensPerPeriod = builder.Configuration.GetValue("RateLimiting:OrderTokensPerPeriod", 20);
+        options.AddTokenBucketLimiter("order-submission", opt =>
+        {
+            opt.TokenLimit = orderPermitLimit;
+            opt.TokensPerPeriod = orderTokensPerPeriod;
+            opt.ReplenishmentPeriod = TimeSpan.FromMinutes(1);
+            opt.QueueLimit = 0; // Fail-fast without queuing
+        });
+
+        // Global IP partitioned limiter
+        var globalPermitLimit = builder.Configuration.GetValue("RateLimiting:GlobalPermitLimit", 120);
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        {
+            var clientKey = httpContext.User?.Identity?.IsAuthenticated == true
+                ? (httpContext.User.Identity.Name ?? "authenticated")
+                : (httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous");
+
+            return RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: clientKey,
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = globalPermitLimit,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                });
+        });
+    });
+}
+
 var app = builder.Build();
 
 // Start the metrics listener NOW, not on the first scrape. A MeterListener only
@@ -265,8 +334,12 @@ app.Services.GetRequiredService<ApiMetrics>();
 app.UseFlashSaleMetrics();
 
 // Order matters: authentication must populate HttpContext.User before
-// authorization evaluates the policies registered above.
+// rate limiter partitions by authenticated user or authorization evaluates policies.
 app.UseAuthentication();
+if (rateLimitingEnabled)
+{
+    app.UseRateLimiter();
+}
 app.UseAuthorization();
 
 // Startup concerns live in Infrastructure (schema + seed + Redis mirroring).
@@ -475,7 +548,8 @@ app.MapPost("/api/orders", async (
         default:
             return Results.StatusCode(500);
     }
-});
+})
+.RequireRateLimiting("order-submission");
 
 // Status polling: did my (idempotent) order actually persist?
 // NOTE (spec §4): this legacy view answers the FULFILLMENT question from row

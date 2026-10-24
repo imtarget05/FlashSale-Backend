@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -279,6 +281,57 @@ builder.Services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Authoritative Server-side Rate Limiting (ADR-025 / Phase 1)
+var rateLimitingEnabled = builder.Configuration.GetValue("RateLimiting:Enabled", true);
+if (rateLimitingEnabled)
+{
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.OnRejected = async (context, token) =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            var clientIp = context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var path = context.HttpContext.Request.Path;
+            logger.LogWarning("Host rate limit exceeded for client {ClientIp} on {Path}", clientIp, path);
+
+            context.HttpContext.Response.ContentType = "application/problem+json";
+            var retrySeconds = 60;
+            if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+            {
+                retrySeconds = (int)Math.Max(1, retryAfter.TotalSeconds);
+            }
+            context.HttpContext.Response.Headers.RetryAfter = retrySeconds.ToString();
+
+            await context.HttpContext.Response.WriteAsJsonAsync(new
+            {
+                type = "https://tools.ietf.org/html/rfc7807",
+                title = "Too Many Requests",
+                status = StatusCodes.Status429TooManyRequests,
+                detail = "Authoritative server-side rate limit exceeded. Edge approximations reinforced by origin policy.",
+                retryAfterSeconds = retrySeconds
+            }, cancellationToken: token);
+        };
+
+        var permitLimit = builder.Configuration.GetValue("RateLimiting:OpsBridgePermitLimit", 60);
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        {
+            var clientKey = httpContext.User?.Identity?.IsAuthenticated == true
+                ? (httpContext.User.Identity.Name ?? "authenticated")
+                : (httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous");
+
+            return RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: clientKey,
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = permitLimit,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                });
+        });
+    });
+}
+
 var app = builder.Build();
 
 // Controlled runtime initialisation (ADR-018). Development/Test only — the Production
@@ -335,6 +388,10 @@ if (app.Environment.IsDevelopment())
 app.UseCors("OpsBridgeWebPolicy");
 app.UseHttpMetrics(options => options.ReduceStatusCodeCardinality());
 app.UseAuthentication();
+if (rateLimitingEnabled)
+{
+    app.UseRateLimiter();
+}
 app.UseAuthorization();
 
 // Liveness & readiness probes
