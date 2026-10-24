@@ -85,6 +85,17 @@ public partial class EndpointAuthorizationGuardTests
             "Public Prometheus text exposition; carries no auth counters and requires no credentials (Prometheus scrape convention).",
     };
 
+    // These routes use a dedicated, fail-closed HMAC service credential instead
+    // of a user JWT. They are not public and must keep their verifier in the
+    // route body; the integration test also proves unsigned requests get 401.
+    private static readonly HashSet<string> HmacProtectedRoutes = new(StringComparer.Ordinal)
+    {
+        "GET /internal/agent/outbox/stuck",
+        "GET /internal/agent/outbox/pending",
+        "GET /internal/agent/outbox/{messageId:guid}",
+        "POST /internal/agent/outbox/{messageId:guid}/requeue",
+    };
+
     /// <summary>HTTP verbs that can change state.</summary>
     private static readonly string[] MutatingVerbs = ["POST", "PUT", "PATCH", "DELETE"];
 
@@ -175,6 +186,13 @@ public partial class EndpointAuthorizationGuardTests
     }
 
     [Fact]
+    public void HmacRouteAllowlist_HasNoStaleEntries()
+    {
+        var mapped = ReadRoutes().Select(r => r.Display).ToHashSet(StringComparer.Ordinal);
+        Assert.DoesNotContain(HmacProtectedRoutes, route => !mapped.Contains(route));
+    }
+
+    [Fact]
     public void EveryPublicRoute_CarriesAJustification()
     {
         var undocumented = PublicRoutes
@@ -229,7 +247,9 @@ public partial class EndpointAuthorizationGuardTests
             yield return new RouteRegistration(
                 maps[i].Verb,
                 template,
-                metadata.Contains("RequireAuthorization", StringComparison.Ordinal),
+                metadata.Contains("RequireAuthorization", StringComparison.Ordinal)
+                || (HmacProtectedRoutes.Contains($"{maps[i].Verb} {template}")
+                    && metadata.Contains("AgentRecoveryAuth.VerifyAsync(http.Request, key, ct)", StringComparison.Ordinal)),
                 file);
         }
     }
