@@ -52,7 +52,12 @@ public class RabbitMQOrderQueue : IOrderQueueProducer, IOrderQueueConsumer, IDis
     {
         var factory = new ConnectionFactory { Uri = new Uri(connectionString) };
         var connection = await factory.CreateConnectionAsync();
-        var channel = await connection.CreateChannelAsync();
+        // Awaiting BasicPublishAsync only proves broker acceptance when confirms
+        // and tracking are enabled. A retry must be confirmed before we ACK
+        // the original delivery, including the mandatory unroutable case.
+        var channel = await connection.CreateChannelAsync(new CreateChannelOptions(
+            publisherConfirmationsEnabled: true,
+            publisherConfirmationTrackingEnabled: true));
 
         await channel.QueueDeclareAsync(queue: queueName,
                                  durable: true,

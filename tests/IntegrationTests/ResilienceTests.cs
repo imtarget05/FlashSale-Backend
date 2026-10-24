@@ -5,6 +5,7 @@ using FlashSale.Infrastructure.Persistence;
 using FlashSale.Infrastructure.Redis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using RabbitMQ.Client;
 
 namespace FlashSale.IntegrationTests;
 
@@ -54,6 +55,21 @@ public sealed class ResilienceTests(FlashSaleFixture fx)
         var stock = await db.Products.Where(p => p.Id == productId).Select(p => p.AvailableStock).FirstAsync();
         Assert.Equal(8, stock);
         Assert.Equal(1, await db.Orders.CountAsync(o => o.IdempotencyKey == "rmq-1"));
+    }
+
+    [Fact]
+    public async Task RabbitMq_MandatoryPublishToDeletedQueue_IsRejectedByBroker()
+    {
+        var queueName = $"orders-unroutable-{Guid.NewGuid():N}";
+        using var queue = await fx.CreateRabbitQueueAsync(queueName);
+        var factory = new ConnectionFactory { Uri = new Uri(fx.RabbitMqConnectionString) };
+        using var connection = await factory.CreateConnectionAsync();
+        using var channel = await connection.CreateChannelAsync();
+        await channel.QueueDeleteAsync(queueName);
+
+        // A local socket write is not sufficient: mandatory + publisher
+        // confirms must report the broker return as false to the caller.
+        Assert.False(await queue.EnqueueAsync(Msg(1, 1, "unroutable-order")));
     }
 
     [Fact]
