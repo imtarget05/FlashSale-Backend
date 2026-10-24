@@ -16,6 +16,8 @@ using FlashSale.Infrastructure.Messaging;
 using FlashSale.Infrastructure.Outbox;
 using FlashSale.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using RabbitMQ.Client;
@@ -458,6 +460,260 @@ public sealed class OutboxCrashWindowTests(OutboxCrashWindowFixture fx)
         Assert.Equal(1, await check.OutboxMessages.CountAsync(m => m.EventType == "inventory.reserved"));
     }
 
+    // ------------------------------------------------------------------ (h) ---
+    [Fact]
+    public async Task H_QueueRejectsThenRepairRepeats_OneReleaseInPostgresAndRabbitMq()
+    {
+        var productId = await fx.ResetDatabaseAsync(stock: 10);
+        var gateway = fx.CreateRedisGateway();
+        await gateway.SetStockAsync(productId, 10);
+        var collector = await EventCollector.CreateAsync(fx.RabbitMqConnectionString, "outbox-crash-h-" + Guid.NewGuid().ToString("N"));
+        await using var _ = collector;
+
+        const string key = "queue-reject-repair-once";
+        Guid correlationId;
+        await using (var db = fx.CreateDbContext())
+        {
+            var transaction = new EfWriteTransaction(db);
+            var writer = new OutboxEventWriter(new OutboxRepository(db));
+            var useCase = new SubmitOrderUseCase(
+                gateway, new RejectingOrderQueue(), new OrderReadModel(db),
+                new OrderProcessor(new OrderRepository(db), transaction, writer, NullLogger<OrderProcessor>.Instance),
+                transaction, writer, new PaymentAutomationOptions(), NullLogger<SubmitOrderUseCase>.Instance);
+            Assert.Equal(SubmitOrderOutcome.SystemBusy,
+                (await useCase.ExecuteAsync(productId, 1, key, null, CancellationToken.None)).Outcome);
+            correlationId = (await db.OutboxMessages.SingleAsync(m => m.EventType == "inventory.reserved" && m.AggregateId == key)).CorrelationId!.Value;
+        }
+
+        // Two repair workers each get a fresh DB context, as in a real retry.
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            await using var db = fx.CreateDbContext();
+            var transaction = new EfWriteTransaction(db);
+            var writer = new OutboxEventWriter(new OutboxRepository(db));
+            var useCase = new SubmitOrderUseCase(
+                gateway, new RejectingOrderQueue(), new OrderReadModel(db),
+                new OrderProcessor(new OrderRepository(db), transaction, writer, NullLogger<OrderProcessor>.Instance),
+                transaction, writer, new PaymentAutomationOptions(), NullLogger<SubmitOrderUseCase>.Instance);
+            Assert.True(await useCase.ReconcileOrphanReservationAsync(productId, 1, key, correlationId, CancellationToken.None));
+        }
+
+        await using (var db = fx.CreateDbContext())
+        {
+            Assert.Equal(0, await db.Orders.CountAsync());
+            Assert.Equal(10, await db.Products.Where(p => p.Id == productId).Select(p => p.AvailableStock).SingleAsync());
+            Assert.Equal(1, await db.OutboxMessages.CountAsync(m => m.EventType == "inventory.reserved" && m.AggregateId == key));
+            Assert.Equal(1, await db.OutboxMessages.CountAsync(m => m.EventType == "inventory.released" && m.AggregateId == key));
+
+            await using var publisher = await RabbitMqDomainEventPublisher.CreateAsync(
+                fx.RabbitMqConnectionString, NullLogger<RabbitMqDomainEventPublisher>.Instance);
+            var dispatcher = new OutboxDispatcherUseCase(new OutboxRepository(db), publisher, NullLogger<OutboxDispatcherUseCase>.Instance);
+            Assert.Equal(2, (await dispatcher.ExecuteBatchAsync(50)).Dispatched);
+        }
+
+        var delivered = await collector.WaitForAsync(2, TimeSpan.FromSeconds(15));
+        var types = delivered.Select(m => EventEnvelope.TryParse(Encoding.UTF8.GetString(m.Body))?.EventType).ToList();
+        Assert.Equal(1, types.Count(t => t == "inventory.reserved"));
+        Assert.Equal(1, types.Count(t => t == "inventory.released"));
+        Assert.False(await collector.HasReadyMessageAsync());
+    }
+
+    [Fact]
+    public async Task I_PreUpgradeRandomReleaseId_RepairDoesNotEmitDuplicate()
+    {
+        var productId = await fx.ResetDatabaseAsync(stock: 10);
+        const string key = "legacy-release-once";
+        var correlationId = Guid.NewGuid();
+        var collector = await EventCollector.CreateAsync(fx.RabbitMqConnectionString, "outbox-crash-i-" + Guid.NewGuid().ToString("N"));
+        await using var _ = collector;
+
+        await using (var db = fx.CreateDbContext())
+        {
+            var transaction = new EfWriteTransaction(db);
+            await transaction.BeginAsync();
+            await new OutboxEventWriter(new OutboxRepository(db)).EnqueueAsync(
+                new InventoryReleasedEvent(Guid.NewGuid().ToString("D"), correlationId, "pre-upgrade",
+                    DateTimeOffset.UtcNow, 0, productId, 1), OutboxEventWriter.OrderAggregate, key);
+            await transaction.CommitAsync();
+        }
+
+        await using (var db = fx.CreateDbContext())
+        {
+            var transaction = new EfWriteTransaction(db);
+            var writer = new OutboxEventWriter(new OutboxRepository(db));
+            var useCase = new SubmitOrderUseCase(
+                fx.CreateRedisGateway(), new RejectingOrderQueue(), new OrderReadModel(db),
+                new OrderProcessor(new OrderRepository(db), transaction, writer, NullLogger<OrderProcessor>.Instance),
+                transaction, writer, new PaymentAutomationOptions(), NullLogger<SubmitOrderUseCase>.Instance);
+            Assert.True(await useCase.ReconcileOrphanReservationAsync(productId, 1, key, correlationId, CancellationToken.None));
+            Assert.Equal(1, await db.OutboxMessages.CountAsync(m => m.EventType == "inventory.released" && m.AggregateId == key));
+
+            await using var publisher = await RabbitMqDomainEventPublisher.CreateAsync(
+                fx.RabbitMqConnectionString, NullLogger<RabbitMqDomainEventPublisher>.Instance);
+            var dispatcher = new OutboxDispatcherUseCase(new OutboxRepository(db), publisher, NullLogger<OutboxDispatcherUseCase>.Instance);
+            Assert.Equal(1, (await dispatcher.ExecuteBatchAsync(50)).Dispatched);
+        }
+
+        var delivered = await collector.WaitForAsync(1, TimeSpan.FromSeconds(15));
+        Assert.Equal("inventory.released", EventEnvelope.TryParse(Encoding.UTF8.GetString(delivered[0].Body))?.EventType);
+        Assert.False(await collector.HasReadyMessageAsync());
+    }
+
+    [Fact]
+    public async Task J_SameHttpKeyAfterQueueRejection_TwoAttemptsHaveTwoBalancedEventPairs()
+    {
+        var productId = await fx.ResetDatabaseAsync(stock: 10);
+        var gateway = fx.CreateRedisGateway();
+        await gateway.SetStockAsync(productId, 10);
+        const string key = "same-key-after-503";
+        var collector = await EventCollector.CreateAsync(fx.RabbitMqConnectionString, "outbox-crash-j-" + Guid.NewGuid().ToString("N"));
+        await using var _ = collector;
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            await using var db = fx.CreateDbContext();
+            var transaction = new EfWriteTransaction(db);
+            var writer = new OutboxEventWriter(new OutboxRepository(db));
+            var useCase = new SubmitOrderUseCase(
+                gateway, new RejectingOrderQueue(), new OrderReadModel(db),
+                new OrderProcessor(new OrderRepository(db), transaction, writer, NullLogger<OrderProcessor>.Instance),
+                transaction, writer, new PaymentAutomationOptions(), NullLogger<SubmitOrderUseCase>.Instance);
+            Assert.Equal(SubmitOrderOutcome.SystemBusy,
+                (await useCase.ExecuteAsync(productId, 1, key, null, CancellationToken.None)).Outcome);
+        }
+
+        Assert.Equal(10, await gateway.GetCachedStockAsync(productId));
+        await using (var db = fx.CreateDbContext())
+        {
+            Assert.Equal(0, await db.Orders.CountAsync());
+            Assert.Equal(10, await db.Products.Where(p => p.Id == productId).Select(p => p.AvailableStock).SingleAsync());
+            var events = await db.OutboxMessages.Where(m => m.AggregateId == key).ToListAsync();
+            Assert.Equal(2, events.Count(m => m.EventType == "inventory.reserved"));
+            Assert.Equal(2, events.Count(m => m.EventType == "inventory.released"));
+            Assert.Equal(2, events.Select(m => m.CorrelationId).Distinct().Count());
+            Assert.All(events.GroupBy(m => m.CorrelationId), group =>
+            {
+                Assert.Equal(2, group.Count());
+                Assert.Contains(group, m => m.EventType == "inventory.reserved");
+                Assert.Contains(group, m => m.EventType == "inventory.released");
+            });
+
+            await using var publisher = await RabbitMqDomainEventPublisher.CreateAsync(
+                fx.RabbitMqConnectionString, NullLogger<RabbitMqDomainEventPublisher>.Instance);
+            var dispatcher = new OutboxDispatcherUseCase(new OutboxRepository(db), publisher, NullLogger<OutboxDispatcherUseCase>.Instance);
+            Assert.Equal(4, (await dispatcher.ExecuteBatchAsync(50)).Dispatched);
+        }
+
+        var delivered = await collector.WaitForAsync(4, TimeSpan.FromSeconds(15));
+        Assert.Equal(2, delivered.Count(m => EventEnvelope.TryParse(Encoding.UTF8.GetString(m.Body))?.EventType == "inventory.reserved"));
+        Assert.Equal(2, delivered.Count(m => EventEnvelope.TryParse(Encoding.UTF8.GetString(m.Body))?.EventType == "inventory.released"));
+        Assert.False(await collector.HasReadyMessageAsync());
+    }
+
+    [Fact]
+    public async Task K_FirstReleaseSaveFails_TrackedFailedRowDoesNotPoisonRetry()
+    {
+        var productId = await fx.ResetDatabaseAsync(stock: 10);
+        var gateway = fx.CreateRedisGateway();
+        await gateway.SetStockAsync(productId, 10);
+        await using var db = fx.CreateDbContext();
+        var poisonFirstRelease = true;
+        var repository = new PoisoningOutboxRepository(new OutboxRepository(db), message =>
+        {
+            if (message.EventType != "inventory.released" || !poisonFirstRelease) return false;
+            poisonFirstRelease = false;
+            return true;
+        });
+        var transaction = new EfWriteTransaction(db);
+        var writer = new OutboxEventWriter(repository);
+        var useCase = new SubmitOrderUseCase(
+            gateway, new RejectingOrderQueue(), new OrderReadModel(db),
+            new OrderProcessor(new OrderRepository(db), transaction, writer, NullLogger<OrderProcessor>.Instance),
+            transaction, writer, new PaymentAutomationOptions(), NullLogger<SubmitOrderUseCase>.Instance);
+
+        Assert.Equal(SubmitOrderOutcome.SystemBusy,
+            (await useCase.ExecuteAsync(productId, 1, "poison-once-retry", null, CancellationToken.None)).Outcome);
+
+        await using var verify = fx.CreateDbContext();
+        Assert.Equal(0, await verify.Orders.CountAsync());
+        Assert.Equal(10, await gateway.GetCachedStockAsync(productId));
+        Assert.Equal(1, await verify.OutboxMessages.CountAsync(m => m.EventType == "inventory.reserved"));
+        Assert.Equal(1, await verify.OutboxMessages.CountAsync(m => m.EventType == "inventory.released"));
+        Assert.Equal(0, await verify.OutboxMessages.CountAsync(m => m.EventType == "inventory.compensation_failed"));
+        Assert.Equal(1, await CompensationLookupIndexCountAsync(verify));
+    }
+
+    [Fact]
+    public async Task L_UpgradeAddsCompensationLookupIndex_WithoutLosingLegacyOutboxRow()
+    {
+        await using var db = fx.CreateDbContext();
+        await db.Database.EnsureDeletedAsync();
+        await db.GetService<IMigrator>().MigrateAsync("20261020151133_AddInboxClaim");
+
+        const string key = "upgrade-legacy-release";
+        var correlationId = Guid.NewGuid();
+        await new OutboxEventWriter(new OutboxRepository(db)).EnqueueAsync(
+            new InventoryReleasedEvent(Guid.NewGuid().ToString("D"), correlationId, "pre-upgrade",
+                DateTimeOffset.UtcNow, 0, 1, 1), OutboxEventWriter.OrderAggregate, key);
+
+        Assert.Equal(0, await CompensationLookupIndexCountAsync(db));
+        await db.Database.MigrateAsync();
+
+        await using var verify = fx.CreateDbContext();
+        Assert.Equal(1, await CompensationLookupIndexCountAsync(verify));
+        Assert.True(await new OutboxRepository(verify).HasEventAsync(
+            "inventory.released", OutboxEventWriter.OrderAggregate, key, correlationId));
+        Assert.Equal(1, await verify.OutboxMessages.CountAsync(m => m.AggregateId == key));
+    }
+
+    private static Task<int> CompensationLookupIndexCountAsync(AppDbContext db) =>
+        db.Database.SqlQueryRaw<int>("""
+            SELECT COUNT(*)::integer AS "Value"
+            FROM pg_indexes
+            WHERE schemaname = current_schema()
+              AND tablename = 'OutboxMessages'
+              AND indexname = 'IX_OutboxMessages_CompensationLookup'
+            """).SingleAsync();
+
+    [Fact]
+    public async Task M_OtherUniqueConstraint_IsNotMisreportedAsMessageIdDuplicate()
+    {
+        await fx.ResetDatabaseAsync();
+        long existingId;
+        await using (var db = fx.CreateDbContext())
+        {
+            var row = await InsertOrderCreatedAsync(db, new OutboxRepository(db));
+            existingId = row.Id;
+        }
+
+        await using (var db = fx.CreateDbContext())
+        {
+            var repository = new OutboxRepository(db);
+            var conflictingPrimaryKey = new OutboxMessage
+            {
+                Id = existingId,
+                MessageId = Guid.NewGuid(),
+                EventType = "inventory.released",
+                Topic = Exchange,
+                Payload = "{}",
+                AggregateType = OutboxEventWriter.OrderAggregate,
+                AggregateId = "pk-collision"
+            };
+            var exception = await Assert.ThrowsAsync<DbUpdateException>(
+                () => repository.EnqueueAsync(conflictingPrimaryKey));
+            Assert.IsType<Npgsql.PostgresException>(exception.InnerException);
+            Assert.Equal(Microsoft.EntityFrameworkCore.EntityState.Detached, db.Entry(conflictingPrimaryKey).State);
+        }
+
+        await using var verify = fx.CreateDbContext();
+        Assert.Equal(1, await verify.OutboxMessages.CountAsync());
+    }
+
+    private sealed class RejectingOrderQueue : IOrderQueueProducer
+    {
+        public ValueTask<bool> EnqueueAsync(OrderMessage message, CancellationToken ct = default) => ValueTask.FromResult(false);
+    }
+
     // ------------------------------------------------------------- helpers ---
     private static async Task<OutboxMessage> InsertOrderCreatedAsync(AppDbContext db, IOutboxRepository outbox)
     {
@@ -522,7 +778,7 @@ public sealed class OutboxCrashWindowTests(OutboxCrashWindowFixture fx)
         {
             byte[] bytes => Encoding.UTF8.GetString(bytes),
             string s => s,
-            _ => raw.ToString()
+            _ => raw?.ToString()
         };
     }
 
@@ -531,11 +787,15 @@ public sealed class OutboxCrashWindowTests(OutboxCrashWindowFixture fx)
     /// type column is varchar(100)). The failure is real: it comes from
     /// PostgreSQL, not from a stubbed repository.
     /// </summary>
-    private sealed class PoisoningOutboxRepository(IOutboxRepository inner) : IOutboxRepository
+    private sealed class PoisoningOutboxRepository(IOutboxRepository inner, Func<OutboxMessage, bool>? shouldPoison = null) : IOutboxRepository
     {
+        public Task<bool> HasEventAsync(string eventType, string aggregateType, string aggregateId, Guid correlationId, CancellationToken ct = default) =>
+            inner.HasEventAsync(eventType, aggregateType, aggregateId, correlationId, ct);
+
         public Task EnqueueAsync(OutboxMessage message, CancellationToken ct = default)
         {
-            message.EventType = new string('x', 200);
+            if (shouldPoison?.Invoke(message) ?? true)
+                message.EventType = new string('x', 200);
             return inner.EnqueueAsync(message, ct);
         }
 
@@ -618,6 +878,9 @@ public sealed class OutboxCrashWindowTests(OutboxCrashWindowFixture fx)
 
             return collected;
         }
+
+        public async Task<bool> HasReadyMessageAsync() =>
+            await _channel.BasicGetAsync(_queueName, autoAck: true) is not null;
 
         public async ValueTask DisposeAsync()
         {

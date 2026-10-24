@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using FlashSale.Application.Automation;
 using FlashSale.Application.Inventory;
 using FlashSale.Application.Messaging;
@@ -5,6 +7,7 @@ using FlashSale.Application.Outbox;
 using FlashSale.Application.Persistence;
 using FlashSale.Domain;
 using FlashSale.Domain.Events;
+using FlashSale.Domain.Outbox;
 using Microsoft.Extensions.Logging;
 
 namespace FlashSale.Application.Orders;
@@ -195,10 +198,15 @@ public sealed class SubmitOrderUseCase(
         {
             try
             {
+                // Pre-upgrade releases used random IDs. Check committed rows,
+                // including published/dead-lettered rows, before writing.
+                if (await outboxWriter.HasEventAsync("inventory.released", OutboxEventWriter.OrderAggregate, idempotencyKey, correlationId, ct))
+                    return CompensateOutcome.Completed;
+
                 await transaction.BeginAsync(ct);
                 await outboxWriter.EnqueueAsync(
                     new InventoryReleasedEvent(
-                        Guid.NewGuid().ToString("D"), correlationId, "order-api",
+                        CompensationEventId(idempotencyKey, correlationId), correlationId, "order-api",
                         DateTimeOffset.UtcNow, 0, productId, quantity),
                     OutboxEventWriter.OrderAggregate,
                     idempotencyKey,
@@ -208,20 +216,44 @@ public sealed class SubmitOrderUseCase(
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync(ct);
+                Exception failure = ex;
+                try
+                {
+                    await transaction.RollbackAsync(ct);
+                }
+                catch (Exception rollbackEx)
+                {
+                    failure = new AggregateException(ex, rollbackEx);
+                }
+
+                if (ex is DuplicateOutboxMessageException)
+                {
+                    try
+                    {
+                        // A 23505 alone is insufficient evidence: verify the
+                        // matching release committed, using a fresh DB context.
+                        if (await outboxWriter.HasEventAsync("inventory.released", OutboxEventWriter.OrderAggregate, idempotencyKey, correlationId, ct))
+                            return CompensateOutcome.Completed;
+                    }
+                    catch (Exception verifyEx)
+                    {
+                        failure = new AggregateException(failure, verifyEx);
+                    }
+                }
+
                 if (attempt == maxAttempts)
                 {
                     // Record a durable failure state so a reconciler can repair the
                     // orphan reservation later. The release row is NOT committed here,
                     // so the event stream stays truthful until the repair runs.
                     await RecordCompensationFailedAsync(productId, quantity, idempotencyKey, correlationId, ct);
-                    logger.LogCritical(ex,
+                    logger.LogCritical(failure,
                         "CRITICAL: inventory.released compensation FAILED after {Attempts} attempts for key {Key}, Product {ProductId}, Quantity {Quantity}. Reconciliation alert triggered.",
                         maxAttempts, idempotencyKey, productId, quantity);
                     return CompensateOutcome.Failed;
                 }
 
-                logger.LogWarning(ex,
+                logger.LogWarning(failure,
                     "inventory.released compensation attempt {Attempt}/{Max} failed for {Key}. Retrying...",
                     attempt, maxAttempts, idempotencyKey);
             }
@@ -232,9 +264,9 @@ public sealed class SubmitOrderUseCase(
 
     /// <summary>
     /// Write an <c>inventory.compensation_failed</c> outbox event inside its own
-    /// transaction. This is the durable marker that <see cref="ReconcileOrphanReservationAsync"/>
-    /// uses to recognise an orphan reservation and repair it by re-emitting
-    /// <c>inventory.released</c> exactly once.
+    /// transaction. An operations process can locate the attempt from this
+    /// marker and invoke <see cref="ReconcileOrphanReservationAsync"/> with the
+    /// persisted correlation ID. No scheduled repair worker is wired here.
     /// </summary>
     private async Task RecordCompensationFailedAsync(
         int productId,
@@ -266,6 +298,8 @@ public sealed class SubmitOrderUseCase(
     /// <summary>
     /// Idempotent reconciler repair for orphan reservations where Redis stock was
     /// released but the compensation outbox write failed during transient DB outage.
+    /// The release event has a stable ID for this reservation attempt; PostgreSQL's outbox
+    /// unique constraint enforces one release even across competing repair workers.
     /// </summary>
     public async Task<bool> ReconcileOrphanReservationAsync(
         int productId,
@@ -274,30 +308,15 @@ public sealed class SubmitOrderUseCase(
         Guid correlationId,
         CancellationToken ct)
     {
-        // Idempotency: never re-emit the same release event more than once.
-        if (await CompensationFailureRecordedAsync(idempotencyKey, ct))
-        {
-            // A durable compensation-failed marker exists: the orphan is known and
-            // the reconciler will handle it. Treat as already repaired.
-            return true;
-        }
-
         return (await CompensateReservationAsync(productId, quantity, idempotencyKey, correlationId, ct)) == CompensateOutcome.Completed;
     }
 
-    /// <summary>
-    /// Whether a durable <c>inventory.compensation_failed</c> outbox event already
-    /// exists for this idempotency key. Used to avoid double-compensation.
-    /// </summary>
-    private async Task<bool> CompensationFailureRecordedAsync(string idempotencyKey, CancellationToken ct)
+    private static string CompensationEventId(string idempotencyKey, Guid correlationId)
     {
-        // This Application-level port has no direct DB access; the durable marker is
-        // the outbox row itself, which is exactly what the reconciler inspects.
-        // The Infrastructure adapter (OutboxRepository) implements the port.
-        // Here we return false because the port abstraction does not expose a
-        // read/write side for the marker; the marker is emitted by
-        // <see cref="RecordCompensationFailedAsync"/> and consumed by the same
-        // outbox row stream. Kept as a guard for future DB-backed lookup.
-        return false;
+        // A 503 permits the same HTTP key to reserve again. CorrelationId is
+        // unique to each reservation attempt and persisted on its outbox row.
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(
+            "inventory.released:" + idempotencyKey + ":" + correlationId.ToString("D")));
+        return new Guid(hash.AsSpan(0, 16)).ToString("D");
     }
 }

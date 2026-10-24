@@ -9,6 +9,10 @@ public interface IOutboxRepository
 {
     Task EnqueueAsync(OutboxMessage message, CancellationToken ct = default);
 
+    /// <summary>Includes pending, published and dead-lettered rows so a repair
+    /// never creates a second business event when an older row still exists.</summary>
+    Task<bool> HasEventAsync(string eventType, string aggregateType, string aggregateId, Guid correlationId, CancellationToken ct = default);
+
     /// <summary>
     /// Rows eligible RIGHT NOW: not processed, not dead-lettered, and past
     /// their backoff deadline (NextAttemptAt is null or already due).
