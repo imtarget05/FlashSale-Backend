@@ -316,6 +316,25 @@ def mut_ob_deploy_uses_ddl_credential(docs):
     return docs
 
 
+def mut_ob_deploy_missing_broker_key(docs):
+    """A registered consumer without its broker credential cannot start."""
+    i = find_doc(docs, "Deployment", "opsbridge-api")
+    if "key: rabbitmq-connection" not in docs[i]:
+        raise KeyError("Deployment doc has no rabbitmq-connection key")
+    docs[i] = docs[i].replace("key: rabbitmq-connection", "key: rabbitmq-connectoin", 1)
+    return docs
+
+
+def mut_ob_deploy_messaging_disabled(docs):
+    """The broker credential alone does not start the hosted services."""
+    i = find_doc(docs, "Deployment", "opsbridge-api")
+    anchor = 'name: OpsBridge__Messaging__Enabled\n          value: "true"'
+    if anchor not in docs[i]:
+        raise KeyError("Deployment doc has no messaging flag")
+    docs[i] = docs[i].replace(anchor, 'name: OpsBridge__Messaging__Enabled\n          value: "false"', 1)
+    return docs
+
+
 def mut_ob_deploy_holds_ddl_key(docs):
     """The DDL capability must be unreachable from the runtime workload.
 
@@ -687,6 +706,8 @@ OPSBRIDGE_MUTATIONS = [
     ("ob_job_needs_redis", "depends on redis-connection", mut_ob_job_needs_redis),
     ("ob_job_uses_runtime_credential", "depends on pg-connection", mut_ob_job_uses_runtime_credential),
     ("ob_deploy_uses_ddl_credential", "references the DDL Secret", mut_ob_deploy_uses_ddl_credential),
+    ("ob_deploy_missing_broker_key", "missing rabbitmq-connection", mut_ob_deploy_missing_broker_key),
+    ("ob_deploy_messaging_disabled", "must enable OpsBridge messaging", mut_ob_deploy_messaging_disabled),
     ("ob_deploy_holds_ddl_key", "references the DDL-capable secret key pg-migration-connection", mut_ob_deploy_holds_ddl_key),
     ("ob_job_holds_runtime_key", "references the runtime DML secret key pg-connection", mut_ob_job_holds_runtime_key),
     ("ob_job_image_differs", "must be the same artefact", mut_ob_job_image_differs),

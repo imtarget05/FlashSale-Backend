@@ -453,12 +453,14 @@ if [ -z "$OB_RENDER_ERROR" ] && [ -z "$OB_RENDER_PROBLEM" ]; then
     # key is forbidden in the migration Job.
     printf '%s' "$OB_DEPLOY" | grep -Eq "key: ['\"]?pg-migration-connection['\"]?\$" \
       && err "Deployment/opsbridge-api references the DDL-capable secret key pg-migration-connection; the runtime identity must hold DML rights only (ADR-018)"
-    # OpsBridge is a bounded context with no broker: the API must not be wired
-    # to a queue or a cache it does not use.
-    for forbidden in rabbitmq-connection redis-connection; do
-      printf '%s' "$OB_DEPLOY" | grep -q "key: ${forbidden}$" \
-        && err "Deployment/opsbridge-api depends on ${forbidden}; OpsBridge has no broker or cache"
-    done
+    # ADR-024: the runtime publisher and consumer need RabbitMQ. The DDL Job
+    # still does not, and Redis remains absent from this bounded context.
+    printf '%s' "$OB_DEPLOY" | grep -q "key: rabbitmq-connection$" \
+      || err "Deployment/opsbridge-api is missing rabbitmq-connection"
+    printf '%s' "$OB_DEPLOY" | grep -A1 "name: OpsBridge__Messaging__Enabled" | grep -q 'value: "true"' \
+      || err "Deployment/opsbridge-api must enable OpsBridge messaging"
+    printf '%s' "$OB_DEPLOY" | grep -q "key: redis-connection$" \
+      && err "Deployment/opsbridge-api depends on redis-connection; OpsBridge has no cache"
     # 9c. Hardening, identical to the rest of the tree (ADR-007).
     printf '%s' "$OB_DEPLOY" | grep -q "runAsNonRoot: true" \
       || err "Deployment/opsbridge-api does not set runAsNonRoot"
