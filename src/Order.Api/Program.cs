@@ -246,6 +246,7 @@ builder.Services.AddOrderQueue(builder.Configuration, builder.Environment.Enviro
 
 builder.Services.AddScoped<OrderProcessor>();
 builder.Services.AddScoped<SubmitOrderUseCase>();
+builder.Services.AddScoped<OutboxRecoveryService>();
 builder.Services.AddScoped<StockResyncUseCase>();
 builder.Services.AddHostedService<OrderProcessorHost>();
 
@@ -853,6 +854,97 @@ app.MapPost("/api/outbox/requeue", async (
 })
 .RequireAuthorization(AuthPolicies.StaffOrAdmin);
 
+// Agent Hub may recover exactly one dead-lettered event after an approved intent.
+// The HMAC key is dedicated to this command surface and has no source default.
+app.MapGet("/internal/agent/outbox/stuck", async (
+    HttpContext http,
+    IConfiguration config,
+    IOutboxRepository outboxRepo,
+    CancellationToken ct) =>
+{
+    var key = config["AgentRecovery:HmacKey"];
+    if (string.IsNullOrWhiteSpace(key) || Encoding.UTF8.GetByteCount(key) < 32)
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    if (!await AgentRecoveryAuth.VerifyAsync(http.Request, key, ct))
+        return Results.Unauthorized();
+    var stuck = await outboxRepo.GetStuckAsync(50, ct);
+    return Results.Ok(new
+    {
+        count = stuck.Count,
+        deadLettered = stuck.Count(m => m.DeadLetteredAt is not null),
+        backingOff = stuck.Count(m => m.DeadLetteredAt is null),
+        messages = stuck.Select(m => new { m.MessageId, m.DeadLetteredAt, m.RetryCount })
+    });
+});
+
+app.MapGet("/internal/agent/outbox/pending", async (
+    HttpContext http,
+    IConfiguration config,
+    IOutboxRepository outboxRepo,
+    CancellationToken ct) =>
+{
+    var key = config["AgentRecovery:HmacKey"];
+    if (string.IsNullOrWhiteSpace(key) || Encoding.UTF8.GetByteCount(key) < 32)
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    if (!await AgentRecoveryAuth.VerifyAsync(http.Request, key, ct))
+        return Results.Unauthorized();
+    var pending = await outboxRepo.GetUnprocessedAsync(50, ct);
+    return Results.Ok(new { count = pending.Count });
+});
+
+app.MapGet("/internal/agent/outbox/{messageId:guid}", async (
+    Guid messageId,
+    HttpContext http,
+    IConfiguration config,
+    AppDbContext db,
+    CancellationToken ct) =>
+{
+    var key = config["AgentRecovery:HmacKey"];
+    if (string.IsNullOrWhiteSpace(key) || Encoding.UTF8.GetByteCount(key) < 32)
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    if (!await AgentRecoveryAuth.VerifyAsync(http.Request, key, ct))
+        return Results.Unauthorized();
+    var row = await db.OutboxMessages.AsNoTracking()
+        .Where(x => x.MessageId == messageId)
+        .Select(x => new { x.MessageId, x.DeadLetteredAt, x.ProcessedAt, x.RetryCount })
+        .SingleOrDefaultAsync(ct);
+    return row is null ? Results.NotFound() : Results.Ok(row);
+});
+
+app.MapPost("/internal/agent/outbox/{messageId:guid}/requeue", async (
+    Guid messageId,
+    HttpContext http,
+    IConfiguration config,
+    OutboxRecoveryService recovery,
+    CancellationToken ct) =>
+{
+    var key = config["AgentRecovery:HmacKey"];
+    if (string.IsNullOrWhiteSpace(key) || Encoding.UTF8.GetByteCount(key) < 32)
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    if (!await AgentRecoveryAuth.VerifyAsync(http.Request, key, ct))
+        return Results.Unauthorized();
+
+    AgentRequeueRequest? command;
+    try { command = await http.Request.ReadFromJsonAsync<AgentRequeueRequest>(cancellationToken: ct); }
+    catch (System.Text.Json.JsonException) { return Results.BadRequest(new { error = "invalid_json" }); }
+    if (command is null || string.IsNullOrWhiteSpace(command.IntentId)
+        || command.IntentHash.Length != 64 || !command.IntentHash.All(Uri.IsHexDigit)
+        || string.IsNullOrWhiteSpace(command.ApprovedBy)
+        || string.IsNullOrWhiteSpace(command.IdempotencyKey)
+        || command.IdempotencyKey.Length > 128
+        || command.ExpectedDeadLetteredAt == default)
+        return Results.BadRequest(new { error = "invalid_agent_command" });
+
+    var result = await recovery.RequeueOneAsync(messageId, command.ExpectedDeadLetteredAt,
+        command.IntentId, command.IntentHash, command.IdempotencyKey, command.ApprovedBy, ct);
+    return result.Status switch
+    {
+        "requeued" or "already_applied" => Results.Ok(result),
+        "not_found" => Results.NotFound(result),
+        _ => Results.Conflict(result),
+    };
+});
+
 app.MapPost("/api/inbox/consume", async (
     InboxConsumeApiRequest request,
     IInboxRepository inboxRepo,
@@ -917,6 +1009,12 @@ return 0;
 public record OrderRequest(int ProductId, int Quantity);
 public record SagaCheckoutApiRequest(int ProductId, int Quantity, decimal Amount, string? IdempotencyKey = null);
 public record OutboxEnqueueApiRequest(Guid? MessageId, string? EventType, string? Topic, string? Payload);
+public record AgentRequeueRequest(
+    string IntentId,
+    string IntentHash,
+    string IdempotencyKey,
+    string ApprovedBy,
+    DateTimeOffset ExpectedDeadLetteredAt);
 public record InboxConsumeApiRequest(Guid MessageId, string ConsumerName);
 
 /// <summary>Body for <c>POST /api/orders/{key}/pay</c> (spec §4 simulation).</summary>

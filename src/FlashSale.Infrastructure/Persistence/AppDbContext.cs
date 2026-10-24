@@ -22,6 +22,7 @@ public class AppDbContext : DbContext
     public DbSet<DailyReport> DailyReports { get; set; } = null!;
     public DbSet<CheckoutSagaState> CheckoutSagas { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
+    public DbSet<OutboxRecoveryCommand> OutboxRecoveryCommands { get; set; } = null!;
     public DbSet<InboxMessage> InboxMessages { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -138,6 +139,16 @@ public class AppDbContext : DbContext
             // Existing rows predate the envelope: they are version 0 ("unknown
             // shape"), new rows are written with the current version.
             entity.Property(o => o.SchemaVersion).HasDefaultValue(1);
+        });
+
+        modelBuilder.Entity<OutboxRecoveryCommand>(entity =>
+        {
+            entity.HasKey(x => x.IdempotencyKey);
+            entity.Property(x => x.IdempotencyKey).HasMaxLength(128);
+            entity.Property(x => x.IntentId).HasMaxLength(100);
+            entity.Property(x => x.IntentHash).HasMaxLength(64);
+            entity.Property(x => x.ApprovedBy).HasMaxLength(100);
+            entity.HasIndex(x => x.MessageId);
         });
 
         // Deduplication Inbox (Phase 10, ADR-019)

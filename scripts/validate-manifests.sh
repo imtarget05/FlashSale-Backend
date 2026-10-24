@@ -219,7 +219,8 @@ if [ -n "$API_DOC" ]; then
   for kv in "ConnectionStrings__DefaultConnection:pg-connection" \
             "ConnectionStrings__Redis:redis-connection" \
             "ConnectionStrings__RabbitMQ:rabbitmq-connection" \
-            "Auth__Jwt__SigningKey:jwt-signing-key"; do
+            "Auth__Jwt__SigningKey:jwt-signing-key" \
+            "AgentRecovery__HmacKey:agent-recovery-hmac-key"; do
     env_name=${kv%%:*}; secret_key=${kv##*:}
     printf '%s' "$API_DOC" | grep -q "name: ${env_name}$" \
       || err "order-api is missing ${env_name} (the app reads ConnectionStrings; without it the API silently falls back to localhost)"

@@ -375,6 +375,43 @@ namespace FlashSale.Infrastructure.Persistence.Migrations
                     b.ToTable("OutboxMessages");
                 });
 
+            modelBuilder.Entity("FlashSale.Domain.Outbox.OutboxRecoveryCommand", b =>
+                {
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ApprovedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("ExecutedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpectedDeadLetteredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IntentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("IntentId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("IdempotencyKey");
+
+                    b.HasIndex("MessageId");
+
+                    b.ToTable("OutboxRecoveryCommands");
+                });
+
             modelBuilder.Entity("FlashSale.Domain.Reporting.DailyReport", b =>
                 {
                     b.Property<int>("Id")

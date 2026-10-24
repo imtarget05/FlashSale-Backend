@@ -75,6 +75,11 @@ spec:
                 secretKeyRef:
                   name: flashsale-secrets
                   key: jwt-signing-key
+            - name: AgentRecovery__HmacKey
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: agent-recovery-hmac-key
             # FIX (7C readiness): the API never received a RabbitMQ connection
             # string, so MessagingProviderSelector.Resolve() fell through both
             # connection-string checks and silently returned InMemory (ADR-005).
