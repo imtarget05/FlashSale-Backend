@@ -15,6 +15,9 @@ namespace FlashSale.Application.Outbox;
 /// </summary>
 public sealed class OutboxEventWriter(IOutboxRepository outboxRepository)
 {
+    public Task<bool> HasEventAsync(string eventType, string aggregateType, string aggregateId, Guid correlationId, CancellationToken ct = default) =>
+        outboxRepository.HasEventAsync(eventType, aggregateType, aggregateId, correlationId, ct);
+
     /// <summary>Exchange the dispatcher publishes to (topic exchange).</summary>
     public const string EventExchange = "automation.events";
 

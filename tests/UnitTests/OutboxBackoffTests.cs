@@ -178,6 +178,10 @@ public class OutboxDispatcherTests
 
         public Task EnqueueAsync(OutboxMessage message, CancellationToken ct = default) => Task.CompletedTask;
 
+        public Task<bool> HasEventAsync(string eventType, string aggregateType, string aggregateId, Guid correlationId, CancellationToken ct = default) =>
+            Task.FromResult(messages.Any(m => m.EventType == eventType && m.AggregateType == aggregateType && m.AggregateId == aggregateId
+                                               && m.CorrelationId == correlationId));
+
         public Task<IReadOnlyList<OutboxMessage>> GetUnprocessedAsync(int batchSize = 50, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<OutboxMessage>>(messages);
 

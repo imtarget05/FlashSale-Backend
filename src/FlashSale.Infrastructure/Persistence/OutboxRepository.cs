@@ -1,6 +1,7 @@
 using FlashSale.Application.Outbox;
 using FlashSale.Domain.Outbox;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Npgsql;
 
 namespace FlashSale.Infrastructure.Persistence;
@@ -10,6 +11,19 @@ namespace FlashSale.Infrastructure.Persistence;
 /// </summary>
 public sealed class OutboxRepository(AppDbContext db) : IOutboxRepository
 {
+    public async Task<bool> HasEventAsync(string eventType, string aggregateType, string aggregateId, Guid correlationId, CancellationToken ct = default)
+    {
+        // A failed SaveChanges leaves its Added entity in the caller's context.
+        // Read committed evidence through a fresh context, including after a
+        // rollback or unique-conflict race.
+        var options = db.GetService<IDbContextOptions>() as DbContextOptions<AppDbContext>
+            ?? throw new InvalidOperationException("Cannot create a committed outbox verification context.");
+        await using var committed = new AppDbContext(options);
+        return await committed.OutboxMessages.AsNoTracking().AnyAsync(
+            m => m.EventType == eventType && m.AggregateType == aggregateType && m.AggregateId == aggregateId
+                 && m.CorrelationId == correlationId, ct);
+    }
+
     /// <summary>
     /// Writes the outbox row inside the caller's transaction (ADR-019).
     /// <see cref="DbContext.SaveChangesAsync(CancellationToken)"/> enlists in
@@ -30,19 +44,27 @@ public sealed class OutboxRepository(AppDbContext db) : IOutboxRepository
         {
             await db.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (Exception ex)
         {
-            throw new DuplicateOutboxMessageException(message.MessageId);
+            // Never let a failed Added row contaminate a retry or the durable
+            // compensation-failed marker in this same scoped DbContext.
+            db.Entry(message).State = EntityState.Detached;
+            if (ex is DbUpdateException update && IsMessageIdConflict(update))
+                throw new DuplicateOutboxMessageException(message.MessageId);
+            throw;
         }
     }
 
     /// <summary>
-    /// True when the failure is PostgreSQL's unique violation (<c>23505</c>).
-    /// Only that one is translated: every other database error is a genuine
-    /// fault and must keep its stack trace.
+    /// True only for the PostgreSQL unique index on MessageId. A primary-key
+    /// collision or another 23505 remains a database failure.
     /// </summary>
-    private static bool IsUniqueViolation(DbUpdateException ex) =>
-        ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
+    private static bool IsMessageIdConflict(DbUpdateException ex) =>
+        ex.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "IX_OutboxMessages_MessageId"
+        };
 
     public async Task<IReadOnlyList<OutboxMessage>> GetUnprocessedAsync(int batchSize = 50, CancellationToken ct = default)
     {

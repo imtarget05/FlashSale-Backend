@@ -369,6 +369,9 @@ namespace FlashSale.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProcessedAt");
 
+                    b.HasIndex("EventType", "AggregateType", "AggregateId", "CorrelationId")
+                        .HasDatabaseName("IX_OutboxMessages_CompensationLookup");
+
                     b.ToTable("OutboxMessages");
                 });
 

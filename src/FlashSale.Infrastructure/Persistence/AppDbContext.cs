@@ -124,6 +124,10 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(o => o.Id);
             entity.HasIndex(o => o.MessageId).IsUnique();
+            // Failed reservation repair probes by event, aggregate and attempt.
+            // Keep this non-unique: pre-upgrade rows are de-duplicated in code.
+            entity.HasIndex(o => new { o.EventType, o.AggregateType, o.AggregateId, o.CorrelationId })
+                .HasDatabaseName("IX_OutboxMessages_CompensationLookup");
             entity.HasIndex(o => o.ProcessedAt);
             entity.HasIndex(o => o.DeadLetteredAt);
             entity.Property(o => o.EventType).HasMaxLength(100);

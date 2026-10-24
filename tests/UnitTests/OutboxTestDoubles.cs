@@ -53,6 +53,8 @@ internal sealed class FakeOutboxRepository : IOutboxRepository
     /// <summary>Optional predicate to trigger conditional enqueue failures.</summary>
     public Func<OutboxMessage, Exception?>? EnqueueFailureFactory { get; set; }
 
+    public Func<Exception?>? LookupFailureFactory { get; set; }
+
     public Task EnqueueAsync(OutboxMessage message, CancellationToken ct = default)
     {
         var ex = EnqueueFailureFactory?.Invoke(message) ?? EnqueueFailure;
@@ -61,8 +63,19 @@ internal sealed class FakeOutboxRepository : IOutboxRepository
             return Task.FromException(ex);
         }
 
+        if (Enqueued.Any(existing => existing.MessageId == message.MessageId))
+            return Task.FromException(new DuplicateOutboxMessageException(message.MessageId));
+
         Enqueued.Add(message);
         return Task.CompletedTask;
+    }
+
+    public Task<bool> HasEventAsync(string eventType, string aggregateType, string aggregateId, Guid correlationId, CancellationToken ct = default)
+    {
+        var failure = LookupFailureFactory?.Invoke();
+        if (failure is not null) return Task.FromException<bool>(failure);
+        return Task.FromResult(Enqueued.Any(m => m.EventType == eventType && m.AggregateType == aggregateType && m.AggregateId == aggregateId
+                                               && m.CorrelationId == correlationId));
     }
 
     public Task<IReadOnlyList<OutboxMessage>> GetUnprocessedAsync(int batchSize = 50, CancellationToken ct = default)
