@@ -5,35 +5,69 @@ metadata:
   namespace: flashsale
 spec:
   parentRefs:
-    - name: portfolio-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: portfolio-gateway
       namespace: platform-gateway
       sectionName: https
   rules:
-    - matches:
+    - backendRefs:
+        - name: order-api
+          port: 80
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /health
+      matches:
+        - path:
+            type: PathPrefix
+            value: /flashsale/health
+    - backendRefs:
+        - name: order-api
+          port: 80
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /api
+      matches:
+        - path:
+            type: PathPrefix
+            value: /flashsale/api
+    - backendRefs:
+        - name: order-api
+          port: 80
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /api
+      matches:
+        - path:
+            type: PathPrefix
+            value: /opsbridge/api
+    - backendRefs:
+        - name: order-api
+          port: 80
+      matches:
         - path:
             type: PathPrefix
             value: /api/orders
-      backendRefs:
+    - backendRefs:
         - name: order-api
           port: 80
-    - matches:
+      matches:
         - path:
             type: PathPrefix
             value: /api/auth
-      backendRefs:
-        - name: order-api
+    - backendRefs:
+        - name: payment-service
           port: 80
-    - matches:
+      matches:
         - path:
             type: PathPrefix
             value: /api/payments
-      backendRefs:
-        - name: payment-service
-          port: 80
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - name: opsbridge-web
-          port: 80
