@@ -11,7 +11,7 @@ replicas:
   - name: order-api
     count: 2
   - name: order-worker
-    count: 2
+    count: 1
 
 images:
   - name: order-api
