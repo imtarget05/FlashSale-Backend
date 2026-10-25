@@ -24,7 +24,7 @@ public sealed class OutboxRecoveryService(AppDbContext db)
         {
             return previous.MessageId == messageId && previous.IntentId == intentId
                    && previous.IntentHash == intentHash && previous.ApprovedBy == approvedBy
-                   && IsMatchingTimestamp(previous.ExpectedDeadLetteredAt, expectedDeadLetteredAt)
+                   && TimestampsMatch(previous.ExpectedDeadLetteredAt, expectedDeadLetteredAt)
                 ? new OutboxRecoveryResult("already_applied", messageId, idempotencyKey)
                 : new OutboxRecoveryResult("idempotency_conflict", messageId, idempotencyKey);
         }
@@ -54,7 +54,7 @@ public sealed class OutboxRecoveryService(AppDbContext db)
             if (concurrent is not null)
                 return concurrent.MessageId == messageId && concurrent.IntentId == intentId
                        && concurrent.IntentHash == intentHash && concurrent.ApprovedBy == approvedBy
-                       && IsMatchingTimestamp(concurrent.ExpectedDeadLetteredAt, expectedDeadLetteredAt)
+                       && TimestampsMatch(concurrent.ExpectedDeadLetteredAt, expectedDeadLetteredAt)
                     ? new OutboxRecoveryResult("already_applied", messageId, idempotencyKey)
                     : new OutboxRecoveryResult("idempotency_conflict", messageId, idempotencyKey);
             var exists = await db.OutboxMessages.AsNoTracking().AnyAsync(x => x.MessageId == messageId, ct);
@@ -76,6 +76,6 @@ public sealed class OutboxRecoveryService(AppDbContext db)
         return new OutboxRecoveryResult("requeued", messageId, idempotencyKey);
     }
 
-    private static bool IsMatchingTimestamp(DateTimeOffset a, DateTimeOffset b) =>
-        Math.Abs((a - b).TotalMilliseconds) < 1;
+    private static bool TimestampsMatch(DateTimeOffset a, DateTimeOffset b) =>
+        (a - b).Duration() < TimeSpan.FromMilliseconds(1);
 }
