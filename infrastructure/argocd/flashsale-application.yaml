@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: flashsale-production
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: flashsale-production
+    app.kubernetes.io/part-of: flashsale-system
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: portfolio
+  source:
+    repoURL: "https://github.com/imtarget05/FlashSale-Backend.git"
+    targetRevision: main
+    path: infrastructure/kubernetes/overlays/azure-cloud
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: flashsale
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+  ignoreDifferences:
+    - group: batch
+      kind: Job
+      jsonPointers:
+        - /spec/selector
+        - /spec/template/metadata/labels/controller-uid
+        - /spec/template/metadata/labels/batch.kubernetes.io~1controller-uid
