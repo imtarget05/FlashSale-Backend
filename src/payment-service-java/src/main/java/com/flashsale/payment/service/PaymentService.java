@@ -1,11 +1,16 @@
 package com.flashsale.payment.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flashsale.payment.config.RabbitConfig;
 import com.flashsale.payment.dto.PaymentRecordDto;
 import com.flashsale.payment.dto.ProcessPaymentRequest;
 import com.flashsale.payment.entity.Payment;
 import com.flashsale.payment.exception.PaymentNotFoundException;
 import com.flashsale.payment.exception.IdempotencyConflictException;
 import com.flashsale.payment.exception.PaymentTransientException;
+import com.flashsale.payment.outbox.PaymentOutbox;
+import com.flashsale.payment.outbox.PaymentOutboxRepository;
 import com.flashsale.payment.repository.PaymentRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -30,10 +35,15 @@ public class PaymentService {
 
 	private final PaymentRepository paymentRepository;
 	private final StringRedisTemplate redisTemplate;
+	private final PaymentOutboxRepository outboxRepository;
+	private final ObjectMapper objectMapper;
 
-	public PaymentService(PaymentRepository paymentRepository, StringRedisTemplate redisTemplate) {
+	public PaymentService(PaymentRepository paymentRepository, StringRedisTemplate redisTemplate,
+		PaymentOutboxRepository outboxRepository, ObjectMapper objectMapper) {
 		this.paymentRepository = paymentRepository;
 		this.redisTemplate = redisTemplate;
+		this.outboxRepository = outboxRepository;
+		this.objectMapper = objectMapper;
 	}
 
 	@Transactional(noRollbackFor = PaymentTransientException.class)
@@ -81,6 +91,18 @@ public class PaymentService {
 			return replay(request, winner);
 		}
 
+		PaymentRecordDto result = toDto(record);
+		String routingKey = result.success()
+			? RabbitConfig.ROUTING_KEY_PAYMENT_COMPLETED
+			: RabbitConfig.ROUTING_KEY_PAYMENT_FAILED;
+		try {
+			outboxRepository.save(new PaymentOutbox(
+				record.getIdempotencyKey(), routingKey, objectMapper.writeValueAsString(result),
+				OffsetDateTime.now()));
+		} catch (JsonProcessingException ex) {
+			throw new IllegalStateException("Could not serialize payment outbox event", ex);
+		}
+
 		if ("TimedOut".equals(record.getStatus())) {
 			log.warn("[payment-service] transient gateway timeout recorded idempotencyKey={} paymentId={}",
 				record.getIdempotencyKey(), record.getPaymentId());
@@ -89,7 +111,7 @@ public class PaymentService {
 
 		log.info("[payment-service] processPayment succeeded idempotencyKey={} status={} transactionId={}",
 			record.getIdempotencyKey(), record.getStatus(), record.getTransactionId());
-		return toDto(record);
+		return result;
 	}
 
 	private PaymentRecordDto replay(ProcessPaymentRequest request, Payment stored) {

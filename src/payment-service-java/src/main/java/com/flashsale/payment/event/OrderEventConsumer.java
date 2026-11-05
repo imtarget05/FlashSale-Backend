@@ -3,7 +3,6 @@ package com.flashsale.payment.event;
 import com.flashsale.payment.config.RabbitConfig;
 import com.flashsale.payment.dto.PaymentRecordDto;
 import com.flashsale.payment.dto.ProcessPaymentRequest;
-import com.flashsale.payment.repository.PaymentRepository;
 import com.flashsale.payment.service.PaymentService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
@@ -24,17 +23,10 @@ public class OrderEventConsumer {
 	private static final Logger log = LoggerFactory.getLogger(OrderEventConsumer.class);
 
 	private final PaymentService paymentService;
-	private final PaymentEventPublisher paymentEventPublisher;
-	private final PaymentRepository paymentRepository;
 	private final ObjectMapper objectMapper;
 
-	public OrderEventConsumer(PaymentService paymentService,
-		PaymentEventPublisher paymentEventPublisher,
-		PaymentRepository paymentRepository,
-		ObjectMapper objectMapper) {
+	public OrderEventConsumer(PaymentService paymentService, ObjectMapper objectMapper) {
 		this.paymentService = paymentService;
-		this.paymentEventPublisher = paymentEventPublisher;
-		this.paymentRepository = paymentRepository;
 		this.objectMapper = objectMapper;
 	}
 
@@ -55,23 +47,11 @@ public class OrderEventConsumer {
 			dto.orderId(), idempotencyKey, dto.eventType());
 
 		try {
-			if (paymentRepository.existsByIdempotencyKey(idempotencyKey)) {
-				log.info("[payment-service] order already processed, skipping orderId={}", dto.orderId());
-				ack(channel, deliveryTag);
-				return;
-			}
-
 			ProcessPaymentRequest request = new ProcessPaymentRequest(
 				UUID.randomUUID(), Integer.valueOf(dto.orderId()), idempotencyKey,
 				dto.amount(), dto.currency());
 
 			PaymentRecordDto result = paymentService.processPayment(request);
-
-			if (result.success()) {
-				paymentEventPublisher.publishPaymentCompleted(result);
-			} else {
-				paymentEventPublisher.publishPaymentFailed(result);
-			}
 
 			ack(channel, deliveryTag);
 			log.info("[payment-service] order processed orderId={} status={}", dto.orderId(), result.status());

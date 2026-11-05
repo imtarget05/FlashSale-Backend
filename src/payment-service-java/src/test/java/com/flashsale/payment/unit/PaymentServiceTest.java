@@ -1,10 +1,14 @@
 package com.flashsale.payment.unit;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flashsale.payment.config.RabbitConfig;
 import com.flashsale.payment.dto.PaymentRecordDto;
 import com.flashsale.payment.dto.ProcessPaymentRequest;
 import com.flashsale.payment.entity.Payment;
 import com.flashsale.payment.exception.PaymentNotFoundException;
 import com.flashsale.payment.exception.IdempotencyConflictException;
+import com.flashsale.payment.outbox.PaymentOutbox;
+import com.flashsale.payment.outbox.PaymentOutboxRepository;
 import com.flashsale.payment.repository.PaymentRepository;
 import com.flashsale.payment.service.PaymentService;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,13 +42,16 @@ class PaymentServiceTest {
 	@Mock
 	private StringRedisTemplate redisTemplate;
 
+	@Mock
+	private PaymentOutboxRepository outboxRepository;
+
 	private PaymentService paymentService;
 
 	private ProcessPaymentRequest validRequest;
 
 	@BeforeEach
 	void setUp() {
-		paymentService = new PaymentService(paymentRepository, redisTemplate);
+		paymentService = new PaymentService(paymentRepository, redisTemplate, outboxRepository, new ObjectMapper());
 		validRequest = new ProcessPaymentRequest(
 			UUID.randomUUID(),
 			100,
@@ -65,6 +72,11 @@ class PaymentServiceTest {
 		assertThat(result.status()).isEqualTo("Succeeded");
 		assertThat(result.transactionId()).startsWith("tx_");
 		verify(paymentRepository).insertIfAbsent(any(Payment.class));
+		org.mockito.ArgumentCaptor<PaymentOutbox> outboxCaptor =
+			org.mockito.ArgumentCaptor.forClass(PaymentOutbox.class);
+		verify(outboxRepository).save(outboxCaptor.capture());
+		assertThat(outboxCaptor.getValue().getRoutingKey())
+			.isEqualTo(RabbitConfig.ROUTING_KEY_PAYMENT_COMPLETED);
 	}
 
 	@Test
@@ -79,6 +91,7 @@ class PaymentServiceTest {
 		assertThat(result.success()).isFalse();
 		assertThat(result.status()).isEqualTo("Declined");
 		assertThat(result.failureReason()).isEqualTo("Insufficient funds in customer account");
+		verify(outboxRepository).save(any(PaymentOutbox.class));
 	}
 
 	@Test
@@ -91,6 +104,7 @@ class PaymentServiceTest {
 		assertThatThrownBy(() -> paymentService.processPayment(timedOut))
 			.isInstanceOf(com.flashsale.payment.exception.PaymentTransientException.class);
 		verify(paymentRepository).insertIfAbsent(any(Payment.class));
+		verify(outboxRepository).save(any(PaymentOutbox.class));
 	}
 
 	@Test
@@ -109,6 +123,7 @@ class PaymentServiceTest {
 		assertThat(result.transactionId()).isEqualTo("tx_existing");
 		assertThat(result.status()).isEqualTo("Succeeded");
 		verify(paymentRepository, never()).insertIfAbsent(any());
+		verify(outboxRepository, never()).save(any());
 	}
 
 	@Test
@@ -123,6 +138,7 @@ class PaymentServiceTest {
 		assertThatThrownBy(() -> paymentService.processPayment(changed))
 			.isInstanceOf(IdempotencyConflictException.class);
 		verify(paymentRepository, never()).insertIfAbsent(any());
+		verify(outboxRepository, never()).save(any());
 	}
 
 	@Test

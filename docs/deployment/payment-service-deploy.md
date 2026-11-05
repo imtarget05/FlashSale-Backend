@@ -13,7 +13,11 @@
 ```bash
 cd /Users/mainguyenbinhtan/Downloads/FlashSale-Backend
 cp src/payment-service-java/.env.example src/payment-service-java/.env
-# Edit .env with secure values, especially JWT_SIGNING_KEY
+# Set JWT_SIGNING_KEY (32+ bytes) and DEMO_AUTH_PASSWORD (16+ characters).
+# These are local-only values; keep the .env file untracked.
+set -a
+. src/payment-service-java/.env
+set +a
 ```
 
 ### 2. Start infrastructure
@@ -26,10 +30,13 @@ docker compose -p flashsale-backend up -d postgres redis rabbitmq
 
 ```bash
 cd src/payment-service-java
+export SPRING_PROFILES_ACTIVE=demo
 mvn spring-boot:run
 ```
 
-The service starts on `http://localhost:8080`.
+The service starts on `http://localhost:8080`. Mock users are available only
+with the explicit `demo` profile; the default and production profiles have no
+configured identity provider and reject demo logins.
 
 ## Docker Deployment
 
@@ -72,6 +79,7 @@ docker build -t flashsale/payment-service-java:1.0.0 .
 | `REDIS_HOST` | `redis` | Redis host |
 | `REDIS_PORT` | `6379` | Redis port |
 | `JWT_SIGNING_KEY` | (required) | JWT signing key (min 32 bytes) |
+| `DEMO_AUTH_PASSWORD` | (required in `demo`) | Password shared by synthetic local demo users (min 16 characters) |
 | `JAVA_PAYMENT_PORT` | `8081` | Host port for Java service |
 
 ## Health Endpoints
@@ -80,8 +88,8 @@ docker build -t flashsale/payment-service-java:1.0.0 .
 |----------|-------------|
 | `GET /health` | Service status |
 | `GET /health/live` | Liveness probe |
-| `GET /healthz` | Readiness probe (used by Docker healthcheck) |
-| `GET /health/ready` | Readiness with DB check |
+| `GET /healthz` | Liveness probe (used by Docker healthcheck) |
+| `GET /actuator/health/readiness` | Readiness probe including database, Redis, and RabbitMQ |
 
 ## API Endpoints
 

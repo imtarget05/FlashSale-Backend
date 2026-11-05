@@ -1,0 +1,26 @@
+services:
+  payment-service-java:
+    environment:
+      SPRING_PROFILES_ACTIVE: demo,mongodb
+      MONGODB_URI: mongodb://mongodb:27017/flashsale
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  mongodb:
+    image: mongo:7.0.5
+    container_name: flashsale-mongodb
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - default
+      - portfolio-net
+
+volumes:
+  mongodb-data:

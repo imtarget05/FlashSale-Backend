@@ -5,6 +5,7 @@ import com.flashsale.payment.dto.LoginRequest;
 import com.flashsale.payment.dto.PaymentRecordDto;
 import com.flashsale.payment.dto.ProcessPaymentRequest;
 import com.flashsale.payment.entity.Payment;
+import com.flashsale.payment.audit.PaymentAuditRepository;
 import com.flashsale.payment.config.RabbitConfig;
 import com.flashsale.payment.event.OrderEventDTO;
 import com.flashsale.payment.repository.PaymentRepository;
@@ -28,6 +29,7 @@ import org.springframework.test.web.reactive.server.EntityExchangeResult;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -48,7 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
-@ActiveProfiles("demo")
+@ActiveProfiles({"demo", "mongodb"})
 class PaymentServiceIntegrationTest {
 
 	@Container
@@ -64,6 +66,9 @@ class PaymentServiceIntegrationTest {
 	static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
 		.withExposedPorts(6379);
 
+	@Container
+	static MongoDBContainer mongo = new MongoDBContainer(DockerImageName.parse("mongo:7.0.5"));
+
 	@DynamicPropertySource
 	static void properties(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -77,12 +82,16 @@ class PaymentServiceIntegrationTest {
 		registry.add("spring.rabbitmq.password", () -> "guest");
 		registry.add("spring.data.redis.host", redis::getHost);
 		registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
+		registry.add("spring.data.mongodb.uri", mongo::getReplicaSetUrl);
 		registry.add("app.jwt.secret", () -> "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
 		registry.add("demo.auth.password", () -> "interview-demo-pass");
 	}
 
 	@Autowired
 	private PaymentRepository paymentRepository;
+
+	@Autowired
+	private PaymentAuditRepository paymentAuditRepository;
 
 	@Autowired
 	private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -192,6 +201,34 @@ class PaymentServiceIntegrationTest {
 		assertThat(publishedEvent).isInstanceOf(PaymentRecordDto.class);
 		assertThat(paymentRepository.findByIdempotencyKey("order-90301")).isPresent();
 		assertThat(countOutboxEvents("order-90301")).isEqualTo(1);
+	}
+
+	@Test
+	void paymentOutboxEvent_isProjectedToMongoAndReadableByStaff() throws Exception {
+		WebTestClient client = createClient();
+		String idempotencyKey = "audit-" + UUID.randomUUID();
+		ProcessPaymentRequest request = new ProcessPaymentRequest(
+			UUID.randomUUID(), 90310, idempotencyKey, new BigDecimal("10.01"), "USD");
+
+		client.post().uri("/api/payments")
+			.contentType(MediaType.APPLICATION_JSON)
+			.bodyValue(request)
+			.exchange()
+			.expectStatus().isOk();
+
+		long deadline = System.nanoTime() + Duration.ofSeconds(15).toNanos();
+		while (paymentAuditRepository.findById(idempotencyKey).isEmpty()
+			&& System.nanoTime() < deadline) {
+			Thread.sleep(100);
+		}
+
+		assertThat(paymentAuditRepository.findById(idempotencyKey)).isPresent();
+		client.get().uri("/api/audit/payments/{idempotencyKey}", idempotencyKey)
+			.exchange()
+			.expectStatus().isOk()
+			.expectBody()
+			.jsonPath("$.idempotencyKey").isEqualTo(idempotencyKey)
+			.jsonPath("$.status").isEqualTo("Succeeded");
 	}
 
 	@Test

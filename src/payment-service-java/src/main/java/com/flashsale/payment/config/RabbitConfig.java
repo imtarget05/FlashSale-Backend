@@ -67,6 +67,7 @@ public class RabbitConfig {
 	public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
 		RabbitTemplate template = new RabbitTemplate(connectionFactory);
 		template.setMessageConverter(messageConverter());
+		template.setMandatory(true);
 		return template;
 	}
 

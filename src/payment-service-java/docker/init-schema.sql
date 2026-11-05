@@ -15,3 +15,19 @@ CREATE TABLE IF NOT EXISTS payment_records (
     processed_at TIMESTAMP WITH TIME ZONE NOT NULL,
     version BIGINT NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS payment_outbox (
+    id UUID PRIMARY KEY,
+    idempotency_key VARCHAR(128) NOT NULL UNIQUE,
+    routing_key VARCHAR(64) NOT NULL,
+    payload TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    next_attempt_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    published_at TIMESTAMP WITH TIME ZONE,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT
+);
+
+CREATE INDEX IF NOT EXISTS ix_payment_outbox_pending
+    ON payment_outbox (next_attempt_at, created_at)
+    WHERE published_at IS NULL;
