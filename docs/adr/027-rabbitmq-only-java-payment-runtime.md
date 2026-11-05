@@ -1,4 +1,4 @@
-# ADR-027: RabbitMQ-only Java payment runtime
+# ADR-027: RabbitMQ-only Java payment runtime with transactional outbox
 
 ## Status
 
@@ -20,12 +20,18 @@ event DTO package, so valid messages did not reach the consumer.
 - The JSON converter trusts only the service's event and DTO packages.
   Incoming order messages are parsed from their raw body; malformed messages
   are negatively acknowledged without requeue and routed to the DLQ.
-- The consumer acknowledges a delivery only after payment processing and the
-  corresponding publish call return successfully. Processing or publish
-  exceptions result in a negative acknowledgement.
-- The publish call is not a transaction with PostgreSQL and does not prove
-  broker acceptance. Publisher confirms and a transactional outbox remain
-  follow-up work under F5; no DB/event atomicity claim is made.
+- PostgreSQL payment and outbox rows are committed in the same transaction.
+  An outbox relay publishes with correlated RabbitMQ publisher confirms and
+  mandatory routing; only a confirmed, routed message is marked published.
+- Failed or timed-out publishes remain pending with capped exponential retry
+  delay. A process crash after broker confirmation but before the database
+  commit can result in a duplicate publish; consumers must remain idempotent.
+- Order deliveries are acknowledged after payment and outbox persistence
+  commit. Malformed input or a processing failure is negatively acknowledged
+  without requeue and routed to the configured dead-letter queue.
+- The optional `mongodb` profile consumes confirmed payment events into an
+  idempotent audit projection. MongoDB remains a read model, not the payment
+  system of record; the projection excludes transaction identifiers.
 
 ## Alternatives
 
@@ -45,8 +51,9 @@ Command:
 mvn -B -f src/payment-service-java/pom.xml -Dtest=OrderEventConsumerTest,PaymentServiceIntegrationTest test
 ```
 
-Result: 14 tests passed, with 0 failures, errors, or skips. Testcontainers
-verified valid order → persisted payment and completion event; malformed
-message → DLQ; duplicate delivery → one payment and one completion event. A
-unit test verified that a publish exception nacks rather than acknowledges
-the delivery. Hosted CI and cloud deployment remain unverified.
+Result: the full Java test suite passed locally with 76 tests and no failures,
+errors, or skips. Testcontainers verified valid order → persisted payment and
+confirmed completion event; malformed order → DLQ; duplicate order delivery →
+one payment and one outbox event; and Mongo audit projection. PostgreSQL
+concurrency tests verified same-payload replay and different-payload 409
+under concurrent requests. Hosted CI and cloud deployment remain unverified.

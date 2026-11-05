@@ -100,6 +100,17 @@ to the dedicated `payment.mongo-audit.dlq` for operator recovery. This is a
 non-production portfolio demonstration, not a financial ledger or a banking
 compliance certification.
 
+After starting the MongoDB overlay, run the local API smoke flow with the same
+demo password used by Compose:
+
+```bash
+src/payment-service-java/scripts/smoke-local.sh
+```
+
+The script checks login, success, same-key replay, conflicting replay (409),
+decline, timeout, and the asynchronously projected MongoDB audit event. It
+does not deploy to cloud or substitute for the RabbitMQ DLQ integration tests.
+
 ## Tests
 
 Unit tests (no Docker required):
