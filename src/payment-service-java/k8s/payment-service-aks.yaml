@@ -68,7 +68,7 @@ spec:
                 name: payment-service-secrets
           env:
             - name: JAVA_OPTS
-              value: "-Xms256m -Xmx512m"
+              value: "-Xms256m -Xmx512m -Dspring.autoconfigure.exclude=org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration,org.springframework.boot.autoconfigure.kafka.KafkaConsumerAutoConfiguration"
           readinessProbe:
             httpGet:
               path: /health/live
