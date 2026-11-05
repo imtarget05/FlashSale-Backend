@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -34,13 +35,16 @@ class PaymentServiceTest {
 	@Mock
 	private PaymentRepository paymentRepository;
 
+	@Mock
+	private StringRedisTemplate redisTemplate;
+
 	private PaymentService paymentService;
 
 	private ProcessPaymentRequest validRequest;
 
 	@BeforeEach
 	void setUp() {
-		paymentService = new PaymentService(paymentRepository);
+		paymentService = new PaymentService(paymentRepository, redisTemplate);
 		validRequest = new ProcessPaymentRequest(
 			UUID.randomUUID(),
 			100,

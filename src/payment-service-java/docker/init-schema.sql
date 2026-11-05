@@ -12,5 +12,6 @@ CREATE TABLE IF NOT EXISTS payment_records (
     transaction_id VARCHAR(64),
     failure_reason VARCHAR(256),
     is_transient_error BOOLEAN NOT NULL,
-    processed_at TIMESTAMP WITH TIME ZONE NOT NULL
+    processed_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0
 );

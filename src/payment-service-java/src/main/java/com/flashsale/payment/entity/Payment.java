@@ -7,6 +7,7 @@ import jakarta.persistence.PostLoad;
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import jakarta.persistence.Version;
 import org.springframework.data.domain.Persistable;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -49,6 +50,10 @@ public class Payment implements Persistable<String> {
 
 	@Column(name = "processed_at", nullable = false)
 	private OffsetDateTime processedAt;
+
+	@Version
+	@Column(name = "version")
+	private Long version;
 
 	@Transient
 	private boolean isNew = true;
@@ -174,5 +179,13 @@ public class Payment implements Persistable<String> {
 
 	public void setProcessedAt(OffsetDateTime processedAt) {
 		this.processedAt = processedAt;
+	}
+
+	public Long getVersion() {
+		return version;
+	}
+
+	public void setVersion(Long version) {
+		this.version = version;
 	}
 }
