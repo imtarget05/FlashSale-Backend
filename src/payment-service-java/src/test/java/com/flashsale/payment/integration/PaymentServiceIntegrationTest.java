@@ -196,9 +196,10 @@ class PaymentServiceIntegrationTest {
 		rabbitTemplate.convertAndSend(
 			RabbitConfig.ORDER_EVENTS_EXCHANGE, RabbitConfig.ROUTING_KEY_ORDER_CREATED, orderEvent);
 
-		Object publishedEvent = rabbitTemplate.receiveAndConvert(outputQueue.getName(), 10_000);
+		PaymentRecordDto publishedEvent = receivePaymentEvent(outputQueue, "order-90301", 10_000);
 
-		assertThat(publishedEvent).isInstanceOf(PaymentRecordDto.class);
+		assertThat(publishedEvent).isNotNull();
+		assertThat(publishedEvent.idempotencyKey()).isEqualTo("order-90301");
 		assertThat(paymentRepository.findByIdempotencyKey("order-90301")).isPresent();
 		assertThat(countOutboxEvents("order-90301")).isEqualTo(1);
 	}
@@ -243,13 +244,26 @@ class PaymentServiceIntegrationTest {
 		rabbitTemplate.convertAndSend(
 			RabbitConfig.ORDER_EVENTS_EXCHANGE, RabbitConfig.ROUTING_KEY_ORDER_CREATED, orderEvent);
 
-		Object firstEvent = rabbitTemplate.receiveAndConvert(outputQueue.getName(), 10_000);
-		Object duplicateEvent = rabbitTemplate.receiveAndConvert(outputQueue.getName(), 500);
+		PaymentRecordDto firstEvent = receivePaymentEvent(outputQueue, "order-90302", 10_000);
+		PaymentRecordDto duplicateEvent = receivePaymentEvent(outputQueue, "order-90302", 500);
 
-		assertThat(firstEvent).isInstanceOf(PaymentRecordDto.class);
+		assertThat(firstEvent).isNotNull();
 		assertThat(duplicateEvent).isNull();
 		assertThat(paymentRepository.findByIdempotencyKey("order-90302")).isPresent();
 		assertThat(countOutboxEvents("order-90302")).isEqualTo(1);
+	}
+
+	private PaymentRecordDto receivePaymentEvent(Queue queue, String idempotencyKey, long timeoutMillis) {
+		long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+		while (System.nanoTime() < deadline) {
+			long remainingMillis = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+			Object event = rabbitTemplate.receiveAndConvert(
+				queue.getName(), (int) Math.max(1, Math.min(remainingMillis, 250)));
+			if (event instanceof PaymentRecordDto payment && idempotencyKey.equals(payment.idempotencyKey())) {
+				return payment;
+			}
+		}
+		return null;
 	}
 
 	@Test

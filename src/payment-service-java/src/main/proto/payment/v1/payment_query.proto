@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package flashsale.payment.v1;
+
+option java_multiple_files = true;
+option java_package = "com.flashsale.payment.grpc.v1";
+option java_outer_classname = "PaymentQueryProto";
+
+service PaymentQueryService {
+  rpc GetPayment(GetPaymentRequest) returns (PaymentRecord);
+}
+
+message GetPaymentRequest {
+  string idempotency_key = 1;
+}
+
+message PaymentRecord {
+  string idempotency_key = 1;
+  bool success = 2;
+  string status = 3;
+  string transaction_id = 4;
+  string failure_reason = 5;
+  bool transient_error = 6;
+  string processed_at = 7;
+}

@@ -57,6 +57,26 @@ The Compose service maps `8081:8080` and waits for PostgreSQL, Redis, and
 RabbitMQ to become healthy. Set the local database and RabbitMQ credentials in
 `.env`; the service has no checked-in credential fallback.
 
+## Optional MongoDB audit read model
+
+The optional `mongodb` profile projects payment events into MongoDB while
+PostgreSQL remains the authoritative payment store. Payment events are written
+to the PostgreSQL outbox, relayed through RabbitMQ, and idempotently stored by
+idempotency key. This projection is eventually consistent; a recently
+processed payment may briefly return `404` until the event is consumed.
+
+Start the local demo with the MongoDB overlay:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.mongodb.yml up --build -d
+```
+
+The staff/admin-only `GET /api/audit/payments/{idempotencyKey}` endpoint reads
+the MongoDB projection. If MongoDB cannot store a message, RabbitMQ routes it
+to the dedicated `payment.mongo-audit.dlq` for operator recovery. This is a
+non-production portfolio demonstration, not a financial ledger or a banking
+compliance certification.
+
 ## Tests
 
 Unit tests (no Docker required):
