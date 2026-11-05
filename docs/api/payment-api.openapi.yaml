@@ -1,0 +1,200 @@
+openapi: 3.0.3
+info:
+  title: Payment Service API
+  version: 1.0.0
+  description: |
+    Java Spring Boot payment service for the FlashSale microservices platform.
+    Provides payment processing with idempotency, JWT authentication, and RBAC.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: http://payment-service:8080
+    description: Docker network
+paths:
+  /api/payments:
+    post:
+      summary: Process a payment
+      operationId: processPayment
+      tags: [Payment]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessPaymentRequest'
+      responses:
+        '200':
+          description: Payment processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRecordDto'
+        '400':
+          description: Validation error
+        '504':
+          description: Transient gateway timeout
+    get:
+      summary: List payments (paginated)
+      operationId: listPayments
+      tags: [Payment]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of payments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagePaymentRecordDto'
+        '403':
+          description: Insufficient role
+  /api/payments/{idempotencyKey}:
+    get:
+      summary: Get payment by idempotency key
+      operationId: getPayment
+      tags: [Payment]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: idempotencyKey
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRecordDto'
+        '404':
+          description: Payment not found
+  /api/auth/login:
+    post:
+      summary: Authenticate and receive JWT token
+      operationId: login
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+  /health:
+    get:
+      summary: Health check
+      tags: [Health]
+      responses:
+        '200':
+          description: Service healthy
+  /healthz:
+    get:
+      summary: Liveness probe
+      tags: [Health]
+      responses:
+        '200':
+          description: Service live
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ProcessPaymentRequest:
+      type: object
+      required:
+        - paymentId
+        - orderId
+        - idempotencyKey
+        - amount
+        - currency
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+        orderId:
+          type: integer
+        idempotencyKey:
+          type: string
+          maxLength: 128
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+        currency:
+          type: string
+          maxLength: 8
+    PaymentRecordDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: string
+        transactionId:
+          type: string
+          nullable: true
+        failureReason:
+          type: string
+          nullable: true
+        isTransientError:
+          type: boolean
+        processedAt:
+          type: string
+          format: date-time
+    PagePaymentRecordDto:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentRecordDto'
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        number:
+          type: integer
+        size:
+          type: integer
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        type:
+          type: string
