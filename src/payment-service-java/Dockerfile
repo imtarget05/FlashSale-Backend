@@ -12,4 +12,4 @@ EXPOSE 8080
 USER nobody
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 --start-period=20s \
   CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar --spring.kafka.listener.auto-startup=false"]
