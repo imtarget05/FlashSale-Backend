@@ -8,6 +8,7 @@ import com.flashsale.payment.dto.ProcessPaymentRequest;
 import com.flashsale.payment.security.AuthService;
 import com.flashsale.payment.security.JwtUtil;
 import com.flashsale.payment.security.SecurityConfig;
+import com.flashsale.payment.security.DemoUserDetailsConfig;
 import com.flashsale.payment.service.PaymentService;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -34,7 +35,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(PaymentController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, DemoUserDetailsConfig.class})
 @ActiveProfiles("dev")
 class PaymentControllerTest {
 
