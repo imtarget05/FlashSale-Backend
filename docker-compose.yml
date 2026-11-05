@@ -1,196 +1,25 @@
-# Cluster: flashsale-backend — Flash-Sale Order Reliability Platform.
-# Quản trị theo cụm: xem scripts/docker-clusters.sh + docs/docker-clusters.md
-#   docker compose -p flashsale-backend up -d
-# Shared infra: network portfolio-net (external) dùng chung cross-cluster khi cần.
-
 name: flashsale-backend
 
 services:
-  order-api:
-    container_name: flashsale-order-api
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "${API_PORT:-5000}:8080"
-    environment:
-      - ConnectionStrings__DefaultConnection=Host=${POSTGRES_HOST:-postgres};Port=5432;Database=${POSTGRES_DB:-FlashSaleDb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=80
-      - ConnectionStrings__Redis=${REDIS_HOST:-redis}:6379
-      - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@${RABBITMQ_HOST:-rabbitmq}:5672/
-      # Auth (ADR-013 §2). The container runs in the Production environment, where
-      # the app refuses to start without a >= 32-byte HS256 key — so compose must
-      # supply one. The default below is a LOCAL DEV key; never reuse it anywhere real.
-      - Auth__Jwt__SigningKey=${JWT_SIGNING_KEY:-REQUIRED_GENERATE_SECURE_32_BYTE_KEY_HERE}
-      # Payment provider (P0 fix, 2026-10-20): the container must address the
-      # sibling service by its docker-network name. HttpPaymentClient
-      # (src/FlashSale.Infrastructure/Payment/HttpPaymentClient.cs:26) falls back
-      # to "http://localhost:5002" — inside this container that is the API's OWN
-      # loopback -> connection refused -> the client silently takes the
-      # deterministic-simulator branch and returns sim_tx_... instead of a real
-      # tx_... . Override with PAYMENT_SERVICE_URL when the API runs on the host
-      # (e.g. PAYMENT_SERVICE_URL=http://localhost:5002).
-      - Payment__ServiceUrl=${PAYMENT_SERVICE_URL:-http://payment-service:8080}
-      # Messaging provider (P1 fix, 2026-10-20): set EXPLICITLY. The order queue
-      # auto-detects RabbitMQ from the connection string, but the DOMAIN EVENT
-      # publisher does NOT: DomainEventServiceCollectionExtensions.ResolveProvider
-      # reads only "Events:Provider" / "Messaging:Provider" from configuration
-      # (src/FlashSale.Infrastructure/Events/DomainEventServiceCollectionExtensions.cs:33).
-      # Unset -> InMemoryDomainEventPublisher -> no "automation.events" exchange
-      # on the broker and events die with the process.
-      - Messaging__Provider=RabbitMQ
-      - Events__Provider=RabbitMQ
-    healthcheck:
-      # aspnet runtime has no wget/curl and sh lacks /dev/tcp: run a tiny
-      # framework-dependent probe with the SDK-free runtime (dotnet is present
-      # because the app itself runs on it). Liveness alias /healthz kept.
-      test: ["CMD-SHELL", "dotnet exec /app/HealthProbe.dll http://127.0.0.1:8080/health/ready || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 20s
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
-    restart: unless-stopped
-    logging:
-      options:
-        max-size: "10m"
-        max-file: "3"
-    volumes:
-      - dlq-data:/app/logs
-    networks:
-      - default
-      - portfolio-net
-
-  order-worker:
-    container_name: flashsale-order-worker
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
-    environment:
-      - ConnectionStrings__DefaultConnection=Host=${POSTGRES_HOST:-postgres};Port=5432;Database=${POSTGRES_DB:-FlashSaleDb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=40
-      - ConnectionStrings__Redis=${REDIS_HOST:-redis}:6379
-      - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@${RABBITMQ_HOST:-rabbitmq}:5672/
-      # Same explicit-provider rule as the API (ADR-005 / ADR-010): the worker
-      # and the API must resolve the SAME transport, and the event backbone
-      # switch is read literally, so both keys are set (P1 fix, 2026-10-20).
-      - Messaging__Provider=RabbitMQ
-      - Events__Provider=RabbitMQ
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      # The worker has NO HTTP listener (Order.Worker is a BackgroundService
-      # host), so there is no port to probe - a fabricated /health endpoint
-      # would prove nothing. The probe asserts what the worker really does:
-      # it holds a live connection to the broker AND is registered there as an
-      # active consumer. Without it, `docker compose ps` says "Up", which
-      # only means the process has not exited - a worker whose AMQP
-      # connection died stays "Up" while it silently stops consuming the
-      # `orders` queue and stops dispatching the outbox.
-      test: ["CMD", "/app/opsbridge-worker-healthcheck.sh"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-    restart: unless-stopped
-    logging:
-      options:
-        max-size: "10m"
-        max-file: "3"
-    volumes:
-      - dlq-data:/app/logs
-    networks:
-      - default
-      - portfolio-net
-
-  # Payment.Service (Phases 9/11/12) — the HTTP payment provider that
-  # FlashSale.Infrastructure/Payment/HttpPaymentClient calls (POST
-  # /api/payments, GET /api/payments/{idempotencyKey}, GET /health).
-  # Same convention as the k8s base (infrastructure/kubernetes/base/payment):
-  # container port 8080, /health probe, name payment-service.
-  #
-  # It DOES touch PostgreSQL: the idempotency ledger is durable (the primary
-  # key IS the IdempotencyKey), so a pod restart cannot mint a second
-  # transaction id for the same key. The service owns only the
-  # `payment_records` table — it never reads order tables.
-  payment-service:
-    container_name: flashsale-payment-service
-    build:
-      context: .
-      dockerfile: Dockerfile.payment
-    ports:
-      - "${PAYMENT_PORT:-5002}:8080"
-    environment:
-      # Mirrors the k8s base/payment deployment env.
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:8080
-      # Same PostgreSQL instance as the order API, same database — the
-      # service namespaces its own table, not its own database. The service
-      # refuses to start without this (Payment.Service Program.cs).
-      - ConnectionStrings__PaymentDb=Host=${POSTGRES_HOST:-postgres};Port=5432;Database=${POSTGRES_DB:-FlashSaleDb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      # The aspnet runtime image has no curl/wget; /bin/sh lacks /dev/tcp, so
-      # probe through bash (present in the Debian base) and assert HTTP 200.
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf \"GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3 && head -1 <&3 | grep -q \" 200 \"'"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
-    restart: unless-stopped
-    logging:
-      options:
-        max-size: "10m"
-        max-file: "3"
-    networks:
-      - default
-      - portfolio-net
-
-  # Java Spring Boot payment service (microservice for Java Backend JD evidence)
-  # Runs alongside the .NET Payment.Service; shares PostgreSQL, Redis, RabbitMQ.
   payment-service-java:
     container_name: flashsale-payment-service-java
     build:
-      context: src/payment-service-java
+      context: ./src/payment-service-java
       dockerfile: Dockerfile
     ports:
       - "${JAVA_PAYMENT_PORT:-8081}:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/FlashSaleDb
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-FlashSaleDb}
       - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-postgres}
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - SPRING_RABBITMQ_HOST=rabbitmq
-      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
+      - SPRING_RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
       - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER:-guest}
       - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
-      - SPRING_DATA_REDIS_HOST=redis
-      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST:-redis}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT:-6379}
+      - APP_KAFKA_LISTENER_AUTO_STARTUP=false
+      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-REQUIRED_GENERATE_SECURE_32_BYTE_KEY_HERE}
       - APP_JWT_SECRET=${JWT_SIGNING_KEY:-REQUIRED_GENERATE_SECURE_32_BYTE_KEY_HERE}
     depends_on:
       postgres:
@@ -202,19 +31,10 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 5
       start_period: 20s
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
     restart: unless-stopped
-    logging:
-      options:
-        max-size: "10m"
-        max-file: "3"
     networks:
       - default
       - portfolio-net
@@ -228,30 +48,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-FlashSaleDb}
     ports:
-      # Host port is a variable with a NON-CONFLICTING default (P2 fix,
-      # 2026-10-20): the classic 5432 is already taken by other local stacks
-      # on this machine, and a hard bind made `docker compose up` fail before
-      # a single service started. Override with POSTGRES_HOST_PORT if 55432 is
-      # taken. The CONTAINER port stays 5432 — the connection string above
-      # always talks to the service name, never to the host port.
       - "${POSTGRES_HOST_PORT:-55432}:5432"
     volumes:
+      - ./src/payment-service-java/docker/init-schema.sql:/docker-entrypoint-initdb.d/01-payment-schema.sql
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-FlashSaleDb}"]
       interval: 5s
       timeout: 3s
       retries: 10
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
     restart: unless-stopped
-    logging:
-      options:
-        max-size: "10m"
-        max-file: "3"
     networks:
       - default
       - portfolio-net
@@ -260,9 +66,6 @@ services:
     container_name: flashsale-redis
     image: redis:7-alpine
     ports:
-      # Same reasoning as postgres: 6379 is a classic local conflict, so the
-      # host port is a variable with a non-conflicting default (P2 fix,
-      # 2026-10-20). Override with REDIS_HOST_PORT if 56379 is taken.
       - "${REDIS_HOST_PORT:-56379}:6379"
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:
@@ -270,16 +73,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
     restart: unless-stopped
-    logging:
-      options:
-        max-size: "10m"
-        max-file: "3"
     networks:
       - default
       - portfolio-net
@@ -298,58 +92,7 @@ services:
       timeout: 5s
       retries: 8
       start_period: 20s
-    deploy:
-      resources:
-        limits:
-          # Localhost note (2026-09-27): 512M trips RabbitMQ's
-          # system_memory_high_watermark on BEAM+management+prometheus, which
-          # flow-controls all connections (mgmt UI dead, healthcheck red).
-          # 1G is localhost-only headroom; CI/free-tier keeps the lean value
-          # via override. See HARD_TEST_REPORT §localhost.
-          cpus: "0.5"
-          memory: 1G
     restart: unless-stopped
-    logging:
-      options:
-        max-size: "10m"
-        max-file: "3"
-    networks:
-      - default
-      - portfolio-net
-
-  # Kafka is UNUSED by the app (KafkaActivityTracker is dead code, ADR-007).
-  # Keep a single active definition for local validation; the experimental
-  # profile is intentionally omitted to avoid duplicate service definitions.
-  kafka:
-    container_name: flashsale-kafka
-    image: bitnami/kafka:3.5
-    ports:
-      - "9092:9092"
-    environment:
-      - KAFKA_CFG_NODE_ID=0
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - ALLOW_PLAINTEXT_LISTENER=yes
-      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
-    healthcheck:
-      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server kafka:9092 --list || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 768M
-    restart: unless-stopped
-    logging:
-      options:
-        max-size: "10m"
-        max-file: "3"
     networks:
       - default
       - portfolio-net
@@ -357,7 +100,6 @@ services:
 volumes:
   postgres-data:
   rabbitmq-data:
-  dlq-data:
 
 networks:
   portfolio-net:

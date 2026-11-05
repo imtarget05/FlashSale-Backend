@@ -1,0 +1,19 @@
+name = "flashsale-frontend"
+compatibility_date = "2026-11-05"
+pages_build_output_dir = "dist"
+
+[build]
+command = "npm ci && npm run build"
+
+[vars]
+VITE_API_URL = "https://flashsale-payment-api.onrender.com"
+VITE_ENV = "preview"
+
+[env.production.vars]
+VITE_API_URL = "https://flashsale-payment-api.onrender.com"
+VITE_ENV = "production"
+
+# For a Vite/React frontend, keep the build command in Cloudflare Pages project settings.
+# The repo itself should contain the frontend code under a folder like:
+#   frontend/ or src/frontend/
+# and the final build output must be generated into `dist`.
