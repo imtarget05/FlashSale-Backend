@@ -1,54 +1,59 @@
-# AKS deployment for payment-service-java
+# AKS validation manifests for payment-service
 
-This module includes a Kubernetes manifest for a non-production AKS deployment. The goal is to validate the Java payment service in a public AKS cluster without claiming production go-live.
+These manifests support an explicitly opted-in, non-production deployment. They
+do not provision an AKS cluster, database, cache, broker, or ingress controller.
+The deployment uses the `demo` Spring profile and is not suitable for production
+or evidence of banking compliance.
 
-## Requirements
+## Manifest and secret handling
 
-- Azure CLI logged in and cluster kubeconfig merged
-- ACR login server and registry name available if images are pushed to Azure Container Registry
-- A running AKS cluster and a reachable public API endpoint
-- The service should be treated as demo/live validation only until all P0 gates are closed
+The Kustomize base is `k8s/`. The deployment expects an externally created
+`payment-service-secrets` Secret in the `flashsale` namespace. Secret values are
+intentionally not stored in this repository. Create the Secret from a private,
+access-controlled env file containing:
 
-## Files
+- `POSTGRES_JDBC_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+- `RABBITMQ_USER`, `RABBITMQ_PASSWORD`
+- `REDIS_PASSWORD` when required by the Redis instance
+- `JWT_SIGNING_KEY` (at least 32 bytes)
+- `DEMO_AUTH_PASSWORD` (at least 16 characters)
 
-- `k8s/payment-service-aks.yaml` — validation Deployment + Service + ConfigMap; it references an existing Secret and does not create one
-- `scripts/deploy-aks.sh` — Build, tag, push, and apply the manifest
+Do not use the removed placeholder credentials or the demo profile in
+production. gRPC is disabled, no gRPC port is published, and the Kubernetes
+Service is `ClusterIP`; use a deliberate TLS ingress design before exposing any
+endpoint outside the cluster.
 
-## Deploy
-
-Create `payment-service-secrets` in the target namespace from a private env file
-outside the repository. It must provide `POSTGRES_JDBC_URL`, `POSTGRES_USER`,
-`POSTGRES_PASSWORD`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`, and
-`JWT_SIGNING_KEY` (at least 32 bytes), and `DEMO_AUTH_PASSWORD` (at least 16
-characters). Add `REDIS_PASSWORD` if the configured Redis requires authentication.
-Do not copy the former placeholder
-credentials into a live cluster. The manifest explicitly runs the `demo` profile
-with mock identities and RabbitMQ as its only broker; it is for validation only.
-This demo profile must never be enabled in production.
-PostgreSQL, Redis, and RabbitMQ must be reachable for readiness to pass.
+## Validate locally without applying
 
 ```bash
+kubectl kustomize k8s
+```
+
+The deployment script builds and pushes an image, then applies manifests. It
+refuses to proceed unless both `DEPLOY_NONPROD_AKS=true` and
+`EXPECTED_KUBECTL_CONTEXT` are set and the active context matches. It has not
+been run as part of this repository work.
+
+## Explicit non-production deploy
+
+Only run this after independently confirming the cluster, image registry,
+secret, and budget. Create the Secret directly in the target cluster from a
+private env file; never commit or paste its values into Git:
+
+```bash
+kubectl create namespace flashsale --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic payment-service-secrets \
+  --namespace flashsale \
+  --from-env-file="$K8S_SECRET_FILE"
+
 cd src/payment-service-java
 export ACR_LOGIN_SERVER="<your-acr-login-server>"
 export ACR_NAME="<your-acr-name>"
 export IMAGE_TAG="$(git rev-parse --short HEAD)"
-
+export EXPECTED_KUBECTL_CONTEXT="<confirmed-nonproduction-context>"
+export DEPLOY_NONPROD_AKS=true
 bash scripts/deploy-aks.sh
 ```
 
-## Validate
-
-```bash
-kubectl get deploy,pods,svc -l app=payment-service
-kubectl rollout status deployment/payment-service --timeout=180s
-kubectl get svc payment-service
-kubectl get --raw /api/v1/namespaces/default/services/http:payment-service:80/proxy/actuator/health/readiness
-curl http://$(kubectl get svc payment-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/healthz
-curl http://$(kubectl get svc payment-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/health/live
-```
-
-## Important guardrails
-
-- This is not production go-live
-- Azure production mutation gates must remain closed
-- Only use this path for non-production validation or demo deployment
+Use `kubectl port-forward` for local-only validation rather than adding a public
+load balancer. Azure provisioning and production mutation are out of scope.

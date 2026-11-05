@@ -26,13 +26,15 @@ src/payment-service-java/
 ├── pom.xml                  # Spring Boot 4.0.9, Java 17
 ├── Dockerfile               # multi-stage (maven build → temurin JRE)
 ├── docker/init-schema.sql   # PostgreSQL schema (payment_records, idempotency keys)
+├── src/main/proto/          # Protocol Buffers gRPC contract
 └── src/main/java/com/flashsale/payment/
     ├── controller/          # PaymentController, HealthController
     ├── service/             # PaymentService
     ├── repository/ + entity/# PaymentRepository, Payment (JPA)
     ├── dto/                 # PaymentRecordDto, ProcessPaymentRequest, LoginRequest, AuthResponse
     ├── exception/           # GlobalExceptionHandler, PaymentNotFoundException, IdempotencyConflictException
-    ├── security/            # SecurityConfig, JwtAuthFilter, JwtUtil, AuthService, JwtStartupValidator
+    ├── security/            # REST/JWT security and gRPC JWT interceptor
+    ├── grpc/                # gRPC service adapter and TLS-only optional server
     ├── config/              # RabbitConfig, CacheConfig
     └── event/               # OrderEventConsumer, PaymentEventPublisher, OrderEventDTO
 ```
@@ -56,6 +58,27 @@ curl http://localhost:8081/actuator/health/readiness
 The Compose service maps `8081:8080` and waits for PostgreSQL, Redis, and
 RabbitMQ to become healthy. Set the local database and RabbitMQ credentials in
 `.env`; the service has no checked-in credential fallback.
+
+## Optional gRPC API
+
+The unary gRPC contract is in `src/payment-service-java/src/main/proto/payment.proto`.
+`ProcessPayment` delegates to the same idempotent application service as REST
+and requires a valid JWT with Staff or Admin role. `CheckHealth` is public.
+The listener is disabled by default; enabling it requires TLS files and binds
+port 9090:
+
+```bash
+GRPC_SERVER_ENABLED=true \
+GRPC_TLS_CERT_CHAIN=/path/to/server.crt \
+GRPC_TLS_PRIVATE_KEY=/path/to/server.key \
+mvn -f src/payment-service-java/pom.xml spring-boot:run
+```
+
+Do not expose gRPC until certificates, client trust, and network policy are
+configured. The AKS sample intentionally leaves the listener disabled and
+does not publish port 9090. This is a code-level demo, not evidence of a
+production gRPC deployment. The command assumes the same database, broker, and
+JWT environment variables used by the local service are already configured.
 
 ## Optional MongoDB audit read model
 

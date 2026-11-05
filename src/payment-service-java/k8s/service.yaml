@@ -6,13 +6,10 @@ metadata:
   labels:
     app: payment-service
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: payment-service
   ports:
     - name: http
       port: 80
       targetPort: 8080
-    - name: grpc
-      port: 9090
-      targetPort: 9090

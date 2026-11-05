@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -78,6 +79,53 @@ class PaymentGrpcServiceImplTest {
 	}
 
 	@Test
+	void rejectsAmountsThatExceedDatabasePrecision() {
+		var request = validRequest().toBuilder().setAmount("1E+10").build();
+		var observer = new RecordingObserver<ProcessPaymentResponse>();
+
+		asAuthenticated("ROLE_STAFF", () -> grpcService.processPayment(request, observer));
+
+		assertEquals(Status.Code.INVALID_ARGUMENT, Status.fromThrowable(observer.error).getCode());
+		verify(paymentService, never()).processPayment(any());
+	}
+
+	@Test
+	void rejectsMalformedAndOutOfRangeRequestFields() {
+		List<ProcessPaymentRequest> invalidRequests = new ArrayList<>();
+		invalidRequests.add(validRequest().toBuilder().setIdempotencyKey(" ").build());
+		invalidRequests.add(validRequest().toBuilder().setIdempotencyKey("x".repeat(129)).build());
+		invalidRequests.add(validRequest().toBuilder().setOrderId(0).build());
+		invalidRequests.add(validRequest().toBuilder().setOrderId((long) Integer.MAX_VALUE + 1).build());
+		invalidRequests.add(validRequest().toBuilder().setPaymentId("not-a-uuid").build());
+		invalidRequests.add(validRequest().toBuilder()
+			.setPaymentId("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").build());
+		invalidRequests.add(validRequest().toBuilder().setCurrency("US D").build());
+		invalidRequests.add(validRequest().toBuilder().setAmount("not-a-number").build());
+		invalidRequests.add(validRequest().toBuilder().setAmount("0.00").build());
+		invalidRequests.add(validRequest().toBuilder().setAmount("19.031").build());
+		invalidRequests.add(validRequest().toBuilder().setAmount("12345678901.00").build());
+		invalidRequests.add(validRequest().toBuilder().setAmount("1E+10").build());
+
+		for (ProcessPaymentRequest request : invalidRequests) {
+			var observer = new RecordingObserver<ProcessPaymentResponse>();
+			asAuthenticated("ROLE_STAFF", () -> grpcService.processPayment(request, observer));
+			assertEquals(Status.Code.INVALID_ARGUMENT, Status.fromThrowable(observer.error).getCode());
+		}
+
+		verify(paymentService, never()).processPayment(any());
+	}
+
+	@Test
+	void rejectsCallsWithoutAuthenticatedPrincipal() {
+		var observer = new RecordingObserver<ProcessPaymentResponse>();
+
+		grpcService.processPayment(validRequest(), observer);
+
+		assertEquals(Status.Code.PERMISSION_DENIED, Status.fromThrowable(observer.error).getCode());
+		verify(paymentService, never()).processPayment(any());
+	}
+
+	@Test
 	void deniesPaymentProcessingToCustomerRole() {
 		var observer = new RecordingObserver<ProcessPaymentResponse>();
 
@@ -119,6 +167,18 @@ class PaymentGrpcServiceImplTest {
 	}
 
 	@Test
+	void mapsUnexpectedPaymentErrorsToGenericInternalStatus() {
+		when(paymentService.processPayment(any()))
+			.thenThrow(new IllegalStateException("database password must not be exposed"));
+		var observer = new RecordingObserver<ProcessPaymentResponse>();
+
+		asAuthenticated("ROLE_STAFF", () -> grpcService.processPayment(validRequest(), observer));
+
+		assertEquals(Status.Code.INTERNAL, Status.fromThrowable(observer.error).getCode());
+		assertEquals("Payment processing failed", Status.fromThrowable(observer.error).getDescription());
+	}
+
+	@Test
 	void servesHealthCheckWithoutAuthentication() {
 		var observer = new RecordingObserver<com.flashsale.payment.grpc.v1.HealthCheckResponse>();
 
@@ -127,6 +187,19 @@ class PaymentGrpcServiceImplTest {
 		assertNull(observer.error);
 		assertEquals("SERVING", observer.value.getStatus());
 		assertEquals("payment-service", observer.value.getService());
+	}
+
+	@Test
+	void omitsOptionalResponseFieldsWhenAbsent() {
+		when(paymentService.processPayment(any())).thenReturn(
+			new PaymentRecordDto("checkout-123", false, "Declined", null, "Declined", false, null));
+		var observer = new RecordingObserver<ProcessPaymentResponse>();
+
+		asAuthenticated("ROLE_ADMIN", () -> grpcService.processPayment(validRequest(), observer));
+
+		assertEquals("", observer.value.getTransactionId());
+		assertEquals("Declined", observer.value.getFailureReason());
+		assertEquals("", observer.value.getProcessedAt());
 	}
 
 	private static ProcessPaymentRequest validRequest() {

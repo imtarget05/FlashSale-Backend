@@ -71,7 +71,7 @@ The Java service exposes the same HTTP contract as the .NET service:
 | New repo for Java service | Clean separation | Harder to demonstrate integration with existing infra | CV wants one cohesive platform |
 | Kafka instead of RabbitMQ | JD mentions Kafka | No active Kafka integration contract; adding it would create a second delivery path | Keep one tested runtime broker; document Kafka as not demonstrated |
 | Separate database for Java | Clean isolation | Cross-service complexity; JD wants shared DB evidence | Shared DB with table separation is standard microservice pattern |
-| gRPC instead of REST | JD mentions gRPC | Protobuf tooling overhead, team REST maturity | REST sufficient for current scope; gRPC documented as planned |
+| gRPC instead of REST | JD mentions gRPC | Protobuf tooling overhead, team REST maturity | Keep REST as default and add an authenticated unary gRPC adapter to the same payment service; keep the listener disabled until TLS and deployment networking are configured |
 
 ## Consequences
 
@@ -80,7 +80,10 @@ The Java service exposes the same HTTP contract as the .NET service:
 - Same infrastructure stack as existing services (PostgreSQL, Redis, RabbitMQ)
 - Demonstrates polyglot microservice architecture
 - Idempotency, transaction, DLQ patterns implemented in Java
-- Oracle profile is configured but requires separate runtime evidence; gRPC remains a documented gap in docs/adr/grpc-support-note.md
+- Oracle profile is configured but requires separate runtime evidence. The gRPC
+  contract and authenticated unary adapter are implemented, but the listener is
+  disabled by default and no deployed endpoint is claimed; see
+  [grpc-support-note.md](./grpc-support-note.md).
 
 ### Negative
 - Two payment services (.NET + Java) may cause confusion

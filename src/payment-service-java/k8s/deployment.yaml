@@ -22,13 +22,11 @@ spec:
     spec:
       containers:
         - name: payment-service
-          image: acrflashsalep6.azurecr.io/flashsale/payment-service:1dbd84b
+          image: REPLACE_WITH_ACR_LOGIN_SERVER/flashsale/payment-service:REPLACE_WITH_SHA
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
               name: http
-            - containerPort: 9090
-              name: grpc
           envFrom:
             - configMapRef:
                 name: payment-service-config
