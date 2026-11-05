@@ -11,11 +11,13 @@ Scope:
 - Cloudflare Pages frontend kept as a thin preview shell
 
 Current status:
-- Java unit tests: 23/23 pass with integration tests excluded
+- Java unit and Testcontainers integration tests: 35/35 pass locally
+- Docker image build, health/JWT/payment/idempotency smoke checks, and k6 thresholds pass locally
 - Render blueprint parses and the deployment workflow passes `actionlint`
 - Frontend production build succeeds
 - Preview/prod service separation is configured in `render.yaml`
 - No cloud deployment has been performed or verified
+- GitHub Actions is being rerun after fixing the Docker API version used by Testcontainers
 - Production deployment remains gated by approval and valid runtime secrets
 
 Target deployment model:
@@ -28,12 +30,12 @@ Target deployment model:
 
 ```bash
 cd /Users/mainguyenbinhtan/Downloads/FlashSale-Backend/src/payment-service-java
-mvn -B -Dtest='!*Integration*' test
+mvn -B test
 ```
 
 Result:
 - `BUILD SUCCESS`
-- 23 tests, 0 failures, 0 errors, 0 skipped
+- 35 tests, 0 failures, 0 errors, 0 skipped, including Testcontainers integration tests
 
 ### Frontend build
 
@@ -49,7 +51,7 @@ Result:
 
 ```bash
 cd /Users/mainguyenbinhtan/Downloads/FlashSale-Backend
-actionlint .github/workflows/cloud-deploy.yml
+actionlint .github/workflows/*.yml
 ruby -e 'require "yaml"; YAML.load_file("render.yaml"); puts "render.yaml parsed"'
 ```
 
@@ -88,8 +90,8 @@ Expected result:
    - The deploy workflow has not been run against live Render or Cloudflare resources.
    - GitHub Actions credentials and environment approvals must be configured on a writable repository.
 
-3. Testcontainers integration tests are not verified locally
-   - Docker CLI and image builds work, but Testcontainers receives an incomplete Docker `/info` response from the local Docker Desktop socket. Run the integration suite on GitHub Actions' Linux runner before approval.
+3. GitHub CI confirmation is pending
+   - The previous run failed because Testcontainers used Docker API 1.32. Surefire now pins API 1.44, and the complete 35-test suite passes locally; the next GitHub Actions run must confirm the fix.
 
 4. Public traffic routing is separate from local validation
    - Preview and production must remain isolated until environment owners confirm endpoints and secrets.
