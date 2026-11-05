@@ -56,30 +56,23 @@ class PaymentServiceTest {
 
 	@Test
 	void processPayment_shouldSaveAndReturnDto_whenNewIdempotencyKey() {
-		Payment saved = new Payment(
-			"idem-123", validRequest.paymentId(), validRequest.orderId(), validRequest.amount(),
-			validRequest.currency(), true, "Succeeded", "tx_abc123", null, false, OffsetDateTime.now());
 		when(paymentRepository.findByIdempotencyKey("idem-123")).thenReturn(Optional.empty());
-		when(paymentRepository.saveAndFlush(any(Payment.class))).thenReturn(saved);
+		when(paymentRepository.insertIfAbsent(any(Payment.class))).thenReturn(1);
 
 		PaymentRecordDto result = paymentService.processPayment(validRequest);
 
 		assertThat(result.success()).isTrue();
 		assertThat(result.status()).isEqualTo("Succeeded");
-		assertThat(result.transactionId()).isEqualTo("tx_abc123");
-		verify(paymentRepository).saveAndFlush(any(Payment.class));
+		assertThat(result.transactionId()).startsWith("tx_");
+		verify(paymentRepository).insertIfAbsent(any(Payment.class));
 	}
 
 	@Test
 	void processPayment_shouldReturnDeclined_whenCentsIsTwo() {
 		ProcessPaymentRequest declined = new ProcessPaymentRequest(
 			UUID.randomUUID(), 101, "idem-2", new BigDecimal("10.02"), "USD");
-		Payment saved = new Payment(
-			"idem-2", declined.paymentId(), declined.orderId(), declined.amount(),
-			declined.currency(), false, "Declined", null,
-			"Insufficient funds in customer account", false, OffsetDateTime.now());
 		when(paymentRepository.findByIdempotencyKey("idem-2")).thenReturn(Optional.empty());
-		when(paymentRepository.saveAndFlush(any(Payment.class))).thenReturn(saved);
+		when(paymentRepository.insertIfAbsent(any(Payment.class))).thenReturn(1);
 
 		PaymentRecordDto result = paymentService.processPayment(declined);
 
@@ -92,16 +85,12 @@ class PaymentServiceTest {
 	void processPayment_shouldReturn504_whenCentsIsThree() {
 		ProcessPaymentRequest timedOut = new ProcessPaymentRequest(
 			UUID.randomUUID(), 102, "idem-3", new BigDecimal("10.03"), "USD");
-		Payment saved = new Payment(
-			"idem-3", timedOut.paymentId(), timedOut.orderId(), timedOut.amount(),
-			timedOut.currency(), false, "TimedOut", null,
-			"Upstream payment gateway timeout", true, OffsetDateTime.now());
 		when(paymentRepository.findByIdempotencyKey("idem-3")).thenReturn(Optional.empty());
-		when(paymentRepository.saveAndFlush(any(Payment.class))).thenReturn(saved);
+		when(paymentRepository.insertIfAbsent(any(Payment.class))).thenReturn(1);
 
 		assertThatThrownBy(() -> paymentService.processPayment(timedOut))
 			.isInstanceOf(com.flashsale.payment.exception.PaymentTransientException.class);
-		verify(paymentRepository).saveAndFlush(any(Payment.class));
+		verify(paymentRepository).insertIfAbsent(any(Payment.class));
 	}
 
 	@Test
@@ -119,7 +108,7 @@ class PaymentServiceTest {
 
 		assertThat(result.transactionId()).isEqualTo("tx_existing");
 		assertThat(result.status()).isEqualTo("Succeeded");
-		verify(paymentRepository, never()).saveAndFlush(any());
+		verify(paymentRepository, never()).insertIfAbsent(any());
 	}
 
 	@Test
@@ -133,7 +122,7 @@ class PaymentServiceTest {
 
 		assertThatThrownBy(() -> paymentService.processPayment(changed))
 			.isInstanceOf(IdempotencyConflictException.class);
-		verify(paymentRepository, never()).saveAndFlush(any());
+		verify(paymentRepository, never()).insertIfAbsent(any());
 	}
 
 	@Test

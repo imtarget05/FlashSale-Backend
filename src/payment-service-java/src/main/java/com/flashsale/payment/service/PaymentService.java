@@ -71,30 +71,25 @@ public class PaymentService {
 				"tx_" + UUID.randomUUID().toString().replace("-", ""), null, false, 				OffsetDateTime.now());
 		}
 
-		Payment saved;
-		try {
-			// @Transactional places the save and the eventual event publication inside one
-			// transaction boundary so the payment record and the downstream event succeed or
-			// fail together (atomicity). A duplicate insert can be retried after its
-			// transaction has rolled back.
-			saved = paymentRepository.saveAndFlush(record);
-		} catch (org.springframework.dao.DataIntegrityViolationException ex) {
+		int inserted = paymentRepository.insertIfAbsent(record);
+		if (inserted == 0) {
 			Payment winner = paymentRepository.findByIdempotencyKey(request.idempotencyKey())
-				.orElseThrow(() -> ex);
+				.orElseThrow(() -> new IllegalStateException(
+					"Payment row missing after idempotent insert for key '" + request.idempotencyKey() + "'"));
 			log.warn("[payment-service] duplicate idempotencyKey detected, replaying winner idempotencyKey={}",
 				request.idempotencyKey());
 			return replay(request, winner);
 		}
 
-		if ("TimedOut".equals(saved.getStatus())) {
+		if ("TimedOut".equals(record.getStatus())) {
 			log.warn("[payment-service] transient gateway timeout recorded idempotencyKey={} paymentId={}",
-				saved.getIdempotencyKey(), saved.getPaymentId());
-			throw new PaymentTransientException("Upstream payment gateway timeout", saved);
+				record.getIdempotencyKey(), record.getPaymentId());
+			throw new PaymentTransientException("Upstream payment gateway timeout", record);
 		}
 
 		log.info("[payment-service] processPayment succeeded idempotencyKey={} status={} transactionId={}",
-			saved.getIdempotencyKey(), saved.getStatus(), saved.getTransactionId());
-		return toDto(saved);
+			record.getIdempotencyKey(), record.getStatus(), record.getTransactionId());
+		return toDto(record);
 	}
 
 	private PaymentRecordDto replay(ProcessPaymentRequest request, Payment stored) {
