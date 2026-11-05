@@ -1,24 +1,8 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: payment-service-config
-  labels:
-    app: payment-service
-data:
-  SPRING_APPLICATION_NAME: "payment-service"
-  SERVER_PORT: "8080"
-  SPRING_PROFILES_ACTIVE: "demo"
-  RABBITMQ_HOST: "rabbitmq"
-  RABBITMQ_PORT: "5672"
-  REDIS_HOST: "redis"
-  REDIS_PORT: "6379"
-  SPRING_JPA_HIBERNATE_DDL_AUTO: "validate"
-  APP_JWT_EXPIRATION_MS: "86400000"
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: payment-service
+  namespace: flashsale
   labels:
     app: payment-service
 spec:
@@ -43,6 +27,8 @@ spec:
           ports:
             - containerPort: 8080
               name: http
+            - containerPort: 9090
+              name: grpc
           envFrom:
             - configMapRef:
                 name: payment-service-config
@@ -74,18 +60,3 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: payment-service
-  labels:
-    app: payment-service
-spec:
-  type: LoadBalancer
-  selector:
-    app: payment-service
-  ports:
-    - name: http
-      port: 80
-      targetPort: 8080
