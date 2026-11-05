@@ -1,0 +1,13 @@
+target/
+.env
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.gitignore
+bin/
+out/
+.venv/
+__pycache__/
+*.pyc
