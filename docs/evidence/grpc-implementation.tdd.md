@@ -14,6 +14,7 @@ over gRPC and receive the same idempotent payment result as the REST API.
 | Container | `docker build -t flashsale-payment-api:verify .` | PASS: local image built; not pushed or deployed. |
 | Auth edge-case RED | `mvn -B -Dtest=PaymentGrpcAuthInterceptorTest#rejectsTokenWithoutSubjectBeforeLoadingUser test` | Failed because the interceptor called `UserDetailsService` with a null username. |
 | Auth edge-case GREEN | `mvn -B -Dproject.build.directory=/tmp/flashsale-grpc-target-4adefcf -Dtest=PaymentGrpcAuthInterceptorTest test` | PASS: 6 tests, 0 failures, 0 errors, 0 skipped. |
+| Final full verification | `mvn -B clean verify` | PASS: 76 tests, 0 failures, 0 errors, 0 skipped, including the JWT subject regression. |
 
 ## Guarantees
 
