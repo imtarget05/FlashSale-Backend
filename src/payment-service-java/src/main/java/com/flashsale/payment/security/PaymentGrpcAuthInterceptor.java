@@ -61,6 +61,9 @@ public class PaymentGrpcAuthInterceptor implements ServerInterceptor {
 		} catch (JwtException | IllegalArgumentException ex) {
 			return reject(call, Status.UNAUTHENTICATED.withDescription("Invalid authentication token"));
 		}
+		if (username == null || username.isBlank()) {
+			return reject(call, Status.UNAUTHENTICATED.withDescription("Invalid authentication token"));
+		}
 
 		UserDetails userDetails;
 		try {
