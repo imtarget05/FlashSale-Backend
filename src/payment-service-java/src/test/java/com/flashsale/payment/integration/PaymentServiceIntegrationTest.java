@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -19,26 +20,31 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
-@ActiveProfiles("dev")
+@ActiveProfiles("demo")
 class PaymentServiceIntegrationTest {
 
 	@Container
 	static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"));
 
 	@Container
-	static RabbitMQContainer rabbitmq = new RabbitMQContainer(DockerImageName.parse("rabbitmq:3-management-alpine"));
+	static RabbitMQContainer rabbitmq = new RabbitMQContainer(DockerImageName.parse("rabbitmq:3-management-alpine"))
+		.withCreateContainerCmdModifier(cmd -> cmd.withUser("100:101"))
+		.waitingFor(Wait.forSuccessfulCommand("rabbitmq-diagnostics -q check_running"))
+		.withStartupTimeout(Duration.ofMinutes(2));
 
 	@Container
 	static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
@@ -58,6 +64,7 @@ class PaymentServiceIntegrationTest {
 		registry.add("spring.data.redis.host", redis::getHost);
 		registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
 		registry.add("app.jwt.secret", () -> "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+		registry.add("demo.auth.password", () -> "interview-demo-pass");
 		registry.add("app.kafka.listener.auto-startup", () -> "false");
 	}
 
@@ -80,9 +87,29 @@ class PaymentServiceIntegrationTest {
 	}
 
 	@Test
+	void readiness_isHealthy_whenDependenciesAvailable() {
+		WebTestClient.bindToServer().baseUrl("http://localhost:" + port).build()
+			.get().uri("/actuator/health/readiness")
+			.exchange()
+			.expectStatus().isOk()
+			.expectBody().jsonPath("$.status").isEqualTo("UP");
+	}
+
+	@Test
+	void jwtForUnknownUser_isUnauthorized() {
+		String token = jwtUtil.generateToken(
+			User.withUsername("unknown@flashsale.local").password("not-used").roles("STAFF").build());
+		WebTestClient.bindToServer().baseUrl("http://localhost:" + port).build()
+			.get().uri("/api/payments")
+			.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+			.exchange()
+			.expectStatus().isUnauthorized();
+	}
+
+	@Test
 	void login_returnsJwt_forValidStaffUser() {
 		WebTestClient client = WebTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
-		LoginRequest request = new LoginRequest("staff@flashsale.local", "password");
+		LoginRequest request = new LoginRequest("staff@flashsale.local", "interview-demo-pass");
 
 		AuthResponse auth = client.post().uri("/api/auth/login")
 			.contentType(MediaType.APPLICATION_JSON)
@@ -103,7 +130,7 @@ class PaymentServiceIntegrationTest {
 		WebTestClient client = WebTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
 		AuthResponse auth = client.post().uri("/api/auth/login")
 			.contentType(MediaType.APPLICATION_JSON)
-			.bodyValue(new LoginRequest("staff@flashsale.local", "password"))
+			.bodyValue(new LoginRequest("staff@flashsale.local", "interview-demo-pass"))
 			.exchange()
 			.expectStatus().isOk()
 			.expectBody(AuthResponse.class)
