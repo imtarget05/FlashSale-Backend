@@ -39,7 +39,7 @@ public class KafkaOrderEventConsumer {
 	}
 
 	@KafkaListener(topics = KafkaConfig.ORDER_EVENTS_TOPIC, groupId = KafkaConfig.CONSUMER_GROUP,
-		containerFactory = "paymentKafkaListenerFactory")
+		containerFactory = "paymentKafkaListenerFactory", autoStartup = "${app.kafka.listener.auto-startup:true}")
 	public void consumeOrderCreated(String message, Acknowledgment acknowledgment) {
 		OrderEventDTO dto;
 		try {

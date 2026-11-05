@@ -20,8 +20,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -90,25 +88,4 @@ public class PaymentController {
 		return ResponseEntity.ok(response);
 	}
 
-	@GetMapping("/health")
-	public ResponseEntity<Map<String, String>> health() {
-		Map<String, String> body = new HashMap<>();
-		body.put("status", "Healthy");
-		body.put("service", "payment-service");
-		return ResponseEntity.ok(body);
-	}
-
-	@GetMapping("/health/live")
-	public ResponseEntity<Map<String, String>> live() {
-		Map<String, String> body = new HashMap<>();
-		body.put("status", "healthy");
-		return ResponseEntity.ok(body);
-	}
-
-	@GetMapping("/healthz")
-	public ResponseEntity<Map<String, String>> healthz() {
-		Map<String, String> body = new HashMap<>();
-		body.put("status", "healthy");
-		return ResponseEntity.ok(body);
-	}
 }

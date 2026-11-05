@@ -1,27 +1,8 @@
 name: flashsale-payment-java
 services:
-  - name: payment-service-java
-    type: web
-    repo: https://github.com/imtarget05/FlashSale-Backend.git
-    rootDir: src/payment-service-java
-    dockerContext: .
-    dockerfile: Dockerfile
-    region: eastasia
-    plan: starter
-    envVars:
-      - key: SPRING_DATASOURCE_URL
-        fromDatabase:
-          name: flashsale-postgres
-          property: connectionString
-      - key: JWT_SIGNING_KEY
-        generateValue: true
-      - key: SPRING_DATA_REDIS_HOST
-        value: flashsale-redis
-      - key: SPRING_DATA_REDIS_PORT
-        value: "6379"
-      - key: SPRING_RABBITMQ_HOST
-        value: flashsale-rabbitmq
-      - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
-        value: flashsale-kafka:9092
-    healthCheckPath: /healthz
-    autoDeploy: false
+  payment-service-java:
+    project: .
+    host: containerapp
+    language: docker
+    docker:
+      path: Dockerfile
