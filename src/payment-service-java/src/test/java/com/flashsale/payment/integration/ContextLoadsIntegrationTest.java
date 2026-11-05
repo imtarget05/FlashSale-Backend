@@ -22,10 +22,12 @@ class ContextLoadsIntegrationTest {
 		registry.add("spring.datasource.url", postgres::getJdbcUrl);
 		registry.add("spring.datasource.username", postgres::getUsername);
 		registry.add("spring.datasource.password", postgres::getPassword);
+		registry.add("spring.rabbitmq.username", () -> "guest");
+		registry.add("spring.rabbitmq.password", () -> "guest");
+		registry.add("spring.rabbitmq.listener.simple.auto-startup", () -> "false");
 		registry.add("spring.sql.init.mode", () -> "always");
 		registry.add("spring.sql.init.schema-locations", () -> "file:docker/init-schema.sql");
 		registry.add("app.jwt.secret", () -> "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
-		registry.add("app.kafka.listener.auto-startup", () -> "false");
 	}
 
 	@Test

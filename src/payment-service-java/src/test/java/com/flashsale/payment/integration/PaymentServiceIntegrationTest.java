@@ -65,7 +65,6 @@ class PaymentServiceIntegrationTest {
 		registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
 		registry.add("app.jwt.secret", () -> "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
 		registry.add("demo.auth.password", () -> "interview-demo-pass");
-		registry.add("app.kafka.listener.auto-startup", () -> "false");
 	}
 
 	@Autowired

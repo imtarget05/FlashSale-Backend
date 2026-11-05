@@ -14,13 +14,13 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - SPRING_RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
       - SPRING_RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
-      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER:-guest}
-      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER:?Set RABBITMQ_USER in .env}
+      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
       - SPRING_DATA_REDIS_HOST=${REDIS_HOST:-redis}
       - SPRING_DATA_REDIS_PORT=${REDIS_PORT:-6379}
-      - APP_KAFKA_LISTENER_AUTO_STARTUP=false
-      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-REQUIRED_GENERATE_SECURE_32_BYTE_KEY_HERE}
-      - APP_JWT_SECRET=${JWT_SIGNING_KEY:-REQUIRED_GENERATE_SECURE_32_BYTE_KEY_HERE}
+      - SPRING_PROFILES_ACTIVE=demo
+      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env}
+      - DEMO_AUTH_PASSWORD=${DEMO_AUTH_PASSWORD:?Set DEMO_AUTH_PASSWORD in .env}
     depends_on:
       postgres:
         condition: service_healthy
@@ -29,7 +29,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/health/readiness"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -81,6 +81,9 @@ services:
   rabbitmq:
     container_name: flashsale-rabbitmq
     image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?Set RABBITMQ_USER in .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
     ports:
       - "5672:5672"
       - "15672:15672"

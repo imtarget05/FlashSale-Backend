@@ -1,19 +1,4 @@
 apiVersion: v1
-kind: Secret
-metadata:
-  name: payment-service-secrets
-  labels:
-    app: payment-service
-stringData:
-  POSTGRES_JDBC_URL: "jdbc:postgresql://postgres:5432/FlashSaleDb"
-  POSTGRES_USER: "postgres"
-  POSTGRES_PASSWORD: "postgres"
-  RABBITMQ_USER: "guest"
-  RABBITMQ_PASSWORD: "guest"
-  JWT_SIGNING_KEY: "replace-with-a-secure-32-byte-key"
-type: Opaque
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   name: payment-service-config
@@ -22,14 +7,11 @@ metadata:
 data:
   SPRING_APPLICATION_NAME: "payment-service"
   SERVER_PORT: "8080"
-  POSTGRES_HOST: "postgres"
-  POSTGRES_PORT: "5432"
-  POSTGRES_DB: "FlashSaleDb"
+  SPRING_PROFILES_ACTIVE: "demo"
   RABBITMQ_HOST: "rabbitmq"
   RABBITMQ_PORT: "5672"
   REDIS_HOST: "redis"
   REDIS_PORT: "6379"
-  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
   SPRING_JPA_HIBERNATE_DDL_AUTO: "validate"
   APP_JWT_EXPIRATION_MS: "86400000"
 ---
@@ -68,10 +50,10 @@ spec:
                 name: payment-service-secrets
           env:
             - name: JAVA_OPTS
-              value: "-Xms256m -Xmx512m -Dspring.autoconfigure.exclude=org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration,org.springframework.boot.autoconfigure.kafka.KafkaConsumerAutoConfiguration"
+              value: "-Xms256m -Xmx512m"
           readinessProbe:
             httpGet:
-              path: /health/live
+              path: /actuator/health/readiness
               port: 8080
             initialDelaySeconds: 20
             periodSeconds: 10
