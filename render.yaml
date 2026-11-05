@@ -5,7 +5,7 @@ services:
     plan: free
     region: oregon
     branch: preview
-    autoDeploy: true
+    autoDeploy: false
     healthCheckPath: /health/live
     dockerfilePath: ./src/payment-service-java/Dockerfile
     dockerContext: ./src/payment-service-java
@@ -34,11 +34,7 @@ services:
         sync: false
       - key: SPRING_RABBITMQ_PASSWORD
         sync: false
-      - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
-        sync: false
       - key: JWT_SIGNING_KEY
-        sync: false
-      - key: APP_JWT_SECRET
         sync: false
       - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
         value: "health,info,metrics,prometheus"
@@ -78,11 +74,7 @@ services:
         sync: false
       - key: SPRING_RABBITMQ_PASSWORD
         sync: false
-      - key: SPRING_KAFKA_BOOTSTRAP_SERVERS
-        sync: false
       - key: JWT_SIGNING_KEY
-        sync: false
-      - key: APP_JWT_SECRET
         sync: false
       - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
         value: "health,info,metrics,prometheus"

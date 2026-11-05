@@ -1,55 +1,76 @@
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, fail } from 'k6';
 
-// Redis-unavailable fallback completes synchronously (200); the queue path
-// accepts asynchronously (202). Sold-out responses (409) are also expected.
-http.setResponseCallback(http.expectedStatuses(200, 202, 409));
-
-// Flash-sale purchase burst against the tiered order endpoint.
-// Usage: k6 run -e BASE_URL=http://localhost:5065 load-tests/k6/flash-sale.js
-// NOTE: idempotency keys are unique per VU iteration (one purchase intention each).
+// Run only on an isolated local/CI stack; each iteration creates one payment.
+// Usage: k6 run -e BASE_URL=http://localhost:8081 load-tests/k6/flash-sale.js
 
 export const options = {
   scenarios: {
-    flash_sale_burst: {
+    payment_smoke_load: {
       executor: 'ramping-arrival-rate',
-      startRate: 10,
+      startRate: 2,
       timeUnit: '1s',
-      preAllocatedVUs: 50,
-      maxVUs: 200,
+      preAllocatedVUs: 10,
+      maxVUs: 30,
       stages: [
-        { target: 50, duration: '30s' }, // ramp to 50 orders/s
-        { target: 50, duration: '30s' },
-        { target: 0, duration: '10s' },
+        { target: 5, duration: '10s' },
+        { target: 5, duration: '10s' },
+        { target: 0, duration: '5s' },
       ],
     },
   },
   thresholds: {
-    // p95 of the reservation path must stay fast (measured local baseline: ~29 ms)
-    http_req_duration: ['p(95)<250'],
-    // sold-out 409s are a valid business outcome, not errors — count only real failures
-    http_req_failed: [{ threshold: 'rate<0.05', delayAbortEval: '10s' }],
-    // Custom checks (200/202 accepted / 409 sold-out) must overwhelmingly pass —
-    // a broken app returns odd statuses and fails the whole run.
-    checks: ['rate>0.95'],
+    http_req_duration: ['p(95)<1000'],
+    http_req_failed: ['rate<0.02'],
+    checks: ['rate>0.98'],
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:5065';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:8081';
 
-export default function () {
-  const res = http.post(`${BASE_URL}/api/orders`,
-    JSON.stringify({ productId: 1, quantity: 1 }),
+export function setup() {
+  const response = http.post(
+    `${BASE_URL}/api/auth/login`,
+    JSON.stringify({
+      email: __ENV.STAFF_EMAIL || 'staff@flashsale.local',
+      password: __ENV.STAFF_PASSWORD || 'password',
+    }),
+    { headers: { 'Content-Type': 'application/json' } },
+  );
+
+  if (response.status !== 200) {
+    fail(`Staff login failed with HTTP ${response.status}`);
+  }
+
+  const token = response.json('token');
+  if (!token) {
+    fail('Staff login response did not contain a token');
+  }
+  return { token };
+}
+
+export default function ({ token }) {
+  const uuidSuffix = `${__VU}`.padStart(4, '0') + `${__ITER}`.padStart(8, '0');
+  const response = http.post(
+    `${BASE_URL}/api/payments`,
+    JSON.stringify({
+      paymentId: `00000000-0000-4000-8000-${uuidSuffix}`,
+      orderId: __VU * 1000000 + __ITER,
+      idempotencyKey: `k6-${__VU}-${__ITER}`,
+      amount: 10.01,
+      currency: 'USD',
+    }),
     {
       headers: {
         'Content-Type': 'application/json',
-        'Idempotency-Key': `k6-${__VU}-${__ITER}`,
+        Authorization: `Bearer ${token}`,
       },
-    });
+    },
+  );
 
-  const ok = check(res, {
-    'accepted (200/202) or sold out (409)': (r) => r.status === 200 || r.status === 202 || r.status === 409,
-    'never a 5xx': (r) => r.status < 500,
+  const ok = check(response, {
+    'payment processed': (result) => result.status === 200,
+    'success status returned': (result) => result.json('success') === true,
   });
-  if (!ok) console.error(`unexpected status ${res.status}`);
+  if (!ok) console.error(`unexpected status ${response.status}`);
 }

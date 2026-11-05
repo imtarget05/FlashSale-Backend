@@ -2,31 +2,29 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FRONTEND_DIR="$REPO_ROOT/frontend"
 DEPLOY_ENV="${1:-preview}"
-RENDER_SERVICE="${RENDER_SERVICE:-flashsale-payment-api}"
 CLOUDFLARE_PROJECT="${CLOUDFLARE_PROJECT:-flashsale-frontend}"
 
+case "$DEPLOY_ENV" in
+  preview)
+    BRANCH=preview
+    API_URL="${VITE_API_URL:-https://flashsale-payment-api-preview.onrender.com}"
+    ;;
+  production)
+    BRANCH=main
+    API_URL="${VITE_API_URL:-https://flashsale-payment-api-prod.onrender.com}"
+    ;;
+  *)
+    echo "Usage: $0 [preview|production]" >&2
+    exit 2
+    ;;
+esac
+
 cd "$REPO_ROOT"
+npm ci --prefix frontend
+VITE_API_URL="$API_URL" VITE_ENV="$DEPLOY_ENV" npm run build --prefix frontend
 
-if [[ ! -d "$FRONTEND_DIR" ]]; then
-  echo "Frontend app not found at $FRONTEND_DIR"
-  exit 1
-fi
-
-# Frontend build
-cd "$FRONTEND_DIR"
-if [[ -f package.json ]]; then
-  npm ci
-  VITE_API_URL="${VITE_API_URL:-http://localhost:8081}" npm run build
-fi
-
-cd "$REPO_ROOT"
-
-echo "Preview build complete. Next steps:"
-echo "  1) Render: git push main and deploy the web service for $RENDER_SERVICE"
-echo "  2) Cloudflare Pages: create a project named $CLOUDFLARE_PROJECT and upload dist/ or connect the repo"
-echo "  3) Set env vars:"
-echo "     - VITE_API_URL=https://<render-service>.onrender.com"
-echo "     - VITE_ENV=$DEPLOY_ENV"
-echo ""
+echo "Build complete for $DEPLOY_ENV."
+echo "To deploy Cloudflare Pages, run:"
+echo "  npx wrangler pages deploy frontend/dist --project-name=$CLOUDFLARE_PROJECT --branch=$BRANCH"
+echo "This script only builds; it does not deploy Render or Cloudflare resources."

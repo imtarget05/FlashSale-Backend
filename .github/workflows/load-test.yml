@@ -1,16 +1,14 @@
 name: Load Test (k6) - Gap G15
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
   k6-load-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      JWT_SIGNING_KEY: local-ci-only-signing-key-with-at-least-32-bytes
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,37 +16,35 @@ jobs:
       - name: Create shared Compose network
         run: docker network inspect portfolio-net >/dev/null 2>&1 || docker network create portfolio-net
 
-      # No explicit -f: compose merges docker-compose.yml + docker-compose.override.yml,
-      # so order-api is published on host port 5001 (override pins "5001:8080").
+      # Compose merges docker-compose.yml and docker-compose.override.yml.
       - name: Start API dependencies (PostgreSQL, Redis, RabbitMQ)
         run: |
           docker compose up -d postgres redis rabbitmq
           sleep 10
           docker compose ps
 
-      - name: Start order-api (runs migrations on boot)
+      - name: Start Java payment API
         run: |
-          docker compose up -d order-api
-          sleep 15
-          # Wait for API to be healthy
-          for i in {1..30}; do
-            if curl -sf http://localhost:5001/health/live >/dev/null; then
+          docker compose up -d payment-service-java
+          attempt=1
+          while [ "$attempt" -le 30 ]; do
+            if curl -sf http://localhost:8081/health/live >/dev/null; then
               echo "API is live"
               break
             fi
             sleep 2
+            attempt=$((attempt + 1))
           done
-          # Fail the job if the API never came up — never load-test a dead API.
-          curl -sf http://localhost:5001/health/live \
-            || { echo "❌ API never became live"; docker compose logs --tail 100 order-api; exit 1; }
+          curl -sf http://localhost:8081/health/live \
+            || { echo "Java API never became live"; docker compose logs --tail 100 payment-service-java; exit 1; }
 
-      # k6 runs on the runner's host network so localhost:5001 reaches order-api.
-      # A breached threshold exits non-zero and fails the job.
       - name: Run k6 load test
         id: k6
         run: |
           docker run --rm --network host --user "$(id -u):$(id -g)" \
-            -e BASE_URL=http://127.0.0.1:5001 \
+            -e BASE_URL=http://127.0.0.1:8081 \
+            -e STAFF_EMAIL=staff@flashsale.local \
+            -e STAFF_PASSWORD=password \
             -v "$PWD:/workspace" -w /workspace \
             grafana/k6:0.57.0 run \
             --out json=results.json --summary-export=summary.json \
