@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted locally; current messaging decision is recorded in ADR-027. Cloud runtime is not verified.
 
 ## Context
 
@@ -38,8 +38,8 @@ The Java service exposes the same HTTP contract as the .NET service:
 
 ### Messaging
 
-- **RabbitMQ** (already in docker-compose): Java service publishes `payment.completed` / `payment.failed` to `payment.events` exchange, consumes `order.created` from `order.events` exchange. Dead letter queue configured.
-- **Kafka** (added for JD coverage): Java service publishes to `payment.events` topic and consumes `order.events` topic via `KafkaTemplate` / `@KafkaListener`. Consumer group `payment-service-group`, manual ack, 3 retries, `acks=all`. Dead letter topic `payment.dlq`.
+- **RabbitMQ** is the sole Java runtime broker: the service publishes `payment.completed` / `payment.failed` to `payment.events` and consumes `order.created` from `order.events`. Malformed or failed deliveries are dead-lettered; see ADR-027 for the decision and local evidence.
+- Kafka is not included in the Java runtime. Adding a second consumer without an explicit routing contract could process the same order through both brokers.
 
 ### Database
 
@@ -69,7 +69,7 @@ The Java service exposes the same HTTP contract as the .NET service:
 |-------------|------|------|------------------|
 | Rewrite .NET Payment Service in Java | Single implementation | Breaks existing .NET CI/CD, loses .NET evidence | Would remove working .NET service; not additive |
 | New repo for Java service | Clean separation | Harder to demonstrate integration with existing infra | CV wants one cohesive platform |
-| Kafka instead of RabbitMQ | JD mentions Kafka | Repo uses RabbitMQ; Kafka is unused/dead code | Minimize integration friction |
+| Kafka instead of RabbitMQ | JD mentions Kafka | No active Kafka integration contract; adding it would create a second delivery path | Keep one tested runtime broker; document Kafka as not demonstrated |
 | Separate database for Java | Clean isolation | Cross-service complexity; JD wants shared DB evidence | Shared DB with table separation is standard microservice pattern |
 | gRPC instead of REST | JD mentions gRPC | Protobuf tooling overhead, team REST maturity | REST sufficient for current scope; gRPC documented as planned |
 
@@ -77,10 +77,10 @@ The Java service exposes the same HTTP contract as the .NET service:
 
 ### Positive
 - Direct Java Spring Boot evidence for interviews (REST, JPA, Security, Messaging, Cache, Docker, CI/CD)
-- Same infrastructure stack as existing services (PostgreSQL, Redis, RabbitMQ, Kafka)
+- Same infrastructure stack as existing services (PostgreSQL, Redis, RabbitMQ)
 - Demonstrates polyglot microservice architecture
 - Idempotency, transaction, DLQ patterns implemented in Java
-- Oracle profile and Kafka support included for JD coverage (gRPC documented as planned gap in docs/adr/grpc-support-note.md)
+- Oracle profile is configured but requires separate runtime evidence; gRPC remains a documented gap in docs/adr/grpc-support-note.md
 
 ### Negative
 - Two payment services (.NET + Java) may cause confusion

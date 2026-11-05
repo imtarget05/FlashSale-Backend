@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -38,12 +39,12 @@ public class OrderEventConsumer {
 	}
 
 	@RabbitListener(queues = RabbitConfig.PAYMENT_QUEUE, ackMode = "MANUAL")
-	public void consumeOrderCreated(Object orderEvent, Channel channel,
+	public void consumeOrderCreated(Message orderEvent, Channel channel,
 		@Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
 		OrderEventDTO dto;
 		try {
-			dto = objectMapper.convertValue(orderEvent, OrderEventDTO.class);
-		} catch (IllegalArgumentException ex) {
+			dto = objectMapper.readValue(orderEvent.getBody(), OrderEventDTO.class);
+		} catch (IOException ex) {
 			log.error("[payment-service] failed to parse order event: {}", orderEvent, ex);
 			nack(channel, deliveryTag);
 			return;
