@@ -24,6 +24,7 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.test.web.reactive.server.EntityExchangeResult;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -51,6 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 @ActiveProfiles({"demo", "mongodb"})
+@TestPropertySource(properties = "management.endpoint.health.show-details=always")
 class PaymentServiceIntegrationTest {
 
 	@Container
@@ -184,6 +186,11 @@ class PaymentServiceIntegrationTest {
 			.exchange()
 			.expectStatus().isOk()
 			.expectBody().jsonPath("$.status").isEqualTo("UP");
+		WebTestClient.bindToServer().baseUrl("http://localhost:" + port).build()
+			.get().uri("/actuator/health/readiness")
+			.exchange()
+			.expectStatus().isOk()
+			.expectBody().jsonPath("$.components.mongo.status").isEqualTo("UP");
 	}
 
 	@Test
