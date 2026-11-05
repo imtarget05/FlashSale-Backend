@@ -12,6 +12,11 @@ if [[ -z "$ACR_LOGIN_SERVER" ]]; then
   exit 1
 fi
 
+if ! kubectl get secret payment-service-secrets >/dev/null 2>&1; then
+  echo "Create payment-service-secrets outside Git before deploying" >&2
+  exit 1
+fi
+
 IMAGE="${ACR_LOGIN_SERVER}/flashsale/payment-service:${IMAGE_TAG}"
 
 # Build the Java image from the module directory.
