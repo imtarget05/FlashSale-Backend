@@ -4,7 +4,7 @@ Updated 2026-11-05. This document records what is configured and verified for th
 
 ## Current Azure environment
 
-The separate `AKS-SRE-Platform` repository rebuilt a **public API validation** AKS cluster, `aks-portfolio-dev`, in eastasia on 2026-11-05. Azure reported `Running/Succeeded`, and `kubectl` from the local machine observed three Ready nodes (two system, one user). Its kubelet identity has `AcrPull` on `acrflashsalep6`. See that repository's `docs/evidence/2026-11-05-azure-aks-rebuild.md` for the command results and Terraform plan hash.
+The separate `AKS-SRE-Platform` repository rebuilt a **public API validation** AKS cluster, `aks-portfolio-dev`, in eastasia on 2026-11-05. Azure reported `Running/Succeeded`, and `kubectl` from the local machine observed three Ready nodes (two system, one user). Its kubelet identity has `AcrPull` on `acrflashsalep6`. See that repository's The separate `AKS-SRE-Platform` repository rebuilt a **public API validationTerraform plan hash.
 
 The cluster currently has no Argo CD namespace and no FlashSale workload. A reachable cluster is infrastructure evidence; it is not a Payment Service deployment or API verification. The cluster is running and incurs Azure charges.
 
@@ -30,10 +30,8 @@ Local Java verification on 2026-11-05: `mvn test` completed 22/22 tests (16 unit
 
 ## Traffic flow
 
-```
 Internet → Cloudflare (TLS/WAF/cache) → Render (Java Spring Boot)
   → PostgreSQL / Redis / RabbitMQ / Kafka
-```
 
 > Microservice portfolio: QuanLyKho (Python/FastAPI), AKS-SRE-Platform (terraform/k8s/gitops), FlashSale-Backend (Java Payment Service) mỗi repo có cấu hình riêng, share chung PostgreSQL/Redis/RabbitMQ/Kafka.
 
@@ -56,18 +54,9 @@ Internet → Cloudflare (TLS/WAF/cache) → Render (Java Spring Boot)
 
 The earlier five P0 bank/CreditFlow gates are outside the scope of this Java Payment Service portfolio deployment. Do not use them as a substitute for this service's own release evidence. For a backend job application, describe Java/Spring Boot, transaction/idempotency and the verified AKS demonstration at the level actually exercised.
 
-
-
 ## ⚠️ Bảo mật
 
 - `SONAR_TOKEN` là credential. **Không hardcode** vào mã nguồn, docs, hoặc chat. Chỉ ghi chú vị trí config: GitHub Actions secret (`SONAR_TOKEN`) hoặc Azure Key Vault.
 - Nếu token bị lộ: **rotate ngay** tại SonarCloud → My Account → Security → Revoke → Generate new.
 - Các secret khác (DB credentials, Redis/RabbitMQ/Kafka endpoints, OIDC client secret) phải được tham chiếu từ secret store, không đặt trực tiếp trong manifests.
-
-## Bảo mật
-
-- `SONAR_TOKEN` là credential. **Không hardcode** vào mã nguồn, docs, hoặc chat. Chỉ ghi chú vị trí config: GitHub Actions secret (`SONAR_TOKEN`) hoặc Azure Key Vault.
-- Nếu token bị lộ: **rotate ngay** tại SonarCloud → My Account → Security → Revoke → Generate new.
-- Các secret khác (DB credentials, Redis/RabbitMQ/Kafka endpoints, OIDC client secret) phải được tham chiếu từ secret store, không đặt trực tiếp trong manifests.
-- Demo data (`data/demo/app_cases.json`) chỉ dùng cho demo: synthetic loan application profiles. Production use of real applicant data chịu các ràng buộc P0 gates.
 - Demo data (`data/demo/app_cases.json`) chỉ dùng cho demo: synthetic loan application profiles. Production use of real applicant data chịu các ràng buộc P0 gates.
