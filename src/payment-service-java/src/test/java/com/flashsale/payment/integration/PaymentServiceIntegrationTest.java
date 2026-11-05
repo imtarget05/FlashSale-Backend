@@ -5,8 +5,15 @@ import com.flashsale.payment.dto.LoginRequest;
 import com.flashsale.payment.dto.PaymentRecordDto;
 import com.flashsale.payment.dto.ProcessPaymentRequest;
 import com.flashsale.payment.entity.Payment;
+import com.flashsale.payment.config.RabbitConfig;
+import com.flashsale.payment.event.OrderEventDTO;
 import com.flashsale.payment.repository.PaymentRepository;
 import com.flashsale.payment.security.JwtUtil;
+import org.springframework.amqp.core.AmqpAdmin;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -76,6 +83,12 @@ class PaymentServiceIntegrationTest {
 	@Autowired
 	private UserDetailsService userDetailsService;
 
+	@Autowired
+	private RabbitTemplate rabbitTemplate;
+
+	@Autowired
+	private AmqpAdmin amqpAdmin;
+
 	@org.springframework.boot.test.web.server.LocalServerPort
 	private int port;
 
@@ -85,6 +98,16 @@ class PaymentServiceIntegrationTest {
 			.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token).build();
 	}
 
+	private Queue bindPaymentEventQueue(String routingKey) {
+		Queue queue = new Queue(
+			"payment.completed.integration." + UUID.randomUUID(), false, false, false);
+		amqpAdmin.declareQueue(queue);
+		amqpAdmin.declareBinding(BindingBuilder.bind(queue)
+			.to(new DirectExchange(RabbitConfig.PAYMENT_EVENTS_EXCHANGE))
+			.with(routingKey));
+		return queue;
+	}
+
 	@Test
 	void readiness_isHealthy_whenDependenciesAvailable() {
 		WebTestClient.bindToServer().baseUrl("http://localhost:" + port).build()
@@ -92,6 +115,53 @@ class PaymentServiceIntegrationTest {
 			.exchange()
 			.expectStatus().isOk()
 			.expectBody().jsonPath("$.status").isEqualTo("UP");
+	}
+
+	@Test
+	void validOrderEvent_persistsPaymentAndPublishesCompletion() {
+		Queue outputQueue = bindPaymentEventQueue(RabbitConfig.ROUTING_KEY_PAYMENT_COMPLETED);
+		OrderEventDTO orderEvent = new OrderEventDTO(
+			"90301", "customer-1", new BigDecimal("10.01"), "USD", "OrderCreated",
+			java.time.OffsetDateTime.now());
+
+		rabbitTemplate.convertAndSend(
+			RabbitConfig.ORDER_EVENTS_EXCHANGE, RabbitConfig.ROUTING_KEY_ORDER_CREATED, orderEvent);
+
+		Object publishedEvent = rabbitTemplate.receiveAndConvert(outputQueue.getName(), 10_000);
+
+		assertThat(publishedEvent).isInstanceOf(PaymentRecordDto.class);
+		assertThat(paymentRepository.findByIdempotencyKey("order-90301")).isPresent();
+	}
+
+	@Test
+	void duplicateOrderEvent_persistsAndPublishesOnlyOnce() {
+		Queue outputQueue = bindPaymentEventQueue(RabbitConfig.ROUTING_KEY_PAYMENT_COMPLETED);
+		OrderEventDTO orderEvent = new OrderEventDTO(
+			"90302", "customer-1", new BigDecimal("10.01"), "USD", "OrderCreated",
+			java.time.OffsetDateTime.now());
+
+		rabbitTemplate.convertAndSend(
+			RabbitConfig.ORDER_EVENTS_EXCHANGE, RabbitConfig.ROUTING_KEY_ORDER_CREATED, orderEvent);
+		rabbitTemplate.convertAndSend(
+			RabbitConfig.ORDER_EVENTS_EXCHANGE, RabbitConfig.ROUTING_KEY_ORDER_CREATED, orderEvent);
+
+		Object firstEvent = rabbitTemplate.receiveAndConvert(outputQueue.getName(), 10_000);
+		Object duplicateEvent = rabbitTemplate.receiveAndConvert(outputQueue.getName(), 500);
+
+		assertThat(firstEvent).isInstanceOf(PaymentRecordDto.class);
+		assertThat(duplicateEvent).isNull();
+		assertThat(paymentRepository.findByIdempotencyKey("order-90302")).isPresent();
+	}
+
+	@Test
+	void malformedOrderEvent_isDeadLettered() {
+		rabbitTemplate.convertAndSend(
+			RabbitConfig.ORDER_EVENTS_EXCHANGE, RabbitConfig.ROUTING_KEY_ORDER_CREATED, "not-an-order-event");
+
+		org.springframework.amqp.core.Message deadLetter =
+			rabbitTemplate.receive(RabbitConfig.PAYMENT_DLQ, 10_000);
+
+		assertThat(deadLetter).isNotNull();
 	}
 
 	@Test
