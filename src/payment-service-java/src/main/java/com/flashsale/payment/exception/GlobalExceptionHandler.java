@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -53,6 +55,12 @@ public class GlobalExceptionHandler {
 		});
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 			.body(new ErrorResponse("VALIDATION_ERROR", "Request validation failed", errors));
+	}
+
+	@ExceptionHandler({BadCredentialsException.class, AuthenticationException.class})
+	public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException ex) {
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+			.body(new ErrorResponse("AUTH_ERROR", "Invalid credentials"));
 	}
 
 	@ExceptionHandler(IllegalArgumentException.class)

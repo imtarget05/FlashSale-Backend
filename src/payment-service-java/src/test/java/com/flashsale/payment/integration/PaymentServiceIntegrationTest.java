@@ -1,5 +1,7 @@
 package com.flashsale.payment.integration;
 
+import com.flashsale.payment.dto.AuthResponse;
+import com.flashsale.payment.dto.LoginRequest;
 import com.flashsale.payment.dto.PaymentRecordDto;
 import com.flashsale.payment.dto.ProcessPaymentRequest;
 import com.flashsale.payment.entity.Payment;
@@ -78,10 +80,61 @@ class PaymentServiceIntegrationTest {
 	}
 
 	@Test
+	void login_returnsJwt_forValidStaffUser() {
+		WebTestClient client = WebTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
+		LoginRequest request = new LoginRequest("staff@flashsale.local", "password");
+
+		AuthResponse auth = client.post().uri("/api/auth/login")
+			.contentType(MediaType.APPLICATION_JSON)
+			.bodyValue(request)
+			.exchange()
+			.expectStatus().isOk()
+			.expectBody(AuthResponse.class)
+			.returnResult()
+			.getResponseBody();
+
+		assertThat(auth).isNotNull();
+		assertThat(auth.token()).isNotBlank();
+		assertThat(auth.type()).isEqualTo("Bearer");
+	}
+
+	@Test
+	void paymentApi_requiresJwt_and_processesPaidRequest() {
+		WebTestClient client = WebTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
+		AuthResponse auth = client.post().uri("/api/auth/login")
+			.contentType(MediaType.APPLICATION_JSON)
+			.bodyValue(new LoginRequest("staff@flashsale.local", "password"))
+			.exchange()
+			.expectStatus().isOk()
+			.expectBody(AuthResponse.class)
+			.returnResult()
+			.getResponseBody();
+
+		ProcessPaymentRequest req = new ProcessPaymentRequest(
+			UUID.randomUUID(), 1, "idem-integ-1", new BigDecimal("10.01"), "USD");
+
+		PaymentRecordDto dto = client.post().uri("/api/payments")
+			.header(HttpHeaders.AUTHORIZATION, "Bearer " + auth.token())
+			.contentType(MediaType.APPLICATION_JSON)
+			.bodyValue(req)
+			.exchange()
+			.expectStatus().isOk()
+			.expectBody(PaymentRecordDto.class)
+			.returnResult()
+			.getResponseBody();
+
+		assertThat(dto).isNotNull();
+		assertThat(dto.success()).isTrue();
+		assertThat(dto.status()).isEqualTo("Succeeded");
+		Payment payment = paymentRepository.findByIdempotencyKey("idem-integ-1").orElseThrow();
+		assertThat(payment.getSuccess()).isTrue();
+	}
+
+	@Test
 	void processPayment_succeeds_whenCentsIsOne() {
 		WebTestClient client = createClient();
 		ProcessPaymentRequest req = new ProcessPaymentRequest(
-			UUID.randomUUID(), 1, "idem-integ-1", new BigDecimal("10.01"), "USD");
+			UUID.randomUUID(), 1, "idem-integ-1b", new BigDecimal("10.01"), "USD");
 
 		PaymentRecordDto dto = client.post().uri("/api/payments")
 			.contentType(MediaType.APPLICATION_JSON)
@@ -96,8 +149,18 @@ class PaymentServiceIntegrationTest {
 		assertThat(dto.success()).isTrue();
 		assertThat(dto.status()).isEqualTo("Succeeded");
 
-		Payment payment = paymentRepository.findByIdempotencyKey("idem-integ-1").orElseThrow();
+		Payment payment = paymentRepository.findByIdempotencyKey("idem-integ-1b").orElseThrow();
 		assertThat(payment.getSuccess()).isTrue();
+	}
+
+	@Test
+	void login_rejectsBadCredentials() {
+		WebTestClient client = WebTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
+		client.post().uri("/api/auth/login")
+			.contentType(MediaType.APPLICATION_JSON)
+			.bodyValue(new LoginRequest("staff@flashsale.local", "wrong-password"))
+			.exchange()
+			.expectStatus().isUnauthorized();
 	}
 
 	@Test

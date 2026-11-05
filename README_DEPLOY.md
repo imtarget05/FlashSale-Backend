@@ -19,6 +19,11 @@ Expected output:
 
 ## Backend deployment on Render
 
+The repo now declares two Render web services in [render.yaml](./render.yaml):
+
+- `flashsale-payment-api-preview` → branch `preview`
+- `flashsale-payment-api-prod` → branch `main`
+
 ### Preview branch (`preview`)
 
 ```bash
@@ -26,14 +31,15 @@ git checkout -b preview
 git push origin preview
 ```
 
-Then in Render:
+Then in Render, create or connect the service:
 
 ```bash
-# Create a Web Service named flashsale-payment-api
+# Service name: flashsale-payment-api-preview
 # Runtime: Docker
 # Dockerfile path: ./src/payment-service-java/Dockerfile
 # Docker context: ./src/payment-service-java
 # Health check path: /health/live
+# Branch: preview
 ```
 
 Environment variables for preview:
@@ -64,7 +70,18 @@ git checkout main
 git push origin main
 ```
 
-In Render, keep the same service but set the production branch to `main`, and point environment variables to production DB/Redis/RabbitMQ values.
+In Render, use the separate production service:
+
+```bash
+# Service name: flashsale-payment-api-prod
+# Runtime: Docker
+# Dockerfile path: ./src/payment-service-java/Dockerfile
+# Docker context: ./src/payment-service-java
+# Health check path: /health/live
+# Branch: main
+```
+
+Point environment variables to production DB/Redis/RabbitMQ values and keep preview isolated from production secrets.
 
 ## Frontend deployment on Cloudflare Pages
 

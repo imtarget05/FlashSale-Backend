@@ -16,6 +16,10 @@ This repository contains a single Java/Spring Boot microservice: **payment-servi
 
 The previous C#/.NET solution and its projects (`FlashSale.Domain`, `Order.Api`, `HealthProbe`, OpsBridge, `AzureFlashSale.slnx`) have been removed to keep one stack: **Java-only**.
 
+## Scope and product focus
+
+The primary product is the Java backend. The `frontend/` folder is a thin demo shell for preview testing and smoke checks only; it is not the core business surface of the repo. Backend logic, payment idempotency, security, and API contracts remain the canonical source of truth.
+
 ## Module layout
 
 ```

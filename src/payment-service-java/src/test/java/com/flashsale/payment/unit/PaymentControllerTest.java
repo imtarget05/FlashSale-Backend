@@ -10,6 +10,7 @@ import com.flashsale.payment.security.JwtUtil;
 import com.flashsale.payment.security.SecurityConfig;
 import com.flashsale.payment.service.PaymentService;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -143,6 +145,36 @@ class PaymentControllerTest {
 				.content(json))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.token").value("token-123"));
+	}
+
+	@Test
+	void login_shouldReturnUnauthorized_whenCredentialsAreInvalid() throws Exception {
+		when(authService.authenticate(any(LoginRequest.class)))
+			.thenThrow(new BadCredentialsException("Bad credentials"));
+
+		String json = """
+			{
+			  "email": "admin@flashsale.local",
+			  "password": "wrong-password"
+			}
+			""";
+
+		mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(json))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void listPayments_shouldReturnOk_whenJwtTokenIsValidForStaff() throws Exception {
+		Page<PaymentRecordDto> page = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+		when(jwtUtil.extractUsername("jwt-staff-token")).thenReturn("staff@flashsale.local");
+		when(jwtUtil.isTokenValid(anyString(), any())).thenReturn(true);
+		when(paymentService.listPayments(any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
+
+		mockMvc.perform(get("/api/payments")
+				.header("Authorization", "Bearer jwt-staff-token"))
+			.andExpect(status().isOk());
 	}
 
 	@Test
