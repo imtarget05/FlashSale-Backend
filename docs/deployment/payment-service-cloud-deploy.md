@@ -26,7 +26,25 @@ Local Java verification on 2026-11-05: `mvn test` completed 22/22 tests (16 unit
 |-------|--------|-----------|
 | **Cloudflare Pages/Workers** | Edge TLS, WAF, caching, rate limiting (`wrangler.toml`) | Chưa deploy — cần `CLOUDFLARE_API_TOKEN` |
 | **Render** | Java Spring Boot, `/health/live`, OTEL | Chưa deploy — cần `RENDER_API_KEY` |
+| **Azure AKS** | AKS `aks-portfolio-dev` (eastasia), 3 nodes Ready, Payment Service LoadBalancer | **Deployed — verified live** |
 | **Azure** | ALB + Container Apps | Chặn bởi `no_azure_production_mutations` |
+
+## AKS live verification (2026-11-05)
+
+| Item | Giá trị |
+|------|---------|
+| Cluster | `aks-portfolio-dev` (eastasia, `rg-aks-platform-dev`) |
+| Nodes | 3/3 Ready |
+| Image | `acrflashsalep6.azurecr.io/flashsale/payment-service:64971ad` (amd64) |
+| Service | `payment-service`, type LoadBalancer |
+| External IP | `57.158.102.193` |
+| `curl /healthz` | `{"status":"healthy"}` HTTP 200 |
+| `curl /health/live` | `{"status":"healthy"}` HTTP 200 |
+| `curl /api/payments/{key}` | 401 (requires valid JWT) |
+| Dependencies | PostgreSQL + Kafka deployed in same AKS cluster |
+
+> Verification performed on the dev AKS cluster. This is a live AKS demonstration, not a production release. Do not claim production readiness — 5 P0 gates remain open (see QuanLyKho/AKS-SRE-Platform repos).
+
 
 ## Traffic flow
 
