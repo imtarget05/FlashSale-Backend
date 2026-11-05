@@ -318,30 +318,8 @@ services:
       - portfolio-net
 
   # Kafka is UNUSED by the app (KafkaActivityTracker is dead code, ADR-007).
-  # Opt-in only: `docker compose --profile experimental up kafka`.
-  kafka:
-    image: bitnami/kafka:3.5
-    profiles:
-      - experimental
-    ports:
-      - "9092:9092"
-    environment:
-      - KAFKA_CFG_NODE_ID=0
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - ALLOW_PLAINTEXT_LISTENER=yes
-    healthcheck:
-      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server kafka:9092 --list || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-    networks:
-      - default
-      - portfolio-net
-
+  # Keep a single active definition for local validation; the experimental
+  # profile is intentionally omitted to avoid duplicate service definitions.
   kafka:
     container_name: flashsale-kafka
     image: bitnami/kafka:3.5
