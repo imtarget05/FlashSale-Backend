@@ -12,12 +12,12 @@ Local Java verification on 2026-11-05: `mvn test` completed 22/22 tests (16 unit
 
 ## Deployment configurations in this repository
 
-| Path | Purpose | Current limit |
-| --- | --- | --- |
-| `src/payment-service-java/Dockerfile` | Multi-stage Java 17 container build | Image has not been published to ACR from this revision |
-| `src/payment-service-java/azure.yaml` | Azure Developer CLI descriptor for a possible **Container Apps** deployment | No ACA infrastructure module, environment, or deployed service is provided; this file is not an AKS manifest |
-| `infrastructure/kubernetes/overlays/azure-cloud/` | Historical AKS Kustomize overlay | Its payment Deployment still has `ASPNETCORE_*` variables and a .NET connection-string contract; it does **not** deploy the Java service as written |
-| `.github/workflows/payment-service-java-ci.yml` | Build, tests and image scan | Does not publish a SHA-pinned Java image to ACR or promote it to AKS |
+| Config | Purpose | Trạng thái |
+|--------|---------|-----------|
+| `SONAR_TOKEN` (GitHub Actions secret) | SonarCloud scan | Cần config: `gh secret set SONAR_TOKEN -R FlashSale-Backend -b "<token>"` (tên secret, giá trị không hardcode) |
+| `ALB` (Azure Load Balancer) | L4/L7 routing cho Payment Service | Chưa deploy — cần infra team mở quyền |
+| `azure.yaml` | `azd` descriptor (Container Apps) | Không deploy (chặn `no_azure_production_mutations`) |
+| `render.yaml` | Render Blueprint (Java Spring Boot) | Chưa có trong repo |
 
 `azure.yaml` uses the `azd` schema (`services` is a map; `host: containerapp`). Azure region, compute plan and secrets belong to the provisioned ACA environment. The former file used Render Blueprint fields (`plan`, `autoDeploy`, `fromDatabase`) and did not configure Azure. No `render.yaml` or Cloudflare deployment config for this Java service is present in this repository.
 
@@ -31,3 +31,12 @@ Local Java verification on 2026-11-05: `mvn test` completed 22/22 tests (16 unit
 5. Record costs and a teardown decision for the validation cluster. A bank production environment requires its own identity, private networking and owner approvals; this portfolio cluster does not supply those controls.
 
 The earlier five P0 bank/CreditFlow gates are outside the scope of this Java Payment Service portfolio deployment. Do not use them as a substitute for this service's own release evidence. For a backend job application, describe Java/Spring Boot, transaction/idempotency and the verified AKS demonstration at the level actually exercised.
+
+
+
+## ⚠️ Bảo mật
+
+- `SONAR_TOKEN` là credential. **Không hardcode** vào mã nguồn, docs, hoặc chat. Chỉ ghi chú vị trí config: GitHub Actions secret (`SONAR_TOKEN`) hoặc Azure Key Vault.
+- Nếu token bị lộ: **rotate ngay** tại SonarCloud → My Account → Security → Revoke → Generate new.
+- Các secret khác (DB credentials, Redis/RabbitMQ/Kafka endpoints, OIDC client secret) phải được tham chiếu từ secret store, không đặt trực tiếp trong manifests.
+- Demo data (`data/demo/app_cases.json`) chỉ dùng cho demo: synthetic loan application profiles. Production use of real applicant data chịu các ràng buộc P0 gates.
