@@ -34,7 +34,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(PaymentAuditController.class)
 @Import({SecurityConfig.class, DemoUserDetailsConfig.class, PaymentAuditControllerTest.TestCacheConfiguration.class})
 @ActiveProfiles({"demo", "mongodb"})
-@TestPropertySource(properties = "demo.auth.password=test-password-for-audit")
+@TestPropertySource(properties = {
+	"demo.auth.password=test-password-for-audit",
+	"spring.mongodb.uri=mongodb://localhost:27017/flashsale-test"
+})
 class PaymentAuditControllerTest {
 
 	@TestConfiguration(proxyBeanMethods = false)
