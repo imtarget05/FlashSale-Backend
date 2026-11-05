@@ -12,23 +12,47 @@ Local Java verification on 2026-11-05: `mvn test` completed 22/22 tests (16 unit
 
 ## Deployment configurations in this repository
 
-| Config | Purpose | Trạng thái |
-|--------|---------|-----------|
 | `SONAR_TOKEN` (GitHub Actions secret) | SonarCloud scan | Cần config: `gh secret set SONAR_TOKEN -R FlashSale-Backend -b "<token>"` (tên secret, giá trị không hardcode) |
 | `ALB` (Azure Load Balancer) | L4/L7 routing cho Payment Service | Chưa deploy — cần infra team mở quyền |
 | `azure.yaml` | `azd` descriptor (Container Apps) | Không deploy (chặn `no_azure_production_mutations`) |
 | `render.yaml` | Render Blueprint (Java Spring Boot) | Chưa có trong repo |
+| `wrangler.toml` | Cloudflare Pages/Workers config | Chưa có trong repo |
 
 `azure.yaml` uses the `azd` schema (`services` is a map; `host: containerapp`). Azure region, compute plan and secrets belong to the provisioned ACA environment. The former file used Render Blueprint fields (`plan`, `autoDeploy`, `fromDatabase`) and did not configure Azure. No `render.yaml` or Cloudflare deployment config for this Java service is present in this repository.
 
-## Work required for an AKS backend demonstration
+## Cloud deployment
 
-1. Make the Java service's Kubernetes Deployment and Service explicit. Replace the historical .NET payment env names with Spring settings; add resource requests, non-root security, and `/health/live` plus readiness probes. Keep the AKS user pool as its scheduling target.
-2. Provide PostgreSQL schema migration and secret references, plus reachable Redis/RabbitMQ/Kafka endpoints. Do not put credentials in manifests. The current Java service depends on these systems; a health response alone is not a transaction proof.
-   Provide a production `UserDetailsService` as well: the in-memory demo users are active only with the `dev` profile, while authentication requires that interface at startup.
-3. Build and scan the Java image, publish it to `acrflashsalep6` with an immutable SHA or digest, and reference that exact artifact in the AKS overlay. Keep the source commit, image digest and deployed revision together in evidence.
-4. Render and validate the overlay before promotion. Deploy to the validation cluster, then verify pod readiness, authenticated payment API, idempotent replay/conflict, one database write, and the intended message flow. Record both success and failure cases.
-5. Record costs and a teardown decision for the validation cluster. A bank production environment requires its own identity, private networking and owner approvals; this portfolio cluster does not supply those controls.
+| Layer | Config | Trạng thái |
+|-------|--------|-----------|
+| **Cloudflare Pages/Workers** | Edge TLS, WAF, caching, rate limiting (`wrangler.toml`) | Chưa deploy — cần `CLOUDFLARE_API_TOKEN` |
+| **Render** | Java Spring Boot, `/health/live`, OTEL | Chưa deploy — cần `RENDER_API_KEY` |
+| **Azure** | ALB + Container Apps | Chặn bởi `no_azure_production_mutations` |
+
+## Traffic flow
+
+```
+Internet → Cloudflare (TLS/WAF/cache) → Render (Java Spring Boot)
+  → PostgreSQL / Redis / RabbitMQ / Kafka
+```
+
+> Microservice portfolio: QuanLyKho (Python/FastAPI), AKS-SRE-Platform (terraform/k8s/gitops), FlashSale-Backend (Java Payment Service) mỗi repo có cấu hình riêng, share chung PostgreSQL/Redis/RabbitMQ/Kafka.
+
+## QuanLyKho (Python/FastAPI)
+
+| Path | Purpose | Trạng thái |
+|------|---------|-----------|
+| `render.yaml` | Render Blueprint (`kho-tra-sua-fastapi`, port 8000, `/api/v1/health/live`) | Chưa deploy — cần `RENDER_API_KEY` |
+| `infra/k8s/` | Kustomize overlays (local/cloud) | Chưa apply (private-link block) |
+| `Dockerfile` | Python 3.11 slim, non-root (uid 10001) | Chưa publish image |
+
+## AKS-SRE-Platform (terraform/k8s/gitops)
+
+| Path | Purpose | Trạng thái |
+|------|---------|-----------|
+| `terraform/aks-foundation/` | AKS cluster (aks-portfolio-dev) | Deployed, private-link block |
+| `gitops-validate/` | Argo CD + kubeval | Chạy local 42/42 pass, live sync blocked |
+| `apps/sre-console/` | Cloudflare Pages (console UI) | Chưa deploy — cần `CLOUDFLARE_API_TOKEN` |
+| `platform/sre-demo-api/` | Render web service | Chưa deploy — cần `RENDER_API_KEY` |
 
 The earlier five P0 bank/CreditFlow gates are outside the scope of this Java Payment Service portfolio deployment. Do not use them as a substitute for this service's own release evidence. For a backend job application, describe Java/Spring Boot, transaction/idempotency and the verified AKS demonstration at the level actually exercised.
 
@@ -39,4 +63,11 @@ The earlier five P0 bank/CreditFlow gates are outside the scope of this Java Pay
 - `SONAR_TOKEN` là credential. **Không hardcode** vào mã nguồn, docs, hoặc chat. Chỉ ghi chú vị trí config: GitHub Actions secret (`SONAR_TOKEN`) hoặc Azure Key Vault.
 - Nếu token bị lộ: **rotate ngay** tại SonarCloud → My Account → Security → Revoke → Generate new.
 - Các secret khác (DB credentials, Redis/RabbitMQ/Kafka endpoints, OIDC client secret) phải được tham chiếu từ secret store, không đặt trực tiếp trong manifests.
+
+## Bảo mật
+
+- `SONAR_TOKEN` là credential. **Không hardcode** vào mã nguồn, docs, hoặc chat. Chỉ ghi chú vị trí config: GitHub Actions secret (`SONAR_TOKEN`) hoặc Azure Key Vault.
+- Nếu token bị lộ: **rotate ngay** tại SonarCloud → My Account → Security → Revoke → Generate new.
+- Các secret khác (DB credentials, Redis/RabbitMQ/Kafka endpoints, OIDC client secret) phải được tham chiếu từ secret store, không đặt trực tiếp trong manifests.
+- Demo data (`data/demo/app_cases.json`) chỉ dùng cho demo: synthetic loan application profiles. Production use of real applicant data chịu các ràng buộc P0 gates.
 - Demo data (`data/demo/app_cases.json`) chỉ dùng cho demo: synthetic loan application profiles. Production use of real applicant data chịu các ràng buộc P0 gates.
