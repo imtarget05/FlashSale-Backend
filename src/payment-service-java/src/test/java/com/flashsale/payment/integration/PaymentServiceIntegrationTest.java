@@ -24,6 +24,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.test.web.reactive.server.EntityExchangeResult;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.containers.GenericContainer;
@@ -35,7 +36,13 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -78,6 +85,9 @@ class PaymentServiceIntegrationTest {
 	private PaymentRepository paymentRepository;
 
 	@Autowired
+	private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+	@Autowired
 	private JwtUtil jwtUtil;
 
 	@Autowired
@@ -106,6 +116,51 @@ class PaymentServiceIntegrationTest {
 			.to(new DirectExchange(RabbitConfig.PAYMENT_EVENTS_EXCHANGE))
 			.with(routingKey));
 		return queue;
+	}
+
+	private List<EntityExchangeResult<byte[]>> submitPaymentRequestsConcurrently(
+		WebTestClient client, ProcessPaymentRequest first, ProcessPaymentRequest second) throws Exception {
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+		CountDownLatch ready = new CountDownLatch(2);
+		CountDownLatch start = new CountDownLatch(1);
+
+		try {
+			CompletableFuture<EntityExchangeResult<byte[]>> firstResult =
+				CompletableFuture.supplyAsync(() -> submitPayment(client, first, ready, start), executor);
+			CompletableFuture<EntityExchangeResult<byte[]>> secondResult =
+				CompletableFuture.supplyAsync(() -> submitPayment(client, second, ready, start), executor);
+
+			assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+			start.countDown();
+			return List.of(firstResult.get(15, TimeUnit.SECONDS), secondResult.get(15, TimeUnit.SECONDS));
+		} finally {
+			executor.shutdownNow();
+		}
+	}
+
+	private EntityExchangeResult<byte[]> submitPayment(WebTestClient client, ProcessPaymentRequest request,
+		CountDownLatch ready, CountDownLatch start) {
+		ready.countDown();
+		try {
+			if (!start.await(5, TimeUnit.SECONDS)) {
+				throw new IllegalStateException("Timed out waiting to start concurrent payment request");
+			}
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException("Interrupted while waiting to start concurrent payment request", ex);
+		}
+
+		return client.post().uri("/api/payments")
+			.contentType(MediaType.APPLICATION_JSON)
+			.bodyValue(request)
+			.exchange()
+			.expectBody(byte[].class)
+			.returnResult();
+	}
+
+	private long countPayments(String idempotencyKey) {
+		return jdbcTemplate.queryForObject(
+			"SELECT COUNT(*) FROM payment_records WHERE idempotency_key = ?", Long.class, idempotencyKey);
 	}
 
 	@Test
@@ -330,6 +385,39 @@ class PaymentServiceIntegrationTest {
 			.bodyValue(changed)
 			.exchange()
 			.expectStatus().isEqualTo(409);
+	}
+
+	@Test
+	void concurrentSamePayload_requestsCreateOnePaymentAndBothSucceed() throws Exception {
+		WebTestClient client = createClient();
+		String idempotencyKey = "idem-concurrent-same-" + UUID.randomUUID();
+		ProcessPaymentRequest request = new ProcessPaymentRequest(
+			UUID.randomUUID(), 91, idempotencyKey, new BigDecimal("10.01"), "USD");
+
+		List<EntityExchangeResult<byte[]>> results =
+			submitPaymentRequestsConcurrently(client, request, request);
+
+		assertThat(results).extracting(EntityExchangeResult::getStatus)
+			.containsExactlyInAnyOrder(org.springframework.http.HttpStatus.OK, org.springframework.http.HttpStatus.OK);
+		assertThat(countPayments(idempotencyKey)).isEqualTo(1);
+	}
+
+	@Test
+	void concurrentDifferentPayload_requestsReturnConflictAndCreateOnePayment() throws Exception {
+		WebTestClient client = createClient();
+		String idempotencyKey = "idem-concurrent-diff-" + UUID.randomUUID();
+		UUID paymentId = UUID.randomUUID();
+		ProcessPaymentRequest first = new ProcessPaymentRequest(
+			paymentId, 92, idempotencyKey, new BigDecimal("10.01"), "USD");
+		ProcessPaymentRequest changed = new ProcessPaymentRequest(
+			paymentId, 92, idempotencyKey, new BigDecimal("99.99"), "USD");
+
+		List<EntityExchangeResult<byte[]>> results =
+			submitPaymentRequestsConcurrently(client, first, changed);
+
+		assertThat(results).extracting(EntityExchangeResult::getStatus)
+			.containsExactlyInAnyOrder(org.springframework.http.HttpStatus.OK, org.springframework.http.HttpStatus.CONFLICT);
+		assertThat(countPayments(idempotencyKey)).isEqualTo(1);
 	}
 
 	@Test
