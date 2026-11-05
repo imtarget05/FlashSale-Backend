@@ -44,6 +44,18 @@ class DemoUserDetailsConfigTest {
 	}
 
 	@Test
+	void productionProfileDoesNotEnableDemoAccountsWhenDemoIsAlsoActive() {
+		runner.withPropertyValues("demo.auth.password=interview-demo-pass")
+			.withInitializer(context -> context.getEnvironment().setActiveProfiles("demo", "production"))
+			.run(context -> {
+				assertThat(context).hasNotFailed();
+				UserDetailsService users = context.getBean(UserDetailsService.class);
+				assertThatThrownBy(() -> users.loadUserByUsername("customer@flashsale.local"))
+					.isInstanceOf(UsernameNotFoundException.class);
+			});
+	}
+
+	@Test
 	void devProfileDoesNotEnableDemoAccounts() {
 		assertDemoAccountsAreUnavailable(
 			runner.withInitializer(context -> context.getEnvironment().setActiveProfiles("dev")));

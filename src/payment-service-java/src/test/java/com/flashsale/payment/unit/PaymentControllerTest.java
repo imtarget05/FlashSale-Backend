@@ -10,19 +10,29 @@ import com.flashsale.payment.security.JwtUtil;
 import com.flashsale.payment.security.SecurityConfig;
 import com.flashsale.payment.security.DemoUserDetailsConfig;
 import com.flashsale.payment.service.PaymentService;
+import io.jsonwebtoken.MalformedJwtException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -35,20 +45,38 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(PaymentController.class)
-@Import({SecurityConfig.class, DemoUserDetailsConfig.class})
-@ActiveProfiles("dev")
+@Import({SecurityConfig.class, DemoUserDetailsConfig.class, PaymentControllerTest.TestCacheConfiguration.class})
+@ActiveProfiles("demo")
+@TestPropertySource(properties = "demo.auth.password=interview-demo-pass")
 class PaymentControllerTest {
 
+	@TestConfiguration(proxyBeanMethods = false)
+	static class TestCacheConfiguration {
+		@Bean
+		CacheManager cacheManager() {
+			return new ConcurrentMapCacheManager("payments");
+		}
+	}
+
 	@Autowired
+	private WebApplicationContext applicationContext;
+
 	private MockMvc mockMvc;
 
-	@MockBean
+	@BeforeEach
+	void setUpMockMvc() {
+		mockMvc = MockMvcBuilders.webAppContextSetup(applicationContext)
+			.apply(SecurityMockMvcConfigurers.springSecurity())
+			.build();
+	}
+
+	@MockitoBean
 	private PaymentService paymentService;
 
-	@MockBean
+	@MockitoBean
 	private AuthService authService;
 
-	@MockBean
+	@MockitoBean
 	private JwtUtil jwtUtil;
 
 	@Test
@@ -99,6 +127,16 @@ class PaymentControllerTest {
 		mockMvc.perform(post("/api/payments")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{}"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void protectedEndpoint_shouldReturnUnauthorized_whenBearerTokenIsMalformed() throws Exception {
+		when(jwtUtil.extractUsername("malformed-token"))
+			.thenThrow(new MalformedJwtException("Invalid JWT"));
+
+		mockMvc.perform(get("/api/payments")
+				.header("Authorization", "Bearer malformed-token"))
 			.andExpect(status().isUnauthorized());
 	}
 

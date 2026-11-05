@@ -3,7 +3,7 @@
 | Badge | Value |
 |---|---|
 | ![Java 17](https://img.shields.io/badge/Java-17-007396?logo=java) | Runtime |
-| ![Spring Boot 3.2](https://img.shields.io/badge/Spring%20Boot-3.2.5-6DB33F?logo=spring-boot) | Framework |
+| ![Spring Boot 4](https://img.shields.io/badge/Spring%20Boot-4.0.9-6DB33F?logo=spring-boot) | Framework |
 | ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql) | Database |
 | ![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?logo=redis) | Cache / inventory mirror |
 | ![RabbitMQ](https://img.shields.io/badge/RabbitMQ-Messaging-FF6600?logo=rabbitmq) | Messaging |
@@ -24,7 +24,7 @@ The primary product is the Java backend. The `frontend/` folder is a thin demo s
 
 ```
 src/payment-service-java/
-├── pom.xml                  # Spring Boot 3.2.5, Java 17
+├── pom.xml                  # Spring Boot 4.0.9, Java 17
 ├── Dockerfile               # multi-stage (maven build → temurin JRE)
 ├── docker/init-schema.sql   # PostgreSQL schema (payment_records, idempotency keys)
 └── src/main/java/com/flashsale/payment/
@@ -41,10 +41,15 @@ src/payment-service-java/
 ## Run locally
 
 ```bash
+# Create per-run local-only credentials (do not commit these values).
+export JWT_SIGNING_KEY="$(openssl rand -base64 48)"
+export DEMO_AUTH_PASSWORD="$(openssl rand -base64 24)"
+
 # 1) Start infra (PostgreSQL, Redis, RabbitMQ)
 docker compose up -d postgres redis rabbitmq
 
-# 2) Build and run the payment service
+# 2) Configure ephemeral local demo credentials, then run the service
+export SPRING_PROFILES_ACTIVE=demo
 cd src/payment-service-java
 mvn -q -DskipTests package
 java -jar target/*.jar
@@ -70,7 +75,9 @@ Integration tests use Testcontainers (PostgreSQL, RabbitMQ, Kafka) and need a ru
 mvn -q test
 ```
 
-Recorded local result: **16/18 unit tests pass**; the 2 integration-test errors are `Testcontainers` unable to reach a Docker daemon in this environment — not code failures.
+The Maven suite includes Testcontainers-backed PostgreSQL, Redis, and RabbitMQ
+integration tests; see the latest exact-commit CI run for current counts and
+results.
 
 ## API surface (key endpoints)
 
@@ -91,5 +98,10 @@ Full OpenAPI/Swagger UI is available at `/swagger-ui.html` when running.
 ## Notes
 
 - No real PSP contract, credential, or behaviour is exercised anywhere; payment outcomes are simulated for local/demo runs.
-- JWT signing key must be supplied via `JWT_SIGNING_KEY` / `APP_JWT_SECRET` (never committed).
-- Kubernetes / AKS / Azure artifacts were removed with the C# solution; this repo targets local `docker compose` only.
+- Local mock identities exist only in the explicit `demo` profile and require
+  `DEMO_AUTH_PASSWORD`; never enable this profile in production.
+- `JWT_SIGNING_KEY` and `DEMO_AUTH_PASSWORD` are required for local demo compose
+  and must not be committed.
+- The Java module includes a non-production AKS validation manifest and runbook
+  at [AKS_DEPLOYMENT.md](src/payment-service-java/AKS_DEPLOYMENT.md); it is not a
+  production deployment claim.
