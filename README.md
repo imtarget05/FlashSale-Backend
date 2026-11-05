@@ -119,6 +119,14 @@ The Maven suite includes Testcontainers-backed PostgreSQL, Redis, and RabbitMQ
 integration tests; see the latest exact-commit CI run for current counts and
 results.
 
+## Azure Pipelines CI
+
+`azure-pipelines.yml` runs Java 17 `mvn clean verify` (including Testcontainers
+tests) and a local Docker image build for `main`, `preview`, and pull requests.
+It requires no cloud credentials and does not push images or deploy. Connect
+this YAML file as an Azure DevOps pipeline to run it; this repository cannot
+prove that a remote Azure DevOps run has passed.
+
 ## API surface (key endpoints)
 
 | Endpoint | Method | Purpose |

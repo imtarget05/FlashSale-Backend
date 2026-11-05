@@ -1,0 +1,47 @@
+trigger:
+  batch: true
+  branches:
+    include:
+      - main
+      - preview
+  paths:
+    include:
+      - azure-pipelines.yml
+      - src/payment-service-java/**
+
+pr:
+  branches:
+    include:
+      - main
+      - preview
+  paths:
+    include:
+      - azure-pipelines.yml
+      - src/payment-service-java/**
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+
+  - task: JavaToolInstaller@0
+    displayName: Use Java 17
+    inputs:
+      versionSpec: '17'
+      jdkArchitectureOption: x64
+      jdkSourceOption: PreInstalled
+
+  - task: Maven@4
+    displayName: Build and test payment service
+    inputs:
+      mavenPomFile: src/payment-service-java/pom.xml
+      goals: clean verify
+      options: -B
+      publishJUnitResults: true
+      testResultsFiles: '**/surefire-reports/TEST-*.xml'
+      javaHomeOption: JDKVersion
+      jdkVersionOption: '1.17'
+
+  - script: docker build -t flashsale-payment-api:$(Build.BuildId) src/payment-service-java
+    displayName: Smoke-check payment service container build
