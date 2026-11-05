@@ -163,6 +163,11 @@ class PaymentServiceIntegrationTest {
 			"SELECT COUNT(*) FROM payment_records WHERE idempotency_key = ?", Long.class, idempotencyKey);
 	}
 
+	private long countOutboxEvents(String idempotencyKey) {
+		return jdbcTemplate.queryForObject(
+			"SELECT COUNT(*) FROM payment_outbox WHERE idempotency_key = ?", Long.class, idempotencyKey);
+	}
+
 	@Test
 	void readiness_isHealthy_whenDependenciesAvailable() {
 		WebTestClient.bindToServer().baseUrl("http://localhost:" + port).build()
@@ -186,6 +191,7 @@ class PaymentServiceIntegrationTest {
 
 		assertThat(publishedEvent).isInstanceOf(PaymentRecordDto.class);
 		assertThat(paymentRepository.findByIdempotencyKey("order-90301")).isPresent();
+		assertThat(countOutboxEvents("order-90301")).isEqualTo(1);
 	}
 
 	@Test
@@ -206,6 +212,7 @@ class PaymentServiceIntegrationTest {
 		assertThat(firstEvent).isInstanceOf(PaymentRecordDto.class);
 		assertThat(duplicateEvent).isNull();
 		assertThat(paymentRepository.findByIdempotencyKey("order-90302")).isPresent();
+		assertThat(countOutboxEvents("order-90302")).isEqualTo(1);
 	}
 
 	@Test
@@ -377,6 +384,7 @@ class PaymentServiceIntegrationTest {
 
 		assertThat(second.transactionId()).isEqualTo(first.transactionId());
 		assertThat(second.status()).isEqualTo(first.status());
+		assertThat(countOutboxEvents("idem-replay")).isEqualTo(1);
 
 		ProcessPaymentRequest changed = new ProcessPaymentRequest(
 			req.paymentId(), 4, "idem-replay", new BigDecimal("99.99"), "USD");
@@ -400,6 +408,7 @@ class PaymentServiceIntegrationTest {
 		assertThat(results).extracting(EntityExchangeResult::getStatus)
 			.containsExactlyInAnyOrder(org.springframework.http.HttpStatus.OK, org.springframework.http.HttpStatus.OK);
 		assertThat(countPayments(idempotencyKey)).isEqualTo(1);
+		assertThat(countOutboxEvents(idempotencyKey)).isEqualTo(1);
 	}
 
 	@Test
