@@ -80,6 +80,20 @@ class PaymentGrpcAuthInterceptorTest {
 	}
 
 	@Test
+	void rejectsTokenWithoutSubjectBeforeLoadingUser() {
+		when(call.getMethodDescriptor()).thenReturn(PaymentServiceGrpc.getProcessPaymentMethod());
+		when(jwtUtil.validateToken("signed-token")).thenReturn(true);
+		when(jwtUtil.extractUsername("signed-token")).thenReturn(null);
+
+		interceptor.interceptCall(call, bearer("signed-token"), next);
+
+		ArgumentCaptor<Status> status = ArgumentCaptor.forClass(Status.class);
+		verify(call).close(status.capture(), any());
+		assertEquals(Status.Code.UNAUTHENTICATED, status.getValue().getCode());
+		verify(userDetailsService, never()).loadUserByUsername(any());
+	}
+
+	@Test
 	void attachesAuthenticatedUserToGrpcContext() {
 		when(call.getMethodDescriptor()).thenReturn(PaymentServiceGrpc.getProcessPaymentMethod());
 		String token = "signed-token";
