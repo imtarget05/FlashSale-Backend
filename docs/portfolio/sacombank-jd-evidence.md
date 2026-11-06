@@ -20,7 +20,7 @@ means implemented and tested locally/CI; it does not mean operated in a bank.
 | Redis live outage and recovery | `NOT_YET` | No integration drill disconnects Redis during a request or proves recovery/cache consistency after reconnection. |
 | RabbitMQ, transactional outbox, retry and DLQ | `DEMONSTRATED` | Java integration tests exercise broker-backed payment flows and malformed-message dead lettering; [outbox retry test](../../src/payment-service-java/src/test/java/com/flashsale/payment/unit/PaymentOutboxRelayTest.java) verifies a failed publish remains pending and can be retried. |
 | JWT/RBAC, OIDC resource-server role mapping, and protected API docs | `DEMONSTRATED` | Negative tests cover invalid, expired, missing, and role-insufficient credentials; production OIDC validates issuer/JWKS and a required API audience, and maps a configurable `roles` claim. Mocked-decoder tests verify role mapping and that local login is denied; no live identity provider/JWKS run is claimed. |
-| OIDC signing-key rotation rehearsal and gateway rate-limit enforcement | `NOT_YET` | OIDC key rotation is delegated to the issuer's JWKS; no live rotation test has run. The selected rate-limit boundary is an API gateway, but no gateway is configured or verified in this repository. |
+| OIDC signing-key rotation rehearsal and gateway rate-limit enforcement | `PARTIAL` | A local test simulates publishing a new JWKS key alongside the old key and verifies the same decoder accepts tokens signed by both. No live issuer rotation has run. The selected rate-limit boundary is an API gateway, but no gateway is configured or verified in this repository. |
 | Kafka and ActiveMQ runtime | `THEORY_ONLY` | The [interview notes](./flashsale-java-interview-notes.md) discuss these brokers; this service uses RabbitMQ and has no Kafka/ActiveMQ runtime test. |
 | Docker build, image scan, GitHub Actions, and local Kubernetes rendering | `DEMONSTRATED` | Build/scan and repository CI evidence exist; manifests render locally. This does not demonstrate a live AKS workload or production deployment. |
 
@@ -30,13 +30,12 @@ The `production`/`prod` profile uses `OIDC_ISSUER_URI` (HTTPS), `OIDC_AUDIENCE`,
 and `OIDC_AUTHORITIES_CLAIM` (default `roles`). The configured issuer's
 discovery/JWKS metadata is used for signature and issuer validation; tokens
 must carry the configured audience and the role claim must contain values such
-as `CUSTOMER`, `STAFF`, or `ADMIN`. The local tests mock the decoder, so they
-verify role mapping and fail-closed configuration but do not validate a live
-provider or key rotation. Local `/api/auth/**` login is denied under these
-profiles. The legacy `JwtUtil` bean and `JwtStartupValidator` still require
-`JWT_SIGNING_KEY` at startup even though OIDC handles production request
-authentication; removing that unused production dependency remains open. Rate
-limiting is assigned to an API gateway; `wrangler.toml` configures only the
+as `CUSTOMER`, `STAFF`, or `ADMIN`. Local tests verify the mocked decoder's
+authorization behavior and simulate JWKS overlap with a real RSA decoder; they
+do not validate a live provider or operational key rotation. Production request
+authentication does not require the legacy `JWT_SIGNING_KEY`; that key remains
+required by non-production HS256 profiles. Local `/api/auth/**` login is denied
+under production profiles. Rate limiting is assigned to an API gateway; `wrangler.toml` configures only the
 frontend Pages build, and no payment-service gateway integration or 429 test
 exists in this repository yet.
 

@@ -12,9 +12,9 @@ Demo của FlashSale sử dụng **JWT với HMAC-SHA256 (HS256)** cho xác th�
 | Ký token | HMAC-SHA256 (HS256) qua `Keys.hmacShaKeyFor()` | SecretKey từ `JWT_SIGNING_KEY` |
 | Thuật toán băm | SHA-256 (bên trong HS256) | Không gọi trực tiếp SHA, HS256 đã dùng SHA-256 internally |
 | Password hash | BCrypt qua `BCryptPasswordEncoder` | Spring Security, salt tự sinh |
-| Token expiration | 86400000 ms (24 giờ) | Cấu hình qua `app.jwt.expiration-ms` |
-| Key rotation | **Chưa có** | Cần thiết kế cho production |
-| Key size tối thiểu | 32 bytes | Kiểm tra tại startup bởi `JwtStartupValidator` |
+| Token expiration | 86400000 ms (24 giờ) | Cấu hình qua `app.jwt.expiration-ms` cho JWT demo HS256 |
+| Key rotation | HS256 demo: chưa có; OIDC: issuer publish signing keys qua JWKS | Local simulated-JWKS overlap test verifies one decoder accepts a new key; no live provider rotation has run |
+| Key size tối thiểu | 32 bytes for HS256 | `JwtStartupValidator` checks non-production profiles only |
 
 ## 3. Tại sao chọn HS256 thay vì RSA
 
@@ -30,10 +30,14 @@ Demo của FlashSale sử dụng **JWT với HMAC-SHA256 (HS256)** cho xác th�
 
 **Đánh giá JWT**: `PARTIAL` — JWT HS256 đã triển khai và kiểm thử; RSA chưa có.
 
-Production OIDC vẫn đang bị ràng buộc bởi `JwtUtil` và `JwtStartupValidator`, nên
-`JWT_SIGNING_KEY` vẫn bắt buộc khi khởi động dù không dùng để xác thực request
-OIDC. Đây là dependency legacy cần loại bỏ trước khi xem cấu hình identity là
-hoàn tất; chưa có diễn tập rotation cho issuer keys.
+Production request authentication uses the OIDC resource-server decoder and does
+not require `JWT_SIGNING_KEY`; the legacy HS256 key is still used outside the
+`production`/`prod` profiles. OIDC rotation is the issuer's JWKS responsibility.
+The local test at
+[`OidcJwksRotationTest`](../../src/payment-service-java/src/test/java/com/flashsale/payment/security/OidcJwksRotationTest.java)
+simulates publishing old and new public keys together and verifies that the
+decoder accepts tokens signed by both. It does not verify a live issuer,
+provider-specific cache behavior, or an operational rotation runbook.
 
 ## 4. Mã hóa (SHA / BCrypt)
 
@@ -51,7 +55,7 @@ hoàn tất; chưa có diễn tập rotation cho issuer keys.
 | Control | Triển khai | Ghi chú |
 |---------|-----------|---------|
 | Input validation | `@Valid`, `@NotBlank`, `@Size`, `@DecimalMin` | ✅ Trong `ProcessPaymentRequest` |
-| Authentication failure | 401/403 fail closed | ✅ `JwtStartupValidator` reject nếu thiếu key |
+| Authentication failure | 401/403 fail closed | ✅ Production OIDC requires issuer/audience; local HS256 startup rejects missing or weak key |
 | Authorization | `@PreAuthorize`, role-based | ✅ `SecurityConfig` |
 | Security headers | `X-Content-Type-Options`, `X-Frame-Options`, `CSP`, `HSTS` | ✅ `ProductionSecurityConfig` (chỉ profile production) |
 | CORS | Giới hạn origins, không wildcard | ✅ `ProductionSecurityConfig` |

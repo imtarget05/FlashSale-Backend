@@ -122,6 +122,15 @@ class ProductionApiDocsSecurityTest {
 	}
 
 	@Test
+	void productionBearerTokenUsesOidcDecoderWithoutLegacyHmacKey() throws Exception {
+		when(jwtDecoder.decode("test-token")).thenReturn(oidcJwt("STAFF"));
+		when(paymentService.listPayments(any(Pageable.class))).thenReturn(Page.empty());
+
+		mockMvc.perform(get("/api/payments").header("Authorization", "Bearer test-token"))
+			.andExpect(status().isOk());
+	}
+
+	@Test
 	void oidcRoleClaimRejectsCustomerPaymentList() throws Exception {
 		mockMvc.perform(get("/api/payments")
 				.with(SecurityMockMvcRequestPostProcessors.authentication(oidcAuthentication("CUSTOMER"))))

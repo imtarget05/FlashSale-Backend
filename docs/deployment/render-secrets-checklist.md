@@ -39,9 +39,14 @@ Set these as Environment Variables in Render and keep them secret. Do not put th
 - [ ] `SPRING_RABBITMQ_USERNAME=<user>`
 - [ ] `SPRING_RABBITMQ_PASSWORD=<secret>`
 
-### JWT / auth
+### Production identity (OIDC)
 
-- [ ] `JWT_SIGNING_KEY=<32+ byte secret, high entropy>`
+- [ ] `OIDC_ISSUER_URI=<approved HTTPS issuer>`
+- [ ] `OIDC_AUDIENCE=<payment-service audience>`
+- [ ] `OIDC_AUTHORITIES_CLAIM=roles` (or the claim name approved by the issuer)
+
+`JWT_SIGNING_KEY` is only required by non-production HS256 profiles. Production
+authentication uses OIDC; local `/api/auth/**` login is disabled.
 
 ## Preview-specific checklist
 
@@ -50,7 +55,7 @@ Set these as Environment Variables in Render and keep them secret. Do not put th
 - [ ] Preview uses non-production credentials and non-production hostnames
 - [ ] Preview health check is reachable at `/health/live`
 - [ ] Preview app returns `{"status":"healthy"}` on `/healthz`
-- [ ] JWT login works against preview credentials
+- [ ] Preview authentication matches its explicitly selected profile and identity provider
 
 ## Production-specific checklist
 
@@ -67,7 +72,7 @@ Set these as Environment Variables in Render and keep them secret. Do not put th
 - [ ] Secret rotation plan exists for any reused keys
 - [ ] App boots successfully with env vars loaded
 - [ ] `/health/live` and `/healthz` respond 200
-- [ ] `/api/auth/login` works with the configured JWT secrets
+- [ ] OIDC bearer-token smoke succeeds with the configured issuer and audience
 - [ ] Payment API `/api/payments` returns expected status under the resolved environment
 
 ## Rollback plan
