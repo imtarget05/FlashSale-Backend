@@ -262,12 +262,32 @@ All evidence is local-only; it does not change the production `NO-GO`.
   PARTIAL** — the failed candidate could not be validated on the existing kind
   database, and no authorized staging/Azure rollback rehearsal has run.
 
+### Database migration compatibility — disposable PostgreSQL (2026-11-06)
+
+- Added Flyway V1 as the pre-`customer_email` schema baseline and V2 as a
+  nullable, additive `customer_email` column migration. Existing databases
+  without Flyway history baseline at V1; the optional Oracle profile does not
+  run PostgreSQL migrations.
+- RED: `PaymentSchemaMigrationTest` failed for both a legacy schema and an
+  empty schema because the column was absent.
+- GREEN: `mvn -B -Dtest=PaymentSchemaMigrationTest,ContextLoadsIntegrationTest test`
+  passed **3/3**. The first test exercises both legacy and empty PostgreSQL
+  schemas; `ContextLoadsIntegrationTest` starts the app against a disposable
+  legacy schema and Hibernate validation succeeds after Flyway runs.
+- Full Java service suite: `mvn -B test` passed **137/137** with no failures,
+  errors, or skips. JaCoCo coverage excluding generated `grpc.v1` classes is
+  **90.30% line / 81.96% branch**.
+- This is database migration and application-startup evidence only. The
+  candidate image has not yet been rebuilt/retried in kind; readiness,
+  rollback, staging/Azure, external notification delivery, and signed approval
+  remain separate gates.
+
 ### Still blocked
 
 | Item | Status | What is missing |
 |---|---|---|
 | Staging/Azure deployment and drill | BLOCKED | AKS is destroyed; no authorized Azure deployment credentials, budget, or staging owner |
 | Production notification delivery | OPEN | Named owner must provide an approved destination and delivery credentials/configuration |
-| Database migration compatibility | OPEN | Apply and verify the `customer_email` schema migration in a disposable/current deployment before retrying rollout |
+| Candidate kind rollout | OPEN | Rebuild and retry the candidate image against the migrated schema; verify readiness and rollback |
 | Signed go/no-go | PENDING | Named owner/approver decision; not something the implementation can self-approve |
 | Production decision | **NO-GO** | G01–G12 evidence, named owners, and signed approval remain required |
