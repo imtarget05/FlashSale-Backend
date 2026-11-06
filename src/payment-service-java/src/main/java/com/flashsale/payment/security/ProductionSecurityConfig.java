@@ -25,7 +25,6 @@ import java.util.List;
  * <ul>
  *   <li>Demo identity provider is disabled ({@link DemoUserDetailsConfig} returns
  *       "No identity provider is configured" outside the demo profile).</li>
- *   <li>JWT signing key is mandatory ({@link JwtStartupValidator}).</li>
  *   <li>OIDC issuer and API audience are mandatory for bearer-token validation.</li>
  *   <li>CORS is restricted to declared origins (default: none).</li>
  *   <li>Security response headers are applied.</li>
