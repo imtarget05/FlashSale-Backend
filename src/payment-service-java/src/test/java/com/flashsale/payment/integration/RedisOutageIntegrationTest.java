@@ -53,8 +53,6 @@ class RedisOutageIntegrationTest {
 		registry.add("spring.datasource.url", postgres::getJdbcUrl);
 		registry.add("spring.datasource.username", postgres::getUsername);
 		registry.add("spring.datasource.password", postgres::getPassword);
-		registry.add("spring.sql.init.mode", () -> "always");
-		registry.add("spring.sql.init.schema-locations", () -> "file:docker/init-schema.sql");
 		registry.add("spring.rabbitmq.listener.simple.auto-startup", () -> "false");
 		registry.add("payment.outbox.poll-interval-ms", () -> "60000");
 		registry.add("spring.data.redis.host", redis::getHost);
