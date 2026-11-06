@@ -18,6 +18,10 @@ access-controlled env file containing:
 - `JWT_SIGNING_KEY` (at least 32 bytes)
 - `DEMO_AUTH_PASSWORD` (at least 16 characters)
 
+The payment container runs as non-root UID/GID 65534 with privilege escalation
+disabled and a read-only root filesystem. Only `/tmp` is writable, through a
+64 MiB `emptyDir`.
+
 Do not use the removed placeholder credentials or the demo profile in
 production. gRPC is disabled, no gRPC port is published, and the Kubernetes
 Service is `ClusterIP`; use a deliberate TLS ingress design before exposing any
