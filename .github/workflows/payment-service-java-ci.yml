@@ -8,6 +8,7 @@ on:
   pull_request:
     paths:
       - 'src/payment-service-java/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
