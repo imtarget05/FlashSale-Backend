@@ -128,26 +128,21 @@ assessment.
 ## Cloud lab gates C1–C4 — repository and local evidence only
 
 Evidence snapshot: Java `07b77bd5f06ceadb2a252d6e810db8cc8acb7109`, AKS
-`3fac87e1ad867940946a36e04d3afb3ffe71722e`, and QuanLyKho PR #14 head `3c982f2`
-(merged to `main` as `5febecc`). These revisions do not establish personal work history
-or current cloud operation.
+`3fac87e1ad867940946a36e04d3afb3ffe71722e`, and QuanLyKho PR head `3c982f2`
+(PR #14 remains open). These revisions do not establish personal work historyor current cloud operation.
 
 ### C1. Azure service and IaC inventory
 
 | Service area | Repository evidence | Live status |
 |---|---|---|
-| VM / App Service / VPN / Application Gateway / Azure Files / managed disks | No dedicated resource implementation or verified operations evidence in the reviewed portfolio IaC. | `NOT_IMPLEMENTED` or `NOT_VERIFIED`; the read-only Azure inventory in AKS PR #30 found no VM, App Service, or VNet in the selected subscription. This is not an all-subscription claim. |
+| VM / App Service / VPN / Application Gateway / Azure Files / managed disks | No dedicated resource implementation or verified operations evidence in the reviewed portfolio IaC. | `NOT_IMPLEMENTED` or `NOT_VERIFIED`; no live inventory was available. |
 | AKS, VNet and subnets | Terraform modules in [AKS-SRE-Platform](https://github.com/imtarget05/AKS-SRE-Platform/tree/3fac87e1ad867940946a36e04d3afb3ffe71722e/terraform); main-branch Terraform and GitOps gates passed on the recorded SHA. | `LAB_ONLY`; the AKS cluster is destroyed. |
-| Log Analytics and flow-log storage | AKS observability/network Terraform modules include a Log Analytics workspace and storage account. | Read-only inventory in AKS PR #30 found two Log Analytics workspaces and storage resources; ingestion, alert delivery, and restore remain unverified. |
+| Log Analytics and flow-log storage | AKS observability/network Terraform modules include a Log Analytics workspace and storage account. | IaC evidence only; no current Azure telemetry or live resource inventory. |
 | Azure Container Apps, ACR, PostgreSQL Flexible Server, Redis, Service Bus, backup storage | FlashSale Terraform contains these definitions; this is separate from the Java AKS manifests. | Configuration only; no deployment or restore drill is claimed. |
 
 The Azure CLI context used for this assessment did not expose a matching
-portfolio AKS cluster. The later
-[AKS read-only inventory](https://github.com/imtarget05/AKS-SRE-Platform/pull/30)
-found Container Apps, ACR, Storage and Log Analytics resources in the selected
-subscription. This is not proof that every resource in every subscription is
-absent; runtime and cost verification remain open.
-
+portfolio AKS cluster. This is not proof that every resource in every
+subscription is absent; the live inventory remains open.
 ### C2. Monitoring and incident exercise
 
 The local `kind-local-platform` evidence in
@@ -185,8 +180,7 @@ sign-off.
 | Repository / revision | CI/CD evidence | Deployment boundary |
 |---|---|---|
 | FlashSale `07b77bd5` | GitHub Actions unit/integration, Docker, Trivy, backend CI, and release verification passed on the exact SHA. | Preview and production jobs were skipped; no cloud deployment is claimed. `azure-pipelines.yml` has no verified remote run; no GitLab/Jenkins pipeline is evidenced. |
-| QuanLyKho PR #14, head `3c982f2` | Secret guard, lint, test, build, and SonarCloud checks passed on the PR head; merged as `5febecc`. | Repository evidence only; no deployment is claimed. |
-| AKS-SRE-Platform `3fac87e` | `pr-gate`, GitOps validation, OIDC contract, and source SBOM workflows passed on the exact `main` SHA. | Argo CD forward/revert evidence is local `kind`; no live AKS deployment is claimed. |
+| QuanLyKho PR #14, head `3c982f2` | Secret guard, lint, test, build, and SonarCloud checks passed on the PR head. | PR remains open and unmerged; no deployment is claimed. || AKS-SRE-Platform `3fac87e` | `pr-gate`, GitOps validation, OIDC contract, and source SBOM workflows passed on the exact `main` SHA. | Argo CD forward/revert evidence is local `kind`; no live AKS deployment is claimed. |
 
 ## Match against the supplied Sacombank job descriptions
 
