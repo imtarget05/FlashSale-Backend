@@ -6,7 +6,8 @@
 - [x] Bound Redis readiness timeouts; `RedisOutageIntegrationTest` passed (1/1).
 - [x] Verify local firing/resolved delivery and kind rollback to the prior healthy image.
 - [x] Record candidate rollout blocker: existing kind PostgreSQL schema lacks `payment_records.customer_email`.
-- [ ] Apply a proper schema migration and retry the candidate deployment in a disposable environment.
+- [x] Add versioned Flyway migrations; verify empty and pre-Flyway PostgreSQL schemas and app startup.
+- [ ] Rebuild and retry the candidate rollout in disposable kind; verify readiness and rollback.
 - [ ] Verify delivery to an owner-approved external notification destination.
 - [ ] Run authorized staging/Azure drill and obtain named-owner signed go/no-go.
 
