@@ -30,15 +30,118 @@ was deployed or operated.
 
 ## Validation boundary
 
-The Java service has local `mvn clean test` (76 tests), Docker build, Kustomize
-rendering, and a negative startup check with the signing key unset. Its hosted
-unit/integration/Docker/Trivy gate passed on
-[`dfaf73a`](https://github.com/imtarget05/FlashSale-Backend/actions/runs/42151304486).
-The AKS repository has Terraform modules and offline validation evidence, but
-its own recruiter evidence says the `aks-portfolio-dev` cluster was destroyed;
-the current Azure context does not expose a matching cluster and the saved
-Kubernetes API hostname does not resolve. No Azure resource was created or
-changed in this assessment.
+The Java source at release SHA
+`07b77bd5f06ceadb2a252d6e810db8cc8acb7109` was revalidated locally. The
+worktree had no Java-source changes from that SHA. These commands passed:
+
+| Check | Command / evidence | Result |
+|---|---|---|
+| Unit and integration tests | `mvn -B clean verify -f src/payment-service-java/pom.xml` | Exit 0; 76 tests, 0 failures/errors/skips. PostgreSQL, Redis, RabbitMQ and MongoDB Testcontainers-backed coverage ran. |
+| Docker image build | `docker build -t flashsale/payment-service-java:evidence-07b77bd -f src/payment-service-java/Dockerfile src/payment-service-java` | Exit 0. |
+| Trivy image gate | `trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 flashsale/payment-service-java:evidence-07b77bd` | Exit 0; 0 findings reported for scanned OS/JAR/gobinary targets. This is not a zero-vulnerability guarantee. |
+| Local Docker smoke | `docker compose -p flashsale-release-evidence -f docker-compose.yml -f docker-compose.mongodb.yml -f - up --build --detach --wait --wait-timeout 180 payment-service-java` (stdin override assigned unique container names), then `SMOKE_BASE_URL=http://127.0.0.1:8081 DEMO_AUTH_PASSWORD=<ephemeral> src/payment-service-java/scripts/smoke-local.sh` | Exit 0; ephemeral credentials; login, success, same-key replay, changed-payload 409, decline, timeout, and asynchronous Mongo audit projection passed. Test containers and volumes were removed afterward. |
+
+The same-SHA hosted checks also passed:
+[Payment Service CI](https://github.com/imtarget05/FlashSale-Backend/actions/runs/42152620528),
+[backend CI](https://github.com/imtarget05/FlashSale-Backend/actions/runs/42152614208),
+and [release verification](https://github.com/imtarget05/FlashSale-Backend/actions/runs/42152614201).
+The release verification's preview and production deployment jobs were skipped.
+
+The later [manual workflow run 42154887759](https://github.com/imtarget05/FlashSale-Backend/actions/runs/42154887759)
+used the same SHA. Its verification job passed, but the production deploy job
+failed on the initial POST to the masked `RENDER_DEPLOY_HOOK_PRODUCTION` value:
+HTTP 404 and curl exit 22, before the health-check loop ran. The repository
+blueprint defines `flashsale-payment-api-prod` on `main` with auto-deploy
+disabled and `/health/live`; the workflow's non-empty setting checks passed.
+The actual hook URL is a GitHub environment secret and is not inspectable from
+the repository. No repository-controlled mismatch was identified, but the
+secret's target and the Render account/service state cannot be verified here.
+The account owner must verify or regenerate a hook for that Render service and
+correct the production environment secret; also confirm
+`RENDER_PRODUCTION_URL` targets the same service. Do not retry the production
+workflow until the owner confirms the settings. No production deploy was
+triggered during this assessment, and this result is not evidence of a live
+deployment.
+
+| Claim | Status | Evidence boundary |
+|---|---|---|
+| Java payment behavior, transactional outbox and idempotency | `DEMONSTRATED` | Local tests and same-SHA hosted CI passed. Integration coverage includes concurrent same-payload requests producing one payment/outbox row, conflicting payload rejection, duplicate order-event suppression, and outbox retry after broker failure. |
+| Container build and configured HIGH/CRITICAL scan | `DEMONSTRATED` | Local image build and Trivy policy gate passed; no claim that every vulnerability class or future image is clean. |
+| API smoke and audit projection | `DEMONSTRATED` | Passed against a local Docker Compose stack only. |
+| Render/Azure cloud operation | `LAB_ONLY` for checked-in configuration; live operation is `OPEN` | The Render production hook returned 404. No successful live deploy, Azure apply, or production workload was verified. |
+| Real payment processing, bank integration, compliance, production readiness | `OPEN` | The payment provider is simulated; there is no bank/PSP operation or compliance sign-off. |
+
+The AKS repository is at
+[`3fac87e1ad867940946a36e04d3afb3ffe71722e`](https://github.com/imtarget05/AKS-SRE-Platform/commit/3fac87e1ad867940946a36e04d3afb3ffe71722e).
+Its `pr-gate`, GitOps validation, OIDC contract, and source SBOM workflows
+passed on that SHA. These are repository/CI results, not a live AKS deployment.
+The `aks-portfolio-dev` cluster is recorded as destroyed; the current Azure
+context does not expose a matching cluster and the saved Kubernetes API
+hostname does not resolve. No Azure resource was created or changed in this
+assessment.
+
+## Cloud lab gates C1–C4 — repository and local evidence only
+
+Evidence snapshot: Java `07b77bd5f06ceadb2a252d6e810db8cc8acb7109`, AKS
+`3fac87e1ad867940946a36e04d3afb3ffe71722e`, and QuanLyKho PR #14 head `3c982f2`
+(merged to `main` as `5febecc`). These revisions do not establish personal work history
+or current cloud operation.
+
+### C1. Azure service and IaC inventory
+
+| Service area | Repository evidence | Live status |
+|---|---|---|
+| VM / App Service / VPN / Application Gateway / Azure Files / managed disks | No dedicated resource implementation or verified operations evidence in the reviewed portfolio IaC. | `NOT_IMPLEMENTED` or `NOT_VERIFIED`; the read-only Azure inventory in AKS PR #30 found no VM, App Service, or VNet in the selected subscription. This is not an all-subscription claim. |
+| AKS, VNet and subnets | Terraform modules in [AKS-SRE-Platform](https://github.com/imtarget05/AKS-SRE-Platform/tree/3fac87e1ad867940946a36e04d3afb3ffe71722e/terraform); main-branch Terraform and GitOps gates passed on the recorded SHA. | `LAB_ONLY`; the AKS cluster is destroyed. |
+| Log Analytics and flow-log storage | AKS observability/network Terraform modules include a Log Analytics workspace and storage account. | Read-only inventory in AKS PR #30 found two Log Analytics workspaces and storage resources; ingestion, alert delivery, and restore remain unverified. |
+| Azure Container Apps, ACR, PostgreSQL Flexible Server, Redis, Service Bus, backup storage | FlashSale Terraform contains these definitions; this is separate from the Java AKS manifests. | Configuration only; no deployment or restore drill is claimed. |
+
+The Azure CLI context used for this assessment did not expose a matching
+portfolio AKS cluster. The later
+[AKS read-only inventory](https://github.com/imtarget05/AKS-SRE-Platform/pull/30)
+found Container Apps, ACR, Storage and Log Analytics resources in the selected
+subscription. This is not proof that every resource in every subscription is
+absent; runtime and cost verification remain open.
+
+### C2. Monitoring and incident exercise
+
+The local `kind-local-platform` evidence in
+[L10](https://github.com/imtarget05/AKS-SRE-Platform/blob/3fac87e1ad867940946a36e04d3afb3ffe71722e/docs/evidence/local-platform/l10-observability-PASS.md)
+records a pinned Prometheus/Grafana stack, 25 active scrape targets, three
+dashboards, and a local alert that fired and resolved with timestamps. This is
+a local lab, not Azure Monitor or Log Analytics live evidence.
+`AZURE_MONITOR_LIVE_OPEN`: no current Azure alert, KQL query, or cloud incident
+drill is verified.
+
+### C3. Cost and migration
+
+The [2026-09-21 cost note](https://github.com/imtarget05/AKS-SRE-Platform/blob/3fac87e1ad867940946a36e04d3afb3ffe71722e/docs/evidence/phase7a/cost.md)
+contains a historical Retail Prices API estimate. It is a modeled estimate,
+not a Cost Management export, invoice, or current spend measurement. No
+on-premises-to-Azure migration rehearsal or backup/cutover/rollback log is
+available. Both live cost evidence and migration rehearsal are `NOT_RUN`.
+
+### C4. Threat model, compliance boundary, and CI/CD
+
+Repository-scoped threat model:
+
+| Threat / asset | Evidence-backed control | Residual risk or boundary |
+|---|---|---|
+| Forged or over-privileged payment request | JWT validation, role checks, input constraints, and authentication/authorization tests in the simulated Java service. | No bank identity provider, production key-management/rotation evidence, or live authorization review. |
+| Duplicate/replayed payment or message | PostgreSQL idempotency and conflict behavior are tested; payment and outbox writes share a transaction. | Outbox delivery is at-least-once; duplicates remain possible and must be handled idempotently by consumers. |
+| Missing or exposed runtime credentials | The Java service fails closed when required signing/configuration values are absent; deployment manifests reference external Secrets. | Secret rotation, cloud vault integration, and production access review are not demonstrated. |
+| Dependency or build-chain compromise | Java CI runs a Trivy gate; AKS CI runs source dependency/SBOM checks. | Passing configured scanners is not proof of zero vulnerabilities, signed provenance, or a bank-approved supply-chain control. |
+| Confidentiality and availability of financial data | The payment workflow is a mock; readiness, retry/DLQ behavior, and local monitoring are tested. | No real card/bank data or PSP integration; no production recovery, retention, encryption-compliance, or incident-response evidence. |
+
+This is a repository-level gap assessment, not a formal financial-sector threat
+assessment. There is no PCI/bank audit, compliance certification, or bank
+sign-off.
+
+| Repository / revision | CI/CD evidence | Deployment boundary |
+|---|---|---|
+| FlashSale `07b77bd5` | GitHub Actions unit/integration, Docker, Trivy, backend CI, and release verification passed on the exact SHA. | Preview and production jobs were skipped; no cloud deployment is claimed. `azure-pipelines.yml` has no verified remote run; no GitLab/Jenkins pipeline is evidenced. |
+| QuanLyKho PR #14, head `3c982f2` | Secret guard, lint, test, build, and SonarCloud checks passed on the PR head; merged as `5febecc`. | Repository evidence only; no deployment is claimed. |
+| AKS-SRE-Platform `3fac87e` | `pr-gate`, GitOps validation, OIDC contract, and source SBOM workflows passed on the exact `main` SHA. | Argo CD forward/revert evidence is local `kind`; no live AKS deployment is claimed. |
 
 ## Match against the supplied Sacombank job descriptions
 
@@ -79,7 +182,7 @@ requirement is evidenced; `NOT_YET` means no evidence was found;
 | Oracle and NoSQL | MongoDB audit projection is implemented and integration-tested. Oracle driver/profile configuration exists, but Oracle runtime compatibility is untested. | `PARTIAL` |
 | GitLab / GitFlow | Git/GitHub branches, PR checks, and GitHub Actions are evidenced; GitLab CI and a claimed GitFlow practice are not. | `PARTIAL` |
 | JWT, cryptography, and OWASP controls | JWT HMAC key validation, BCrypt passwords, stateless role authorization, and input constraints are implemented. RSA and a complete OWASP/security certification are not evidenced. | `PARTIAL` |
-| Unit/integration testing and vulnerability patching | 76 local Java tests pass; hosted unit/integration/build and configured Trivy HIGH/CRITICAL scanning pass on `dfaf73a`. This is not a claim of zero vulnerabilities. | `DEMONSTRATED` |
+| Unit/integration testing and vulnerability patching | 76 local tests pass on `07b77bd5`; same-SHA hosted unit/integration, Docker, and configured Trivy HIGH/CRITICAL gates passed. Local Docker smoke also verified replay, 409 conflict, and async Mongo audit projection. No claim of zero vulnerabilities or live deployment. | `DEMONSTRATED` |
 | English technical reading, 1+ year experience, degree, and cross-team delivery | Repository docs include English README/ADRs; language proficiency, employment duration, degree, and collaboration require personal evidence. | `USER_EVIDENCE_REQUIRED` |
 | Banking/payment production experience | Payment and inventory financial flows are simulations; there is no real PSP, bank integration, or production banking operation. | `NOT_YET` |
 
