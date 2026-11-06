@@ -166,3 +166,6 @@ Full OpenAPI/Swagger UI is available at `/swagger-ui.html` when running.
 - The Java module includes a non-production AKS validation manifest and runbook
   at [AKS_DEPLOYMENT.md](src/payment-service-java/AKS_DEPLOYMENT.md); it is not a
   production deployment claim.
+- Interview preparation should use the Java-scoped
+  [evidence-based notes](docs/portfolio/flashsale-java-interview-notes.md),
+  not claims from unrelated repositories.
