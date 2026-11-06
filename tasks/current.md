@@ -1,4 +1,18 @@
-# Current Tasks — ACTIVE GOAL: OpsBridge Platform
+# Current Tasks — FlashSale T09 G07/G08 Follow-up
+
+**Production decision: NO-GO.** Local progress does not replace staging/Azure evidence or owner approval.
+
+- [x] Configure readiness Blackbox probe and local Alertmanager webhook delivery.
+- [x] Bound Redis readiness timeouts; `RedisOutageIntegrationTest` passed (1/1).
+- [x] Verify local firing/resolved delivery and kind rollback to the prior healthy image.
+- [x] Record candidate rollout blocker: existing kind PostgreSQL schema lacks `payment_records.customer_email`.
+- [ ] Apply a proper schema migration and retry the candidate deployment in a disposable environment.
+- [ ] Verify delivery to an owner-approved external notification destination.
+- [ ] Run authorized staging/Azure drill and obtain named-owner signed go/no-go.
+
+Detailed evidence: [`docs/benchmarks/t09-slo.md`](../docs/benchmarks/t09-slo.md).
+
+## Historical task log — OpsBridge Platform
 
 > **Current checkpoint (2026-10-21, `main` @ `d54eb7e150e5d0f74b54f69e122dc5c57c164ff1`; audit started at `1fd2822649d673f037372c2b34b4de38a9c31fab`):**
 > the F2 section below is historical, including its `66dca40` HEAD and
