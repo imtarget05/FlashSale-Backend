@@ -148,7 +148,10 @@ prove that a remote Azure DevOps run has passed.
 | `/api/payments/{idempotencyKey}` | GET | Get payment record |
 | `/api/auth/login` | POST | JWT login |
 
-Full OpenAPI/Swagger UI is available at `/swagger-ui.html` when running.
+OpenAPI/Swagger UI is available at `/swagger-ui.html` in the demo profile. In
+`production`/`prod`, `/swagger-ui/**` and `/v3/api-docs/**` require Admin; the
+service does not yet have a production identity provider, so this rule is a
+fail-closed boundary rather than evidence of production login support.
 
 ## Schema
 
