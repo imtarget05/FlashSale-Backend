@@ -71,11 +71,11 @@
 1. Chỉ thêm Azure credentials nếu workflow FlashSale thực sự dùng Azure; không thêm quyền ngoài nhu cầu triển khai.
 2. Thu hồi và tạo lại các credential/deploy hook đã lộ; cập nhật GitHub/Render/Cloudflare trực tiếp trong dashboard.
 3. Xác minh các biến môi trường Render cho database, Redis, RabbitMQ và OIDC bằng giá trị riêng của preview/production.
-4. Chạy `terraform apply` với overlay `environments/prod/terraform.tfvars` (AKS-SRE-Platform / FlashSale infra).
-5. Deploy Render services theo `render.yaml` (preview → production).
-6. Cấu hình custom domain + TLS qua Cloudflare.
-7. Chạy rollback drill thực tế trên production.
-8. Thu thập evidence production (timestamped logs, SHA, digest).
-9. Ký G12 trong file này rồi mới công bố production live.
+4. Deploy Render preview theo `render.yaml`; kiểm chứng health, payment/idempotency và dependencies trên cùng release SHA.
+5. Cấu hình custom domain + TLS qua Cloudflare sau khi token hợp lệ được tạo lại.
+6. Chạy backup/restore và rollback drill thực tế ở staging, ghi RTO/RPO cùng log.
+7. Named owners ký G11/G12 cho đúng release SHA và phạm vi demo payment.
+8. Deploy production có kiểm soát; chạy post-deploy smoke và lưu timestamped logs, SHA, digest.
+9. Chỉ công bố production live khi mọi gate bắt buộc PASS và owner xác nhận lại.
 
 ---
