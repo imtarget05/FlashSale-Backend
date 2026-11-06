@@ -63,7 +63,8 @@ class DemoUserDetailsConfigTest {
 
 	@Test
 	void demoProfileRequiresConfiguredPassword() {
-		runner.withInitializer(context -> context.getEnvironment().setActiveProfiles("demo"))
+		runner.withPropertyValues("demo.auth.password=")
+			.withInitializer(context -> context.getEnvironment().setActiveProfiles("demo"))
 			.run(context -> assertThat(context).hasFailed());
 	}
 

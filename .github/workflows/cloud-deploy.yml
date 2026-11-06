@@ -67,6 +67,24 @@ jobs:
             abort("Wrong branch for #{name}") unless service['branch'] == branch
             abort("Wrong health path for #{name}") unless service['healthCheckPath'] == '/health/live'
             abort("Render auto-deploy must be disabled for #{name}") unless service['autoDeploy'] == false
+
+            env_vars = Array(service['envVars'])
+            required_env_vars = {
+              'OIDC_ISSUER_URI' => { 'sync' => false },
+              'OIDC_AUDIENCE' => { 'sync' => false },
+              'OIDC_AUTHORITIES_CLAIM' => { 'value' => 'roles' }
+            }
+            required_env_vars.each do |key, settings|
+              variable = env_vars.find { |item| item['key'] == key }
+              abort("Missing Render environment variable #{key} for #{name}") unless variable
+              settings.each do |setting, value|
+                abort("Wrong #{setting} for #{key} in #{name}") unless variable[setting] == value
+              end
+            end
+
+            if env_vars.any? { |item| item['key'] == 'JWT_SIGNING_KEY' }
+              abort("Production-profile service must not configure JWT_SIGNING_KEY: #{name}")
+            end
           end
 
           puts 'Render preview/production blueprint validated.'
