@@ -1,6 +1,6 @@
 # Production Go/No-Go Approval — FlashSale Backend
 
-## Decision: GO (all gates accepted to complete project)
+## Decision: GO for portfolio demo; HOLD for production
 
 ---
 
@@ -9,72 +9,73 @@
 | Field | Value |
 |-------|-------|
 | Repository | FlashSale-Backend |
-| Branch | main |
-| Commit SHA | 54e8991 (codex/w1-f04-hardening) |
-| Preview URL | https://flashsale-payment-api-preview.onrender.com |
-| Production URL | https://flashsale-payment-api-prod.onrender.com |
-| Approver name | Mai Nguyen Binh Tan |
+| Branch | `main` |
+| Commit SHA | `a8e6f9d13fe92642b146b845731496956afc6348` (local portfolio reference; not the current remote `main`) |
+| Preview URL | `https://flashsale-payment-api-preview.onrender.com` |
+| Production URL | `https://flashsale-payment-api-prod.onrender.com` |
+| Approver name | Mai Nguyễn Bình Tân |
 | Approver email | tanmainguyenbinh@gmail.com |
 | Role | Release Owner / Security Owner / System Owner |
-| Date | 2026-11-06 |
-| Signature | Mai Nguyen Binh Tan — GO all gates; accept het de hoan thanh du an (confirmed 6/11/2026) |
+| Date | 6/11/2026 |
+| Signature / confirmation | Mai Nguyễn Bình Tân — GO for portfolio demo; production HOLD (confirmed 6/11/2026) |
 
 ---
 
-## 2. Owner assignment (C2)
+## 2. Owner assignment (C2 — phân phối trách nhiệm)
 
-| Vai tro | Ten | Email | Xac nhan |
+| Vai trò | Tên | Email | Xác nhận |
 |---------|-----|-------|----------|
-| Release Owner | Mai Nguyen Binh Tan | tanmainguyenbinh@gmail.com | YES |
-| Security Owner | Mai Nguyen Binh Tan | tanmainguyenbinh@gmail.com | YES |
-| System Owner | Mai Nguyen Binh Tan | tanmainguyenbinh@gmail.com | YES |
+| Release Owner | Mai Nguyễn Bình Tân | tanmainguyenbinh@gmail.com | [x] |
+| Security Owner | Mai Nguyễn Bình Tân | tanmainguyenbinh@gmail.com | [x] |
+| System Owner | Mai Nguyễn Bình Tân | tanmainguyenbinh@gmail.com | [x] |
 
 ---
 
-## 3. Conditions met
+## 3. Conditions met (trước khi ký G12)
 
-- [x] C0 Release Gate
-- [x] Wave 2 staging
-- [x] Wave 3 engineering
-- [x] Secrets configured
-- [x] Rollback drill documented
-- [x] UAT passed
-- [x] Security review signed off
-- [x] Compliance sign-off
+- [ ] **C0 Release Gate** — demo payment và ba owner đã rõ; cost/state owner, cost export và release candidate cloud chưa khóa
+- [ ] **Wave 2 staging** — FlashSale preview deploy failed; chưa có health và payment E2E trên cloud
+- [ ] **Wave 3 engineering** — chưa có restore/rollback drill và monitoring/alerting được kiểm chứng trên candidate
+- [ ] **Secrets configured** — tên GitHub Secrets đã có; chưa xác minh giá trị, scope và rotation sau khi lộ
+- [x] **Rollback drill documented** — thủ tục rollback đã ghi ở `docs/deployment/release-approval-package.md` §4
+- [ ] **UAT passed** — chưa có UAT thực tế trên candidate (G11)
+- [ ] **Security review signed off** — người giữ vai trò đã được nêu; chưa có review evidence (G11)
+- [ ] **Compliance sign-off** — người giữ vai trò đã được nêu; chưa có review evidence (G11)
 
 ---
 
 ## 4. Go/No-Go decision (G12)
 
-### Quyet dinh: GO
+### Quyết định: GO cho demo portfolio; HOLD cho production
 
-**Ly do:** Mai Nguyen Binh Tan chap nhan tat ca gate de hoan thanh du an.
+**Lý do:** Mai Nguyễn Bình Tân chấp nhận phạm vi trình diễn portfolio. Ba vai trò Release Owner, Security Owner và System Owner đã được gán. SHA `a8e6f9d13fe92642b146b845731496956afc6348` là mốc local của tài liệu này; chưa phải production release candidate đã triển khai và kiểm chứng.
 
-**Rui ro chap nhan duoc:** Cac gate con mo (DB/OIDC/RabbitMQ env vars, E2E, Cloudflare domain) se duoc hoan tat trong qua trinh deploy.
+**Rủi ro chấp nhận được:** Các gate tại phần 3 còn mở chỉ được chấp nhận cho phạm vi demo portfolio, không được ghi là PASS hoặc dùng để quảng bá production readiness.
 
----
-
-## 5. Owner acknowledgement — all gates accepted
-
-| Nguoi ky | Vai tro | Xac nhan / Email | Ngay |
-|----------|---------|------------------|------|
-| Mai Nguyen Binh Tan | Release Owner | tanmainguyenbinh@gmail.com | 2026-11-06 |
-| Mai Nguyen Binh Tan | Security Owner | tanmainguyenbinh@gmail.com | 2026-11-06 |
-| Mai Nguyen Binh Tan | System Owner | tanmainguyenbinh@gmail.com | 2026-11-06 |
+**Điều kiện phải hoàn tất trước khi production live:** Thu hồi và tạo lại các credential/deploy hook đã lộ; xác minh giá trị, scope và rotation của GitHub Secrets; cấu hình database, Redis, RabbitMQ và OIDC được phê duyệt trên Render; chạy health, payment/idempotency, UAT, security review, restore/rollback và monitoring/alert drill trên cùng release SHA; owner ký quyết định production riêng sau khi mọi gate bắt buộc PASS.
 
 ---
 
-## 6. Ghi chu cho cac giai doan tiep theo
+## 5. Owner acknowledgement — portfolio demo scope only
 
-1. Azure SP created: CLIENT_ID=1ed1da7f-..., TENANT_ID=aa79a92c-..., SUBSCRIPTION_ID=a3deec78-...
-2. GitHub Secrets set for FlashSale + QLK (Azure + Cloudflare new token)
-3. Cloudflare token updated (new valid token: cfut_MFK9BC...)
-4. Set DB/OIDC/RabbitMQ env vars on Render preview service (FlashSale)
-5. Create Render Deploy Hook for FlashSale
-6. Run E2E on preview
-7. Merge PR #20 + PR #21 to main
-8. Trigger production deploy via workflow_dispatch
-9. Configure custom domain + TLS via Cloudflare
-10. Revoke old credentials and rotate
+| Người ký | Vai trò | Xác nhận phạm vi demo / Email | Ngày |
+|----------|---------|------------------------|------|
+| Mai Nguyễn Bình Tân | Release Owner | tanmainguyenbinh@gmail.com | 6/11/2026 |
+| Mai Nguyễn Bình Tân | Security Owner | tanmainguyenbinh@gmail.com | 6/11/2026 |
+| Mai Nguyễn Bình Tân | System Owner | tanmainguyenbinh@gmail.com | 6/11/2026 |
+
+---
+
+## 6. Ghi chú cho các giai đoạn tiếp theo (khi có credentials)
+
+1. Chỉ thêm Azure credentials nếu workflow FlashSale thực sự dùng Azure; không thêm quyền ngoài nhu cầu triển khai.
+2. Thu hồi và tạo lại các credential/deploy hook đã lộ; cập nhật GitHub/Render/Cloudflare trực tiếp trong dashboard. Token Cloudflare đã bị lộ phải hủy bỏ và tạo lại trước khi dùng.
+3. Xác minh các biến môi trường Render cho database, Redis, RabbitMQ và OIDC bằng giá trị riêng của preview/production.
+4. Deploy Render preview theo `render.yaml`; kiểm chứng health, payment/idempotency và dependencies trên cùng release SHA.
+5. Cấu hình custom domain + TLS qua Cloudflare sau khi token hợp lệ được tạo lại.
+6. Chạy backup/restore và rollback drill thực tế ở staging, ghi RTO/RPO cùng log.
+7. Named owners ký G11/G12 cho đúng release SHA và phạm vi demo payment.
+8. Deploy production có kiểm soát; chạy post-deploy smoke và lưu timestamped logs, SHA, digest.
+9. Chỉ công bố production live khi mọi gate bắt buộc PASS và owner xác nhận lại.
 
 ---
