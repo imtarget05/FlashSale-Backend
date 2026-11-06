@@ -5,12 +5,14 @@ import com.flashsale.payment.dto.LoginRequest;
 import com.flashsale.payment.dto.PaymentRecordDto;
 import com.flashsale.payment.dto.ProcessPaymentRequest;
 import com.flashsale.payment.security.AuthService;
+import com.flashsale.payment.security.RateLimiter;
 import com.flashsale.payment.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,20 +30,33 @@ public class PaymentController {
 
 	private final PaymentService paymentService;
 	private final AuthService authService;
+	private final RateLimiter rateLimiter;
 
-	public PaymentController(PaymentService paymentService, AuthService authService) {
+	public PaymentController(PaymentService paymentService, AuthService authService,
+			RateLimiter rateLimiter) {
 		this.paymentService = paymentService;
 		this.authService = authService;
+		this.rateLimiter = rateLimiter;
 	}
 
-	@Operation(summary = "Process a payment", description = "Creates a payment with idempotency key. Cent value .01=succeeds, .02=declined, .03=transient timeout (504).")
+	@Operation(summary = "Process a payment", description = "Creates a payment with idempotency key. Cent value .01=succeeds, .02=declined, .03=transient timeout (504). Rate limited to 100 requests per minute per client IP.")
 	@ApiResponses({
 		@ApiResponse(responseCode = "200", description = "Payment processed successfully"),
 		@ApiResponse(responseCode = "400", description = "Validation error"),
+		@ApiResponse(responseCode = "429", description = "Rate limit exceeded"),
 		@ApiResponse(responseCode = "504", description = "Transient gateway timeout")
 	})
 	@PostMapping("/payments")
-	public ResponseEntity<?> processPayment(@Valid @RequestBody ProcessPaymentRequest request) {
+	public ResponseEntity<?> processPayment(HttpServletRequest httpRequest,
+			@Valid @RequestBody ProcessPaymentRequest request) {
+		String clientId = httpRequest.getRemoteAddr();
+		if (clientId == null || clientId.isBlank()) {
+			clientId = "anonymous";
+		}
+		if (!rateLimiter.allowRequest(clientId)) {
+			return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+				.body("{\"error\":\"RATE_LIMITED\",\"message\":\"Rate limit exceeded. Try again later.\"}");
+		}
 		PaymentRecordDto dto = paymentService.processPayment(request);
 		if ("TimedOut".equals(dto.status())) {
 			return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).body(dto);
@@ -52,6 +67,7 @@ public class PaymentController {
 	@Operation(summary = "Get payment by idempotency key")
 	@ApiResponses({
 		@ApiResponse(responseCode = "200", description = "Payment found"),
+		@ApiResponse(responseCode = "403", description = "Payment does not belong to the authenticated user"),
 		@ApiResponse(responseCode = "404", description = "Payment not found")
 	})
 	@GetMapping("/payments/{idempotencyKey}")
@@ -89,3 +105,4 @@ public class PaymentController {
 	}
 
 }
+
