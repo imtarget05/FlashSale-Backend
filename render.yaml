@@ -34,6 +34,8 @@ services:
         sync: false
       - key: SPRING_RABBITMQ_PASSWORD
         sync: false
+      - key: JWT_SIGNING_KEY
+        sync: false
       - key: OIDC_ISSUER_URI
         sync: false
       - key: OIDC_AUDIENCE
@@ -77,6 +79,8 @@ services:
       - key: SPRING_RABBITMQ_USERNAME
         sync: false
       - key: SPRING_RABBITMQ_PASSWORD
+        sync: false
+      - key: JWT_SIGNING_KEY
         sync: false
       - key: OIDC_ISSUER_URI
         sync: false

@@ -11,6 +11,7 @@ import com.flashsale.payment.outbox.PaymentOutbox;
 import com.flashsale.payment.outbox.PaymentOutboxRepository;
 import com.flashsale.payment.repository.PaymentRepository;
 import com.flashsale.payment.service.PaymentService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +22,10 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -48,6 +53,11 @@ class PaymentServiceTest {
 	private PaymentService paymentService;
 
 	private ProcessPaymentRequest validRequest;
+
+	@AfterEach
+	void clearSecurityContext() {
+		SecurityContextHolder.clearContext();
+	}
 
 	@BeforeEach
 	void setUp() {
@@ -159,4 +169,50 @@ class PaymentServiceTest {
 		assertThat(result).isNotNull();
 		assertThat(result.getTotalElements()).isEqualTo(0);
 	}
+
+	@Test
+	void getPayment_allowsAccess_whenPaymentOwnedByCurrentUser() {
+		Payment ownedByA = new Payment("idem-1", UUID.randomUUID(), 100, new BigDecimal("10.01"), "USD",
+			true, "Succeeded", "tx_1", null, false, OffsetDateTime.now());
+		ownedByA.setCustomerEmail("userA@flashsale.local");
+		when(paymentRepository.findByIdempotencyKey("idem-1")).thenReturn(Optional.of(ownedByA));
+
+		SecurityContextHolder.getContext().setAuthentication(
+			new UsernamePasswordAuthenticationToken("userA@flashsale.local", "password",
+				List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER"))));
+
+		PaymentRecordDto result = paymentService.getPayment("idem-1");
+
+		assertThat(result.idempotencyKey()).isEqualTo("idem-1");
+		assertThat(result.status()).isEqualTo("Succeeded");
+	}
+
+	@Test
+	void getPayment_deniesAccess_whenPaymentOwnedByAnotherUser() {
+		Payment ownedByA = new Payment("idem-1", UUID.randomUUID(), 100, new BigDecimal("10.01"), "USD",
+			true, "Succeeded", "tx_1", null, false, OffsetDateTime.now());
+		ownedByA.setCustomerEmail("userA@flashsale.local");
+		when(paymentRepository.findByIdempotencyKey("idem-1")).thenReturn(Optional.of(ownedByA));
+
+		SecurityContextHolder.getContext().setAuthentication(
+			new UsernamePasswordAuthenticationToken("userB@flashsale.local", "password",
+				List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER"))));
+
+		assertThatThrownBy(() -> paymentService.getPayment("idem-1"))
+			.isInstanceOf(AccessDeniedException.class);
+	}
+
+	@Test
+	void getPayment_allowsAccess_whenOwnerNotRecorded_legacyPayment() {
+		Payment legacy = new Payment("idem-legacy", UUID.randomUUID(), 100, new BigDecimal("10.01"), "USD",
+			true, "Succeeded", "tx_legacy", null, false, OffsetDateTime.now());
+		when(paymentRepository.findByIdempotencyKey("idem-legacy")).thenReturn(Optional.of(legacy));
+
+		SecurityContextHolder.getContext().setAuthentication(
+			new UsernamePasswordAuthenticationToken("userB@flashsale.local", "password",
+				List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER"))));
+
+		assertThat(paymentService.getPayment("idem-legacy")).isNotNull();
+	}
+
 }

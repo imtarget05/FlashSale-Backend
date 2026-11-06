@@ -5,11 +5,11 @@ groups:
   - name: services
     interval: 15s
     rules:
-      - alert: ServiceDown
-        expr: up == 0
-        for: 2m
+      - alert: PaymentServiceReadinessDown
+        expr: probe_success{job="payment-readiness"} == 0
+        for: 15s
         labels:
           severity: critical
         annotations:
-          summary: "Service down: {{ $labels.job }}"
-          description: "Scrape target job={{ $labels.job }} (instance={{ $labels.instance }}) down for 2m."
+          summary: "Payment service readiness is down"
+          description: "Readiness endpoint {{ $labels.instance }} did not return HTTP 2xx for 15 seconds."

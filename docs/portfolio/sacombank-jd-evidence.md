@@ -91,6 +91,13 @@ The same-SHA hosted checks also passed:
 and [release verification](https://github.com/imtarget05/FlashSale-Backend/actions/runs/42152614201).
 The release verification's preview and production deployment jobs were skipped.
 
+## Later local verification (2026-11-06)
+
+- The full Maven verification on code SHA `96dc3d9` passed 113 tests. Subsequent targeted JWT/OIDC tests passed 16 tests; the full suite has not been rerun after these test additions.
+- JaCoCo excludes generated protobuf classes under `com/flashsale/payment/grpc/v1/**` and enforces 80% line and branch coverage on the remaining application code. The current report is 624/695 lines (89.8%) and 138/170 branches (81.2%). Including generated code, totals are 914/2,093 lines (43.7%) and 197/585 branches (33.7%). `mvn -B -DskipTests verify` passed using the existing full-suite and targeted-test execution data; it did not execute tests.
+- The local image tag `flashsale/payment-service:local-96dc3d9` resolved locally to OCI digest `sha256:9cb5a5ede5331c3150ad57f7e3bcdf3102fc0fddd628a8ec6d9cf2b499905af8` (`linux/arm64`). Running it by digest with disposable PostgreSQL, RabbitMQ, Redis, and MongoDB dependencies returned HTTP 200 from `/healthz` and `{"status":"UP"}` from `/actuator/health/readiness`. The image was not pushed or signed, and its metadata does not prove a source revision.
+- `docker/init-schema.sql` initialized and re-ran successfully against disposable PostgreSQL. This is idempotent initialization evidence only: the service has no versioned migration or down-migration mechanism, so migration and rollback remain unverified.
+
 The later [manual workflow run 42154887759](https://github.com/imtarget05/FlashSale-Backend/actions/runs/42154887759)
 used the same SHA. Its verification job passed, but the production deploy job
 failed on the initial POST to the masked `RENDER_DEPLOY_HOOK_PRODUCTION` value:
