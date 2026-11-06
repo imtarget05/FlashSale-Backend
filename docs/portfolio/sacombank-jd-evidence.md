@@ -5,6 +5,29 @@ employment history, years of experience, production operation, or bank
 compliance. A checked-in configuration is not evidence that a cloud resource
 was deployed or operated.
 
+## Current Backend JD evidence (2026-11-06)
+
+The longer validation section below is a historical snapshot at `07b77bd`.
+These newer, merged changes are the current repository evidence. `DEMONSTRATED`
+means implemented and tested locally/CI; it does not mean operated in a bank.
+
+| JD area | Status | Direct evidence and remaining limit |
+|---|---|---|
+| REST API, Java/Spring Boot, Spring Security/JPA | `DEMONSTRATED` | [Payment controller](../../src/payment-service-java/src/main/java/com/flashsale/payment/controller/PaymentController.java), [security configuration](../../src/payment-service-java/src/main/java/com/flashsale/payment/security/SecurityConfig.java), and [API security tests](../../src/payment-service-java/src/test/java/com/flashsale/payment/unit/ProductionApiDocsSecurityTest.java). [PR #13](https://github.com/imtarget05/FlashSale-Backend/pull/13) closed anonymous Swagger/OpenAPI access outside demo. Production OIDC and key rotation remain open. |
+| Database design, indexing, query optimization | `DEMONSTRATED` for local PostgreSQL; `NOT_YET` for Oracle runtime | [Reproducible query-plan experiment](../benchmarks/payment-service-postgres-query-plans.md) on synthetic data, merged in [PR #11](https://github.com/imtarget05/FlashSale-Backend/pull/11). The measurements do not represent production latency. |
+| Redis cache and failure handling | `DEMONSTRATED` for simulated failure; live outage `NOT_YET` | [Cache fallback test](../../src/payment-service-java/src/test/java/com/flashsale/payment/unit/CacheFailureFallbackTest.java) and [handler wiring](../../src/payment-service-java/src/main/java/com/flashsale/payment/config/CacheConfig.java), merged in [PR #14](https://github.com/imtarget05/FlashSale-Backend/pull/14). Recovery after failed eviction still needs an integration drill. |
+| RabbitMQ, outbox, asynchronous flow | `DEMONSTRATED` locally | Java integration tests cover broker-backed behavior. Kafka and ActiveMQ remain `THEORY_ONLY` in the [interview notes](./flashsale-java-interview-notes.md), not runtime claims. |
+| JWT, RSA, SHA, OWASP API controls | `PARTIAL` | JWT/RBAC negative tests and protected API docs are implemented. [Interview notes](./flashsale-java-interview-notes.md) explain RSA/SHA concepts; production IdP, rotation, rate limiting, and formal OWASP review remain open. |
+| Docker, Kubernetes, CI/CD | `PARTIAL` | Java CI and image scan pass on merged code; Kubernetes manifests render locally. No current AKS workload or successful production deployment is verified. |
+| gRPC, Oracle, GitLab CI | `NOT_YET` for runtime/remote operation | A gRPC contract and Oracle profile exist; there is no compiled gRPC endpoint, Oracle compatibility run, or GitLab pipeline run. |
+
+The [PR #14 source SHA `4e1a662`](https://github.com/imtarget05/FlashSale-Backend/commit/4e1a662)
+passed local `mvn -B -q -f src/payment-service-java/pom.xml clean verify`:
+81 tests with zero failures, errors, or skips. It merged as
+[`7d6e37a`](https://github.com/imtarget05/FlashSale-Backend/commit/7d6e37ab98ce2af980fa2a5bf1d568d26f962c8f)
+after all PR checks passed. The production deploy jobs were skipped; repository
+CI is not production readiness.
+
 ## Backend Java
 
 | Requirement | Repository evidence | Honest status |
