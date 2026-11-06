@@ -175,4 +175,12 @@ class AuthSecurityIntegrationTest {
 			.exchange()
 			.expectStatus().isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
 	}
+
+	@Test
+	void authenticatedMissingRoute_returns404() {
+		client().get().uri("/api/does-not-exist")
+			.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenFor("staff@flashsale.local"))
+			.exchange()
+			.expectStatus().isNotFound();
+	}
 }

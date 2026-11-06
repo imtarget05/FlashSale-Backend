@@ -1,5 +1,6 @@
 package com.flashsale.payment.security;
 
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -38,6 +39,8 @@ public class SecurityConfig {
 			.exceptionHandling(errors -> errors.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(auth -> {
+				// Preserve the original 403/404 when the servlet container dispatches to /error.
+				auth.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll();
 				auth.requestMatchers("/api/auth/**", "/health", "/health/live", "/healthz", "/actuator/health/readiness").permitAll();
 				if (demoOnlyProfile) {
 					auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
