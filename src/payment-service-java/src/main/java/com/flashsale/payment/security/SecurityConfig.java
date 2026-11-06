@@ -24,11 +24,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
 	private final JwtUtil jwtUtil;
-	private final boolean productionProfile;
+	private final boolean demoOnlyProfile;
 
 	public SecurityConfig(JwtUtil jwtUtil, Environment environment) {
 		this.jwtUtil = jwtUtil;
-		this.productionProfile = environment.acceptsProfiles(Profiles.of("production | prod"));
+		this.demoOnlyProfile = environment.acceptsProfiles(Profiles.of("demo & !production & !prod"));
 	}
 
 	@Bean
@@ -39,10 +39,10 @@ public class SecurityConfig {
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(auth -> {
 				auth.requestMatchers("/api/auth/**", "/health", "/health/live", "/healthz", "/actuator/health/readiness").permitAll();
-				if (productionProfile) {
-					auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").hasRole("ADMIN");
-				} else {
+				if (demoOnlyProfile) {
 					auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
+				} else {
+					auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").hasRole("ADMIN");
 				}
 				auth.requestMatchers(HttpMethod.POST, "/api/payments").hasAnyRole("STAFF", "ADMIN")
 					.requestMatchers("/api/payments/{idempotencyKey}").hasAnyRole("CUSTOMER", "STAFF", "ADMIN")
