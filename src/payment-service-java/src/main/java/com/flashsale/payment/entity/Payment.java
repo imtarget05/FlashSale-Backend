@@ -27,9 +27,6 @@ public class Payment implements Persistable<String> {
 	@Column(name = "order_id", nullable = false)
 	private Integer orderId;
 
-	@Column(name = "customer_email", length = 256)
-	private String customerEmail;
-
 	@Column(name = "amount", precision = 12, scale = 2, nullable = false)
 	private BigDecimal amount;
 
@@ -118,14 +115,6 @@ public class Payment implements Persistable<String> {
 
 	public void setOrderId(Integer orderId) {
 		this.orderId = orderId;
-	}
-
-	public String getCustomerEmail() {
-		return customerEmail;
-	}
-
-	public void setCustomerEmail(String customerEmail) {
-		this.customerEmail = customerEmail;
 	}
 
 	public BigDecimal getAmount() {

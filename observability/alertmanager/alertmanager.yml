@@ -4,14 +4,11 @@ global:
   resolve_timeout: 5m
 
 route:
-  receiver: webhook-local
+  receiver: log-only
   group_by: ['alertname', 'job']
-  group_wait: 5s
-  group_interval: 30s
-  repeat_interval: 1h
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
 
 receivers:
-  - name: webhook-local
-    webhook_configs:
-      - url: 'http://webhook-receiver:9094/alerts'
-        send_resolved: true
+  - name: log-only

@@ -24,10 +24,6 @@ import io.micrometer.core.annotation.Timed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -85,7 +81,6 @@ public class PaymentService {
 				"tx_" + UUID.randomUUID().toString().replace("-", ""), null, false, 				OffsetDateTime.now());
 		}
 
-		record.setCustomerEmail(currentUserEmail());
 		int inserted = paymentRepository.insertIfAbsent(record);
 		if (inserted == 0) {
 			Payment winner = paymentRepository.findByIdempotencyKey(request.idempotencyKey())
@@ -129,31 +124,14 @@ public class PaymentService {
 		return toDto(stored);
 	}
 
+	@Cacheable(value = "payments", key = "#idempotencyKey")
 	@Timed(value = "payment.get.payment", description = "Time spent getting a payment")
 	@Counted(value = "payment.get.payment.calls", description = "Number of getPayment calls")
 	public PaymentRecordDto getPayment(String idempotencyKey) {
-		log.info("[payment-service] getPayment idempotencyKey={}", idempotencyKey);
-		String currentUser = currentUserEmail();
-		Payment payment = paymentRepository.findByIdempotencyKey(idempotencyKey)
+		log.info("[payment-service] getPayment cache miss idempotencyKey={}", idempotencyKey);
+		return paymentRepository.findByIdempotencyKey(idempotencyKey)
+			.map(this::toDto)
 			.orElseThrow(() -> new PaymentNotFoundException("Payment for key '" + idempotencyKey + "' not found"));
-		String ownerEmail = payment.getCustomerEmail();
-		if (ownerEmail != null && !ownerEmail.equals(currentUser)) {
-			throw new AccessDeniedException(
-				"Payment '" + idempotencyKey + "' does not belong to the authenticated user");
-		}
-		return toDto(payment);
-	}
-
-	private String currentUserEmail() {
-		var authentication = SecurityContextHolder.getContext().getAuthentication();
-		if (authentication == null || !authentication.isAuthenticated()) {
-			return null;
-		}
-		Object principal = authentication.getPrincipal();
-		if (principal instanceof UserDetails) {
-			return ((UserDetails) principal).getUsername();
-		}
-		return authentication.getName();
 	}
 
 	public Page<PaymentRecordDto> listPayments(Pageable pageable) {

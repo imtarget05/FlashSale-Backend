@@ -106,21 +106,3 @@ Xem chi tiết tại `docs/portfolio/t10-performance-security-release-test.md`.
 | **Tổng** | **9** | **2** | **2** | **2** | **3** | **1** |
 
 **Lời khuyên**: Các mục T08–T14 không thể hoàn thành được mà không có (1) mạng để tải Docker images/protoc, (2) quyền truy cập Azure subscription, (3) ngân sách cho cloud resource. Tất cả claim về production readiness phải được đánh giá là `NOT_YET` hoặc `LAB_ONLY` cho đến khi có môi trường live.
-
-## Cập nhật trạng thái — 2026-11-06
-
-Các bảng phía trên là snapshot lịch sử. Sau đó đã có quyền đọc Azure subscription và Cost Management:
-
-- Cost Management trả về **58.352554 USD month-to-date** tại `2026-11-06T09:23:58Z`; phần lớn là VM/storage của AKS cũ trong resource group managed đã teardown. Chi phí có thể trễ và chưa phải hóa đơn cuối.
-- Chưa có subscription budget hay scheduled Cost Management export. Chỉ có một storage account dùng cho Terraform state; không tái sử dụng nó làm nơi chứa billing data. Xem [`cost query evidence`](../../../AKS-SRE-Platform/docs/evidence/2026-11-06-cost-management-query.md).
-- Migration rehearsal 033 → 034, backup/restore rollback, forward recovery và full backend suite đã chạy trên QuanLyKho SHA `e3420a5` (980 passed, 8 skipped, 1 xfailed). Đây là local evidence, không phải Azure DB/cutover acceptance. Xem [`T12 migration evidence`](../../../QuanLyKho/docs/evidence/t12-migration-rehearsal-2026-11-06.md).
-- AKS đã được tạo tạm ở `eastasia` để lấy infrastructure evidence, sau đó teardown hoàn tất. Chưa deploy Java payment service lên cluster và không còn AKS live. Xem [`temporary AKS evidence`](../../../AKS-SRE-Platform/docs/evidence/2026-11-06-temporary-aks-validation.md).
-
-**Trạng thái hiện tại:** T12 `PARTIAL` (local migration rehearsal + live cost query; budget/recurring export, cloud DB cutover và RPO/RTO còn OPEN); T13 `NOT_YET` (cần budget/alerts, Java image gắn digest với candidate SHA, dependencies/secret và deploy live); T14 `NO_GO` cho production, cần đóng gate còn lại và owner sign-off.
-
-## Cập nhật T09 / G07–G08 — 2026-11-06
-
-- **G07:** Đã chứng minh local end-to-end: Blackbox probe readiness → Prometheus alert → Alertmanager POST → webhook receiver nhận firing và resolved. Integration test mới xác nhận outage Redis trả HTTP 503 trong giới hạn 5 giây. Đây chưa phải delivery tới destination do owner quản lý; G07 ở mức project gate vẫn `PARTIAL`.
-- **G08:** Đã chạy rollback drill trên kind. Candidate không khởi động vì database hiện tại thiếu cột `payment_records.customer_email`; `kubectl rollout undo` đưa deployment về revision trước, 2/2 pods Ready và readiness HTTP 200. Local rollback procedure được chứng minh, nhưng staging/Azure gate vẫn `PARTIAL`.
-- **Chưa làm được:** retry rollout trên schema đã migrate; staging/Azure drill (AKS đã destroy, không có credentials/budget/authorization); production alert receiver có owner; owner ký go/no-go.
-- **Production decision:** tiếp tục **NO-GO**. Bằng chứng chi tiết nằm trong [`T09 SLO and drill evidence`](../benchmarks/t09-slo.md#addendum--local-g07g08-follow-up-2026-11-06).

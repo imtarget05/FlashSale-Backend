@@ -15,8 +15,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class ContextLoadsIntegrationTest {
 
 	@Container
-	static PostgreSQLContainer<?> postgres =
-		new PostgreSQLContainer<>("postgres:15-alpine").withInitScript("db/legacy-payment-schema.sql");
+	static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
 
 	@DynamicPropertySource
 	static void properties(DynamicPropertyRegistry registry) {
@@ -26,6 +25,8 @@ class ContextLoadsIntegrationTest {
 		registry.add("spring.rabbitmq.username", () -> "guest");
 		registry.add("spring.rabbitmq.password", () -> "guest");
 		registry.add("spring.rabbitmq.listener.simple.auto-startup", () -> "false");
+		registry.add("spring.sql.init.mode", () -> "always");
+		registry.add("spring.sql.init.schema-locations", () -> "file:docker/init-schema.sql");
 		registry.add("app.jwt.secret", () -> "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
 	}
 

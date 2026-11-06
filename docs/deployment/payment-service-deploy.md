@@ -78,8 +78,6 @@ docker build -t flashsale/payment-service-java:1.0.0 .
 | `RABBITMQ_PASSWORD` | `guest` | RabbitMQ password |
 | `REDIS_HOST` | `redis` | Redis host |
 | `REDIS_PORT` | `6379` | Redis port |
-| `REDIS_CONNECT_TIMEOUT` | `1s` | Maximum time to establish a Redis connection |
-| `REDIS_COMMAND_TIMEOUT` | `1s` | Maximum Redis command duration, including readiness health checks |
 | `JWT_SIGNING_KEY` | Required outside `production`/`prod` | Legacy HS256 signing key (min 32 bytes); production request authentication uses OIDC |
 | `OIDC_ISSUER_URI` | Required in `production`/`prod` | HTTPS issuer URL for discovery/JWKS |
 | `OIDC_AUDIENCE` | Required in `production`/`prod` | Expected audience for payment-service tokens |

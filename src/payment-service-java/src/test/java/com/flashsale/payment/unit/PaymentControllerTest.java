@@ -5,11 +5,8 @@ import com.flashsale.payment.dto.AuthResponse;
 import com.flashsale.payment.dto.LoginRequest;
 import com.flashsale.payment.dto.PaymentRecordDto;
 import com.flashsale.payment.dto.ProcessPaymentRequest;
-import com.flashsale.payment.exception.GlobalExceptionHandler;
 import com.flashsale.payment.security.AuthService;
 import com.flashsale.payment.security.JwtUtil;
-import org.springframework.security.access.AccessDeniedException;
-import com.flashsale.payment.security.RateLimiter;
 import com.flashsale.payment.security.SecurityConfig;
 import com.flashsale.payment.security.DemoUserDetailsConfig;
 import com.flashsale.payment.service.PaymentService;
@@ -48,8 +45,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(PaymentController.class)
-@Import({SecurityConfig.class, DemoUserDetailsConfig.class, PaymentControllerTest.TestCacheConfiguration.class,
-	GlobalExceptionHandler.class})
+@Import({SecurityConfig.class, DemoUserDetailsConfig.class, PaymentControllerTest.TestCacheConfiguration.class})
 @ActiveProfiles("demo")
 @TestPropertySource(properties = "demo.auth.password=interview-demo-pass")
 class PaymentControllerTest {
@@ -72,7 +68,6 @@ class PaymentControllerTest {
 		mockMvc = MockMvcBuilders.webAppContextSetup(applicationContext)
 			.apply(SecurityMockMvcConfigurers.springSecurity())
 			.build();
-		when(rateLimiter.allowRequest(anyString())).thenReturn(true);
 	}
 
 	@MockitoBean
@@ -83,9 +78,6 @@ class PaymentControllerTest {
 
 	@MockitoBean
 	private JwtUtil jwtUtil;
-
-	@MockitoBean
-	private RateLimiter rateLimiter;
 
 	@Test
 	@WithMockUser(roles = "STAFF")
@@ -240,36 +232,4 @@ class PaymentControllerTest {
 		mockMvc.perform(get("/api/payments"))
 			.andExpect(status().isForbidden());
 	}
-
-	@Test
-	@WithMockUser(roles = "STAFF")
-	void processPayment_shouldReturnTooManyRequests_whenRateLimited() throws Exception {
-		when(rateLimiter.allowRequest(anyString())).thenReturn(false);
-
-		String json = """
-			{
-			  "paymentId": "%s",
-			  "orderId": 100,
-			  "idempotencyKey": "idem-ratelimit",
-			  "amount": 10.01,
-			  "currency": "USD"
-			}
-			""".formatted(UUID.randomUUID());
-
-		mockMvc.perform(post("/api/payments")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(json))
-			.andExpect(status().isTooManyRequests());
-	}
-
-	@Test
-	@WithMockUser(roles = "CUSTOMER")
-	void getPayment_shouldReturnForbidden_whenPaymentOwnedByAnotherUser() throws Exception {
-		when(paymentService.getPayment("idem-1"))
-			.thenThrow(new AccessDeniedException("Payment 'idem-1' does not belong to the authenticated user"));
-
-		mockMvc.perform(get("/api/payments/idem-1"))
-			.andExpect(status().isForbidden());
-	}
-
 }

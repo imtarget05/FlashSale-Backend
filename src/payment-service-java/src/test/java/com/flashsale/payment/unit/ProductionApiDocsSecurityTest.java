@@ -4,7 +4,6 @@ import com.flashsale.payment.controller.PaymentController;
 import com.flashsale.payment.security.AuthService;
 import com.flashsale.payment.security.DemoUserDetailsConfig;
 import com.flashsale.payment.security.JwtUtil;
-import com.flashsale.payment.security.RateLimiter;
 import com.flashsale.payment.security.ProductionSecurityConfig;
 import com.flashsale.payment.security.SecurityConfig;
 import com.flashsale.payment.service.PaymentService;
@@ -84,9 +83,6 @@ class ProductionApiDocsSecurityTest {
 
 	@MockitoBean
 	private JwtDecoder jwtDecoder;
-
-	@MockitoBean
-	private RateLimiter rateLimiter;
 
 	@Autowired
 	private JwtAuthenticationConverter jwtAuthenticationConverter;

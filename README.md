@@ -156,16 +156,7 @@ of production login support.
 
 ## Schema
 
-PostgreSQL schema changes are versioned in
-`src/payment-service-java/src/main/resources/db/migration` and applied by Flyway
-before Hibernate validates the schema. The baseline at version 1 supports
-pre-Flyway databases; version 2 adds the nullable `customer_email` column
-without rebuilding `payment_records`. The optional Oracle profile disables
-these PostgreSQL migrations.
-
-`docker/init-schema.sql` remains a fresh-volume bootstrap for local Compose.
-Because the Postgres entrypoint runs it only for a new data directory, use
-Flyway—not that init script—to update an existing database.
+`docker/init-schema.sql` creates `payment_records` with an idempotency-key primary key. Apply it via the Postgres container entrypoint (compose mounts it to `/docker-entrypoint-initdb.d/`).
 
 ## Notes
 

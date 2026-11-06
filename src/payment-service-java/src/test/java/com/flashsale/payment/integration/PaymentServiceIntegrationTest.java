@@ -10,7 +10,6 @@ import com.flashsale.payment.config.RabbitConfig;
 import com.flashsale.payment.event.OrderEventDTO;
 import com.flashsale.payment.repository.PaymentRepository;
 import com.flashsale.payment.security.JwtUtil;
-import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
@@ -39,7 +38,6 @@ import org.testcontainers.utility.DockerImageName;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
-import javax.sql.DataSource;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -78,6 +76,8 @@ class PaymentServiceIntegrationTest {
 		registry.add("spring.datasource.url", postgres::getJdbcUrl);
 		registry.add("spring.datasource.username", postgres::getUsername);
 		registry.add("spring.datasource.password", postgres::getPassword);
+		registry.add("spring.sql.init.mode", () -> "always");
+		registry.add("spring.sql.init.schema-locations", () -> "file:docker/init-schema.sql");
 		registry.add("spring.rabbitmq.host", rabbitmq::getHost);
 		registry.add("spring.rabbitmq.port", rabbitmq::getAmqpPort);
 		registry.add("spring.rabbitmq.username", () -> "guest");
@@ -106,9 +106,6 @@ class PaymentServiceIntegrationTest {
 
 	@Autowired
 	private RabbitTemplate rabbitTemplate;
-
-	@Autowired
-	private DataSource dataSource;
 
 	@Autowired
 	private AmqpAdmin amqpAdmin;
@@ -194,14 +191,6 @@ class PaymentServiceIntegrationTest {
 			.exchange()
 			.expectStatus().isOk()
 			.expectBody().jsonPath("$.components.mongo.status").isEqualTo("UP");
-	}
-
-	@Test
-	void datasourceConnectionTimeout_staysWithinReadinessProbeBudget() {
-		assertThat(dataSource).isInstanceOfSatisfying(HikariDataSource.class, hikari -> {
-			assertThat(hikari.getConnectionTimeout()).isEqualTo(3_000L);
-			assertThat(hikari.getValidationTimeout()).isEqualTo(1_000L);
-		});
 	}
 
 	@Test

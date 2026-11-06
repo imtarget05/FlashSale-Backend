@@ -19,11 +19,10 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
 	@Modifying
 	@Query(value = """
 		INSERT INTO payment_records (
-			idempotency_key, payment_id, order_id, customer_email, amount, currency, success, status,
+			idempotency_key, payment_id, order_id, amount, currency, success, status,
 			transaction_id, failure_reason, is_transient_error, processed_at
 		) VALUES (
 			:#{#record.idempotencyKey}, :#{#record.paymentId}, :#{#record.orderId},
-			:#{#record.customerEmail},
 			:#{#record.amount}, :#{#record.currency}, :#{#record.success}, :#{#record.status},
 			:#{#record.transactionId}, :#{#record.failureReason}, :#{#record.isTransientError},
 			:#{#record.processedAt}

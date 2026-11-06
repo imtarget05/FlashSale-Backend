@@ -69,6 +69,8 @@ class BrokerCacheFailureDrillTest {
 		registry.add("spring.datasource.url", postgres::getJdbcUrl);
 		registry.add("spring.datasource.username", postgres::getUsername);
 		registry.add("spring.datasource.password", postgres::getPassword);
+		registry.add("spring.sql.init.mode", () -> "always");
+		registry.add("spring.sql.init.schema-locations", () -> "file:docker/init-schema.sql");
 		registry.add("spring.rabbitmq.host", rabbitmq::getHost);
 		registry.add("spring.rabbitmq.port", rabbitmq::getAmqpPort);
 		registry.add("spring.rabbitmq.username", () -> "guest");
