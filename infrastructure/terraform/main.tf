@@ -149,11 +149,6 @@ resource "azurerm_container_app_environment" "env" {
   log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
 }
 
-locals {
-  pg_connection = "Host=${azurerm_postgresql_flexible_server.db.fqdn};Port=5432;Database=FlashSaleDb;Username=psqladmin;Password=${coalesce(var.postgres_admin_password, random_password.pg.result)};Maximum Pool Size=80"
-  image_base    = "${azurerm_container_registry.acr.login_server}/order-api"
-}
-
 resource "azurerm_container_app" "payment_api" {
   name                         = "payment-api"
   resource_group_name          = azurerm_resource_group.rg.name
@@ -243,14 +238,14 @@ resource "azurerm_container_app" "payment_api" {
         path             = "/healthz"
         port             = 8080
         transport        = "HTTP"
-        initial_delay    = 10
+        initial_delay_seconds = 10
         interval_seconds = 10
       }
       readiness_probe {
         path             = "/health/live"
         port             = 8080
         transport        = "HTTP"
-        initial_delay    = 10
+        initial_delay_seconds = 10
         interval_seconds = 10
       }
     }
