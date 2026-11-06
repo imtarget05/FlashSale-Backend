@@ -13,9 +13,9 @@ was deployed or operated.
 | REST, JWT, Spring Security, JPA, PostgreSQL | Payment controller, security filters, JPA entities, PostgreSQL profile and integration tests | Implemented and locally tested. |
 | Redis and RabbitMQ | Cache and transactional outbox / consumer configuration | Implemented; integration coverage exists. Kafka is not part of this Java service. |
 | MongoDB / NoSQL | Optional RabbitMQ-fed audit projection; PostgreSQL remains authoritative | Implemented and locally integration-tested. |
-| gRPC | Protocol Buffers contract, unary payment/health RPC, JWT authentication and Staff/Admin authorization | Implemented and tested. Listener defaults off and requires TLS files; no deployed endpoint is claimed. |
+| gRPC | Protocol Buffers contract (`src/main/proto/payment.proto`) defining unary `ProcessPayment` and `CheckHealth` RPCs. Java listener classes were removed because `protoc` binary is unavailable offline; no compiled gRPC service or deployed endpoint is claimed. | `THEORY_ONLY` — contract spec exists; runtime not compiled or tested locally. |
 | Oracle | JDBC driver and Oracle Spring profile | Configuration only; no Oracle runtime or compatibility test has been performed. |
-| Kubernetes / AKS | Kustomize manifests and explicitly gated deploy script | Local render/YAML checks pass; no cluster apply or AKS runtime evidence. |
+| Kubernetes / AKS | Kustomize manifests (namespace, configmap, secret, deployment, service ClusterIP, hpa, ingress, networkpolicy, pdb) restructured into production-grade separate files; explicitly gated deploy script | Local render/YAML checks pass; no cluster apply or AKS runtime evidence. |
 
 ## Azure / Infrastructure
 
@@ -71,7 +71,7 @@ requirement is evidenced; `NOT_YET` means no evidence was found;
 | Requirement | Evidence and limitation | Status |
 |---|---|---|
 | Java, Spring Boot, Spring Security, Spring Data | Java 17/Spring Boot payment service, REST APIs, JWT role checks, JPA, unit and integration tests. | `DEMONSTRATED` |
-| REST and gRPC | REST and unary gRPC contracts/services have tests. The gRPC listener is disabled by default and requires TLS files when enabled; no deployed endpoint is claimed. | `DEMONSTRATED` |
+| REST and gRPC | REST contracts/services have tests. gRPC Protocol Buffers contract exists but Java listener is not compiled locally (no `protoc` binary); no deployed endpoint is claimed. | `PARTIAL` — REST demonstrated; gRPC contract only. |
 | Microservices / event-driven processing | Payment service uses RabbitMQ, a PostgreSQL transactional outbox, confirms, retries, and dead-letter handling with integration coverage. | `DEMONSTRATED` |
 | Kafka or ActiveMQ | This Java service intentionally uses RabbitMQ and does not include Kafka or ActiveMQ runtime evidence. | `NOT_YET` for the named brokers |
 | Redis | Spring Cache is used for payment lookups with eviction on payment processing; PostgreSQL remains the source of truth. No Redis lock or overselling claim is made. | `DEMONSTRATED` |
