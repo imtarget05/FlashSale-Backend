@@ -25,6 +25,7 @@ def fail(msg: str) -> None:
 def main() -> None:
     yamls = (sorted(HERE.glob("prometheus/*.yml"))
              + sorted(HERE.glob("alertmanager/*.yml"))
+             + sorted(HERE.glob("blackbox/*.yml"))
              + sorted(HERE.glob("grafana/provisioning/**/*.yml"))
              + [HERE / "slo.yaml", HERE / "docker-compose.yml"])
     for f in yamls:
@@ -55,6 +56,47 @@ def main() -> None:
     # Every series a dashboard plots must be either produced by this repo or a
     # standard Prometheus/label token (job, le, status, up, quantile...).
     scrapes = yaml.safe_load((HERE / "prometheus" / "prometheus.yml").read_text())
+    readiness_job = next(
+        (job for job in scrapes.get("scrape_configs", [])
+         if job.get("job_name") == "payment-readiness"),
+        None,
+    )
+    if (
+        not readiness_job
+        or readiness_job.get("metrics_path") != "/probe"
+        or readiness_job.get("static_configs", [{}])[0].get("targets") != ["__PAYMENT_READINESS_URL__"]
+    ):
+        fail("payment-readiness must be probed through the Blackbox Exporter")
+    rules = yaml.safe_load((HERE / "prometheus" / "alerts.yml").read_text())
+    alert_names = {
+        rule.get("alert")
+        for group in rules.get("groups", [])
+        for rule in group.get("rules", [])
+    }
+    if "PaymentServiceReadinessDown" not in alert_names:
+        fail("PaymentServiceReadinessDown alert rule is missing")
+
+    alertmanager = yaml.safe_load((HERE / "alertmanager" / "alertmanager.yml").read_text())
+    receivers = {receiver.get("name"): receiver for receiver in alertmanager.get("receivers", [])}
+    webhook_configs = receivers.get("webhook-local", {}).get("webhook_configs", [])
+    if alertmanager.get("route", {}).get("receiver") != "webhook-local":
+        fail("Alertmanager default route must deliver to webhook-local")
+    if not any(
+        config.get("url") == "http://webhook-receiver:9094/alerts"
+        for config in webhook_configs
+    ):
+        fail("Alertmanager webhook-local must target the local webhook receiver")
+
+    datasource_files = sorted(HERE.glob("grafana/provisioning/datasources/*.yml"))
+    default_datasources = [
+        datasource
+        for path in datasource_files
+        for datasource in yaml.safe_load(path.read_text()).get("datasources", [])
+        if datasource.get("isDefault") is True
+    ]
+    if len(default_datasources) != 1:
+        fail(f"Grafana must provision exactly one default datasource, found {len(default_datasources)}")
+
     for job in scrapes.get("scrape_configs", []):
         print(f"  scrape job: {job['job_name']:16s} {job.get('metrics_path', '/metrics')}")
 
