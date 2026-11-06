@@ -3,7 +3,7 @@ output "acr_login_server" {
 }
 
 output "api_fqdn" {
-  value = azurerm_container_app.api.latest_revision_fqdn
+  value = azurerm_container_app.payment_api.latest_revision_fqdn
 }
 
 output "postgres_fqdn" {

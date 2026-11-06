@@ -238,14 +238,12 @@ resource "azurerm_container_app" "payment_api" {
         path             = "/healthz"
         port             = 8080
         transport        = "HTTP"
-        initial_delay_seconds = 10
         interval_seconds = 10
       }
       readiness_probe {
         path             = "/health/live"
         port             = 8080
         transport        = "HTTP"
-        initial_delay_seconds = 10
         interval_seconds = 10
       }
     }
