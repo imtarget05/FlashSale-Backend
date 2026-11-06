@@ -2,6 +2,7 @@ package com.flashsale.payment.security;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -12,6 +13,7 @@ import java.nio.charset.StandardCharsets;
  * falling back to an insecure/default key would invalidate every issued token.
  */
 @Component
+@Profile("!production & !prod")
 public class JwtStartupValidator implements CommandLineRunner {
 
 	private static final int MIN_KEY_BYTES = 32;

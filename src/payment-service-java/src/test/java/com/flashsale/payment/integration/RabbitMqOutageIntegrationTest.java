@@ -6,6 +6,10 @@ import com.flashsale.payment.outbox.PaymentOutboxRelay;
 import com.flashsale.payment.outbox.PaymentOutboxRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.core.AmqpAdmin;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -71,6 +75,9 @@ class RabbitMqOutageIntegrationTest {
 	@Autowired
 	private RabbitTemplate rabbitTemplate;
 
+	@Autowired
+	private AmqpAdmin amqpAdmin;
+
 	@Test
 	void pendingOutboxEventRetriesAndPublishesAfterRabbitMqRecovers() throws Exception {
 		String idempotencyKey = "rabbit-outage-" + UUID.randomUUID();
@@ -84,8 +91,8 @@ class RabbitMqOutageIntegrationTest {
 				""".formatted(idempotencyKey, createdAt),
 			createdAt));
 
-		rabbitTemplate.execute(channel -> Boolean.TRUE);
-		rabbitmq.getDockerClient().pauseContainerCmd(rabbitmq.getContainerId()).exec();
+		// Simulate broker outage: stop the AMQP application cleanly so connections close.
+		execRabbitMqCtl("stop_app");
 		try {
 			outboxRelay.publishPendingEvents();
 
@@ -94,9 +101,17 @@ class RabbitMqOutageIntegrationTest {
 			assertThat(pending.getAttempts()).isEqualTo(1);
 			assertThat(pending.getLastError()).isNotBlank();
 		} finally {
-			rabbitmq.getDockerClient().unpauseContainerCmd(rabbitmq.getContainerId()).exec();
+			// Broker recovery: start the AMQP application again.
+			execRabbitMqCtl("start_app");
 		}
+
 		awaitRabbitMqConnection();
+
+		Queue recoveryQueue = new Queue("payment.recovery." + UUID.randomUUID(), false, false, true);
+		amqpAdmin.declareQueue(recoveryQueue);
+		amqpAdmin.declareBinding(BindingBuilder.bind(recoveryQueue)
+			.to(new DirectExchange(RabbitConfig.PAYMENT_EVENTS_EXCHANGE))
+			.with(RabbitConfig.ROUTING_KEY_PAYMENT_COMPLETED));
 
 		PaymentOutbox pending = outboxRepository.findById(event.getId()).orElseThrow();
 		pending.setNextAttemptAt(OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(1));
@@ -107,6 +122,16 @@ class RabbitMqOutageIntegrationTest {
 		PaymentOutbox published = outboxRepository.findById(event.getId()).orElseThrow();
 		assertThat(published.getPublishedAt()).isNotNull();
 		assertThat(published.getAttempts()).isEqualTo(1);
+	}
+
+	private void execRabbitMqCtl(String command) throws Exception {
+		String[] cmd = new String[] { "sh", "-c", "rabbitmqctl " + command };
+		var execCreate = rabbitmq.getDockerClient().execCreateCmd(rabbitmq.getContainerId())
+			.withCmd(cmd)
+			.withAttachStdout(true)
+			.withAttachStderr(true);
+		String execId = execCreate.exec().getId();
+		rabbitmq.getDockerClient().execStartCmd(execId);
 	}
 
 	private void awaitRabbitMqConnection() throws Exception {

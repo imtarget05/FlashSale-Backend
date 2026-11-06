@@ -2,7 +2,7 @@
 
 ## 1. Tổng quan
 
-FlashSale hiện tại sử dụng **JWT với HMAC-SHA256 (HS256)** cho xác thực stateless. Lab này đối chiếu yêu cầu JD Sacombank ("JWT, RSA, SHA") và giải thích tại sao chọn HS256 thay vì RSA, cùng các bản mã hóa (SHA, BCrypt) hiện đang triển khai.
+Demo của FlashSale sử dụng **JWT với HMAC-SHA256 (HS256)** cho xác thực stateless; profile production đã chuyển request authentication sang OIDC resource server. Lab này đối chiếu yêu cầu JD Sacombank ("JWT, RSA, SHA") và giải thích tại sao demo chọn HS256 thay vì RSA, cùng các bản mã hóa (SHA, BCrypt) hiện đang triển khai.
 
 ## 2. JWT implementasi hiện tại
 
@@ -30,6 +30,11 @@ FlashSale hiện tại sử dụng **JWT với HMAC-SHA256 (HS256)** cho xác th
 
 **Đánh giá JWT**: `PARTIAL` — JWT HS256 đã triển khai và kiểm thử; RSA chưa có.
 
+Production OIDC vẫn đang bị ràng buộc bởi `JwtUtil` và `JwtStartupValidator`, nên
+`JWT_SIGNING_KEY` vẫn bắt buộc khi khởi động dù không dùng để xác thực request
+OIDC. Đây là dependency legacy cần loại bỏ trước khi xem cấu hình identity là
+hoàn tất; chưa có diễn tập rotation cho issuer keys.
+
 ## 4. Mã hóa (SHA / BCrypt)
 
 | Mục | Thuật toán | Trạng thái |
@@ -50,7 +55,7 @@ FlashSale hiện tại sử dụng **JWT với HMAC-SHA256 (HS256)** cho xác th
 | Authorization | `@PreAuthorize`, role-based | ✅ `SecurityConfig` |
 | Security headers | `X-Content-Type-Options`, `X-Frame-Options`, `CSP`, `HSTS` | ✅ `ProductionSecurityConfig` (chỉ profile production) |
 | CORS | Giới hạn origins, không wildcard | ✅ `ProductionSecurityConfig` |
-| Rate limiting | Cấu hình sẵn (`app.security.rate-limit-enabled`) | ✅ Có cấu hình, chưa triển khai limiter runtime |
+| Rate limiting | Chưa có gateway limiter đã triển khai/kiểm chứng | `NOT_YET` — dự kiến đặt ở gateway; repo hiện không có cấu hình payment-service gateway hoặc bài test HTTP 429 |
 | Secret management | Env var, không hard-code | ✅ |
 
 **Đánh giá OWASP**: `PARTIAL` — phần lớn control đã có, nhưng rate limiting runtime và security scan report chưa rõ ràng.

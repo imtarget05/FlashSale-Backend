@@ -1,13 +1,20 @@
 package com.flashsale.payment.security;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtDecoders;
+import org.springframework.security.oauth2.jwt.JwtValidationException;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.net.URI;
 import java.util.List;
 
 /**
@@ -19,6 +26,7 @@ import java.util.List;
  *   <li>Demo identity provider is disabled ({@link DemoUserDetailsConfig} returns
  *       "No identity provider is configured" outside the demo profile).</li>
  *   <li>JWT signing key is mandatory ({@link JwtStartupValidator}).</li>
+ *   <li>OIDC issuer and API audience are mandatory for bearer-token validation.</li>
  *   <li>CORS is restricted to declared origins (default: none).</li>
  *   <li>Security response headers are applied.</li>
  * </ul>
@@ -30,8 +38,55 @@ public class ProductionSecurityConfig {
 	@Value("${app.security.allowed-origins:}")
 	private List<String> allowedOrigins;
 
-	@Value("${app.security.rate-limit-enabled:true}")
-	private boolean rateLimitEnabled;
+	@Value("${app.security.oidc.authorities-claim:roles}")
+	private String authoritiesClaim;
+
+	@Bean
+	public JwtDecoder oidcJwtDecoder(
+			@Value("${app.security.oidc.issuer-uri:}") String issuerUri,
+			@Value("${app.security.oidc.audience:}") String audience) {
+		JwtDecoder issuerDecoder = JwtDecoders.fromIssuerLocation(requireHttpsIssuer(issuerUri));
+		return requireAudience(issuerDecoder, audience);
+	}
+
+	@Bean
+	public JwtAuthenticationConverter oidcJwtAuthenticationConverter() {
+		JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
+		authoritiesConverter.setAuthoritiesClaimName(authoritiesClaim);
+		authoritiesConverter.setAuthorityPrefix("ROLE_");
+
+		JwtAuthenticationConverter authenticationConverter = new JwtAuthenticationConverter();
+		authenticationConverter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
+		return authenticationConverter;
+	}
+
+	static String requireHttpsIssuer(String issuerUri) {
+		if (issuerUri == null || issuerUri.isBlank()) {
+			throw new IllegalStateException("OIDC_ISSUER_URI must be configured for the production profile");
+		}
+		URI issuer = URI.create(issuerUri);
+		if (!"https".equalsIgnoreCase(issuer.getScheme()) || issuer.getHost() == null
+			|| issuer.getUserInfo() != null || issuer.getQuery() != null || issuer.getFragment() != null) {
+			throw new IllegalStateException("OIDC_ISSUER_URI must be an absolute HTTPS issuer URL");
+		}
+		return issuerUri;
+	}
+
+	static JwtDecoder requireAudience(JwtDecoder decoder, String audience) {
+		if (audience == null || audience.isBlank()) {
+			throw new IllegalStateException("OIDC_AUDIENCE must be configured for the production profile");
+		}
+		return tokenValue -> {
+			Jwt jwt = decoder.decode(tokenValue);
+			List<String> tokenAudiences = jwt.getAudience();
+			if (tokenAudiences == null || !tokenAudiences.contains(audience)) {
+				throw new JwtValidationException(
+					"Invalid token audience",
+					List.of(new OAuth2Error("invalid_token", "Token audience is invalid", null)));
+			}
+			return jwt;
+		};
+	}
 
 	/**
 	 * Restrict CORS to explicitly declared origins in production. No wildcard
@@ -66,9 +121,6 @@ public class ProductionSecurityConfig {
 		return new SecurityHeadersFilter();
 	}
 
-	public boolean isRateLimitEnabled() {
-		return rateLimitEnabled;
-	}
 }
 
 /**

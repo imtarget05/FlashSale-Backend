@@ -7,7 +7,7 @@ This repo is structured for a local Java-first stack and a simple preview deploy
 ```bash
 cd /Users/mainguyenbinhtan/Downloads/FlashSale-Backend
 
-docker compose up -d --wait postgres redis rabbitmq payment-service-java
+docker compose up -d --wait postgres redis rabbitmq mongo payment-service-java
 curl -fsS http://localhost:8081/healthz
 ```
 
@@ -16,6 +16,10 @@ Expected output:
 ```json
 {"status":"healthy"}
 ```
+
+The local demo profile includes the MongoDB audit projection so
+`src/payment-service-java/scripts/smoke-local.sh` can verify confirmed payment
+events through the audit endpoint.
 
 ## Backend deployment on Render
 

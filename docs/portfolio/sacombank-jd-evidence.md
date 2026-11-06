@@ -13,17 +13,39 @@ means implemented and tested locally/CI; it does not mean operated in a bank.
 
 | JD area | Status | Direct evidence and remaining limit |
 |---|---|---|
-| REST API, Java/Spring Boot, Spring Security/JPA | `DEMONSTRATED` | [Payment controller](../../src/payment-service-java/src/main/java/com/flashsale/payment/controller/PaymentController.java), [security configuration](../../src/payment-service-java/src/main/java/com/flashsale/payment/security/SecurityConfig.java), and [API security tests](../../src/payment-service-java/src/test/java/com/flashsale/payment/unit/ProductionApiDocsSecurityTest.java). [PR #13](https://github.com/imtarget05/FlashSale-Backend/pull/13) closed anonymous Swagger/OpenAPI access outside demo. Production OIDC and key rotation remain open. |
-| Database design, indexing, query optimization | `DEMONSTRATED` for local PostgreSQL; `NOT_YET` for Oracle runtime | [Reproducible query-plan experiment](../benchmarks/payment-service-postgres-query-plans.md) on synthetic data, merged in [PR #11](https://github.com/imtarget05/FlashSale-Backend/pull/11). The measurements do not represent production latency. |
-| Redis cache and failure handling | `DEMONSTRATED` for simulated failure; live outage `NOT_YET` | [Cache fallback test](../../src/payment-service-java/src/test/java/com/flashsale/payment/unit/CacheFailureFallbackTest.java) and [handler wiring](../../src/payment-service-java/src/main/java/com/flashsale/payment/config/CacheConfig.java), merged in [PR #14](https://github.com/imtarget05/FlashSale-Backend/pull/14). Recovery after failed eviction still needs an integration drill. |
-| RabbitMQ, outbox, asynchronous flow | `DEMONSTRATED` locally | Java integration tests cover broker-backed behavior. Kafka and ActiveMQ remain `THEORY_ONLY` in the [interview notes](./flashsale-java-interview-notes.md), not runtime claims. |
-| JWT, RSA, SHA, OWASP API controls | `PARTIAL` | JWT/RBAC negative tests and protected API docs are implemented. [Interview notes](./flashsale-java-interview-notes.md) explain RSA/SHA concepts; production IdP, rotation, rate limiting, and formal OWASP review remain open. |
-| Docker, Kubernetes, CI/CD | `PARTIAL` | Java CI and image scan pass on merged code; Kubernetes manifests render locally. No current AKS workload or successful production deployment is verified. |
-| gRPC, Oracle, GitLab CI | `NOT_YET` for runtime/remote operation | A gRPC contract and Oracle profile exist; there is no compiled gRPC endpoint, Oracle compatibility run, or GitLab pipeline run. |
+| REST API, Java/Spring Boot, Spring Security/JPA | `DEMONSTRATED` | [Payment controller](../../src/payment-service-java/src/main/java/com/flashsale/payment/controller/PaymentController.java), [security configuration](../../src/payment-service-java/src/main/java/com/flashsale/payment/security/SecurityConfig.java), and [API authorization tests](../../src/payment-service-java/src/test/java/com/flashsale/payment/unit/ProductionApiDocsSecurityTest.java). [PR #13](https://github.com/imtarget05/FlashSale-Backend/pull/13) closed anonymous Swagger/OpenAPI access outside demo. |
+| PostgreSQL design, indexing, query optimization | `DEMONSTRATED` | [Reproducible query-plan experiment](../benchmarks/payment-service-postgres-query-plans.md) on synthetic data, merged in [PR #11](https://github.com/imtarget05/FlashSale-Backend/pull/11). Measurements do not represent production latency. |
+| Oracle runtime, compiled gRPC endpoint, and GitLab CI execution | `NOT_YET` | Oracle driver/profile are configuration only; gRPC has a contract but no compiled runtime; no Oracle compatibility test or GitLab pipeline run is evidenced. |
+| Redis cache fallback | `DEMONSTRATED` | [Cache fallback test](../../src/payment-service-java/src/test/java/com/flashsale/payment/unit/CacheFailureFallbackTest.java) and [handler wiring](../../src/payment-service-java/src/main/java/com/flashsale/payment/config/CacheConfig.java), merged in [PR #14](https://github.com/imtarget05/FlashSale-Backend/pull/14), demonstrate simulated cache get/put/evict failures. |
+| Redis live outage and recovery | `NOT_YET` | No integration drill disconnects Redis during a request or proves recovery/cache consistency after reconnection. |
+| RabbitMQ, transactional outbox, retry and DLQ | `DEMONSTRATED` | Java integration tests exercise broker-backed payment flows and malformed-message dead lettering; [outbox retry test](../../src/payment-service-java/src/test/java/com/flashsale/payment/unit/PaymentOutboxRelayTest.java) verifies a failed publish remains pending and can be retried. |
+| JWT/RBAC, OIDC resource-server role mapping, and protected API docs | `DEMONSTRATED` | Negative tests cover invalid, expired, missing, and role-insufficient credentials; production OIDC validates issuer/JWKS and a required API audience, and maps a configurable `roles` claim. Mocked-decoder tests verify role mapping and that local login is denied; no live identity provider/JWKS run is claimed. |
+| OIDC signing-key rotation rehearsal and gateway rate-limit enforcement | `NOT_YET` | OIDC key rotation is delegated to the issuer's JWKS; no live rotation test has run. The selected rate-limit boundary is an API gateway, but no gateway is configured or verified in this repository. |
+| Kafka and ActiveMQ runtime | `THEORY_ONLY` | The [interview notes](./flashsale-java-interview-notes.md) discuss these brokers; this service uses RabbitMQ and has no Kafka/ActiveMQ runtime test. |
+| Docker build, image scan, GitHub Actions, and local Kubernetes rendering | `DEMONSTRATED` | Build/scan and repository CI evidence exist; manifests render locally. This does not demonstrate a live AKS workload or production deployment. |
+
+### Production OIDC configuration boundary
+
+The `production`/`prod` profile uses `OIDC_ISSUER_URI` (HTTPS), `OIDC_AUDIENCE`,
+and `OIDC_AUTHORITIES_CLAIM` (default `roles`). The configured issuer's
+discovery/JWKS metadata is used for signature and issuer validation; tokens
+must carry the configured audience and the role claim must contain values such
+as `CUSTOMER`, `STAFF`, or `ADMIN`. The local tests mock the decoder, so they
+verify role mapping and fail-closed configuration but do not validate a live
+provider or key rotation. Local `/api/auth/**` login is denied under these
+profiles. The legacy `JwtUtil` bean and `JwtStartupValidator` still require
+`JWT_SIGNING_KEY` at startup even though OIDC handles production request
+authentication; removing that unused production dependency remains open. Rate
+limiting is assigned to an API gateway; `wrangler.toml` configures only the
+frontend Pages build, and no payment-service gateway integration or 429 test
+exists in this repository yet.
 
 The [PR #14 source SHA `4e1a662`](https://github.com/imtarget05/FlashSale-Backend/commit/4e1a662)
 passed local `mvn -B -q -f src/payment-service-java/pom.xml clean verify`:
-81 tests with zero failures, errors, or skips. It merged as
+81 tests with zero failures, errors, or skips. A later local verification on the
+current working branch passed 88 tests; a subsequent rerun could not start two
+RabbitMQ-backed test classes because the Testcontainers broker did not become
+ready before timeout. It merged as
 [`7d6e37a`](https://github.com/imtarget05/FlashSale-Backend/commit/7d6e37ab98ce2af980fa2a5bf1d568d26f962c8f)
 after all PR checks passed. The production deploy jobs were skipped; repository
 CI is not production readiness.
