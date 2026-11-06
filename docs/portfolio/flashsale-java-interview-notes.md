@@ -69,3 +69,53 @@ Evidence: [SecurityConfig](../../src/payment-service-java/src/main/java/com/flas
 [DemoUserDetailsConfig](../../src/payment-service-java/src/main/java/com/flashsale/payment/security/DemoUserDetailsConfig.java),
 [PaymentGrpcServerConfig](../../src/payment-service-java/src/main/java/com/flashsale/payment/grpc/PaymentGrpcServerConfig.java),
 and [the repository-only Sacombank evidence map](./sacombank-jd-evidence.md).
+
+## 6. How would this flow differ on Kafka or ActiveMQ?
+
+This service runs on RabbitMQ; the following is **interview preparation**, not
+a claim that Kafka or ActiveMQ was implemented here.
+
+| Broker | Consumer progress and failure handling | What the payment service would still need |
+| --- | --- | --- |
+| RabbitMQ (current) | Manual acknowledgements after processing; publisher confirms, mandatory routing and a dead-letter path are configured. | Keep the database outbox and idempotent consumer because a publish/ack crash window still permits duplicates. |
+| Kafka | A consumer group tracks offsets per partition; committing an offset is separate from committing the payment database transaction. Replaying from an earlier offset is possible. | Choose an event key for order-sensitive partitioning, commit offsets after the database work, and keep deduplication. Define how poison records are retried or sent to a separate topic. |
+| ActiveMQ Classic/JMS | A transacted session rollback or client recovery can redeliver; broker redelivery policy and DLQ handling are configured separately. | Keep the same idempotency invariant, test redelivery and poison messages, and verify when the JMS acknowledgement/transaction occurs relative to the database commit. |
+
+Why RabbitMQ here: the repo already has a tested queue/routing contract and a
+publisher-confirmed outbox relay. Introducing another broker for the same
+order event would add operational paths without a demonstrated requirement.
+
+Practice question: *If the consumer commits its Kafka offset before the
+payment transaction commits, what can happen after a crash?* The record can be
+skipped on restart while the payment was never committed. Commit the database
+work first, then the offset; accept that a crash between those commits causes
+redelivery, and make processing idempotent.
+
+References: [Kafka consumer offset tracking](https://kafka.apache.org/40/implementation/distribution/),
+[ActiveMQ redelivery and DLQ](https://activemq.apache.org/components/classic/documentation/message-redelivery-and-dlq-handling),
+and [RabbitMQ acknowledgements](https://www.rabbitmq.com/docs/reliability).
+
+## 7. What do JWT, RSA and SHA mean in this service?
+
+The Java code signs and verifies JWTs with a configured **HMAC shared key**;
+it does not use RSA or an external identity provider. A JWS can instead use an
+asymmetric signature such as RSA: the issuer keeps the private signing key and
+the service verifies with a public key. That would need explicit issuer,
+audience, algorithm, key selection and rotation rules plus negative tests;
+changing the algorithm alone would not make this service production-ready.
+
+SHA-256 is a hash function, not encryption. A raw fast SHA-256 digest is not
+appropriate password storage; the demo identities use BCrypt. A payment
+record should not gain ad-hoc RSA encryption or hashing merely to tick a JD
+keyword. Select a cryptographic control only for a defined asset and threat,
+then test key handling, failure and rotation.
+
+Practice question: *Can the current JWT be verified by an independent service
+without sharing the signing secret?* No. HMAC verification requires the same
+secret. An asymmetric JWS design can separate signing and verification keys,
+but that design has not been implemented or tested in this repository.
+
+Evidence and references: [JwtUtil](../../src/payment-service-java/src/main/java/com/flashsale/payment/security/JwtUtil.java),
+[DemoUserDetailsConfig](../../src/payment-service-java/src/main/java/com/flashsale/payment/security/DemoUserDetailsConfig.java),
+[RFC 7515 (JWS)](https://www.rfc-editor.org/rfc/rfc7515.html),
+and [OWASP Password Storage guidance](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
