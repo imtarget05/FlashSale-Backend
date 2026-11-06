@@ -40,3 +40,15 @@ variable "redis_sku" {
   type        = string
   default     = "Basic"
 }
+
+variable "oidc_issuer_uri" {
+  description = "OIDC issuer URI cho profile production (bắt buộc khi bật profile production)."
+  type        = string
+  default     = ""
+}
+
+variable "oidc_audience" {
+  description = "OIDC audience cho profile production (bắt buộc khi bật profile production)."
+  type        = string
+  default     = ""
+}

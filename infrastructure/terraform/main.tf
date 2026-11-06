@@ -154,56 +154,135 @@ locals {
   image_base    = "${azurerm_container_registry.acr.login_server}/order-api"
 }
 
-resource "azurerm_container_app" "api" {
-  name                         = "order-api"
+resource "azurerm_container_app" "payment_api" {
+  name                         = "payment-api"
   resource_group_name          = azurerm_resource_group.rg.name
   container_app_environment_id = azurerm_container_app_environment.env.id
   revision_mode                = "Single"
 
   template {
     min_replicas = 1
-    max_replicas = 10
+    max_replicas = 3
 
     container {
-      name   = "order-api"
-      image  = "${local.image_base}:${var.image_tag}"
+      name   = "payment-api"
+      image  = "${azurerm_container_registry.acr.login_server}/payment-service:${var.image_tag}"
       cpu    = 0.5
       memory = "1Gi"
 
       env {
-        name        = "ConnectionStrings__DefaultConnection"
-        secret_name = "pg-connection"
+        name  = "SPRING_PROFILES_ACTIVE"
+        value = "production"
       }
       env {
-        name  = "ConnectionStrings__Redis"
-        value = "${azurerm_redis_cache.reservation.hostname}:6380,password=${azurerm_redis_cache.reservation.primary_access_key},ssl=true"
+        name  = "SERVER_PORT"
+        value = "8080"
       }
       env {
-        name        = "ConnectionStrings__ServiceBus"
-        secret_name = "sb-connection"
+        name  = "SPRING_DATASOURCE_URL"
+        value = "jdbc:postgresql://${azurerm_postgresql_flexible_server.db.fqdn}:5432/FlashSaleDb"
+      }
+      env {
+        name  = "SPRING_DATASOURCE_USERNAME"
+        value = "psqladmin"
+      }
+      env {
+        name        = "SPRING_DATASOURCE_PASSWORD"
+        secret_name = "db-password"
+      }
+      env {
+        name  = "SPRING_DATA_REDIS_HOST"
+        value = azurerm_redis_cache.reservation.hostname
+      }
+      env {
+        name  = "SPRING_DATA_REDIS_PORT"
+        value = "6380"
+      }
+      env {
+        name  = "SPRING_DATA_REDIS_SSL_ENABLED"
+        value = "true"
+      }
+      env {
+        name        = "SPRING_DATA_REDIS_PASSWORD"
+        secret_name = "redis-password"
+      }
+      env {
+        name  = "SPRING_RABBITMQ_HOST"
+        value = "${azurerm_servicebus_namespace.orders.name}.servicebus.windows.net"
+      }
+      env {
+        name  = "SPRING_RABBITMQ_PORT"
+        value = "5672"
+      }
+      env {
+        name        = "SPRING_RABBITMQ_USERNAME"
+        secret_name = "sb-username"
+      }
+      env {
+        name        = "SPRING_RABBITMQ_PASSWORD"
+        secret_name = "sb-password"
+      }
+      env {
+        name        = "OIDC_ISSUER_URI"
+        secret_name = "oidc-issuer"
+      }
+      env {
+        name        = "OIDC_AUDIENCE"
+        secret_name = "oidc-audience"
+      }
+      env {
+        name  = "OIDC_AUTHORITIES_CLAIM"
+        value = "roles"
+      }
+      env {
+        name  = "MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE"
+        value = "health,info,metrics,prometheus"
       }
 
       liveness_probe {
         path             = "/healthz"
         port             = 8080
         transport        = "HTTP"
-        initial_delay    = 5
+        initial_delay    = 10
+        interval_seconds = 10
+      }
+      readiness_probe {
+        path             = "/health/live"
+        port             = 8080
+        transport        = "HTTP"
+        initial_delay    = 10
         interval_seconds = 10
       }
     }
   }
 
   secret {
-    name  = "pg-connection"
-    value = local.pg_connection
+    name  = "db-password"
+    value = coalesce(var.postgres_admin_password, random_password.pg.result)
   }
   secret {
-    name  = "sb-connection"
-    value = azurerm_servicebus_namespace.orders.default_primary_connection_string
+    name  = "redis-password"
+    value = azurerm_redis_cache.reservation.primary_access_key
+  }
+  secret {
+    name  = "sb-username"
+    value = azurerm_servicebus_namespace.orders.name
+  }
+  secret {
+    name  = "sb-password"
+    value = azurerm_servicebus_namespace.orders.default_primary_key
   }
   secret {
     name  = "acr-password"
     value = azurerm_container_registry.acr.admin_password
+  }
+  secret {
+    name  = "oidc-issuer"
+    value = var.oidc_issuer_uri
+  }
+  secret {
+    name  = "oidc-audience"
+    value = var.oidc_audience
   }
 
   registry {
@@ -224,45 +303,113 @@ resource "azurerm_container_app" "api" {
 }
 
 # Worker shares the Service Bus contract; scale-to-zero friendly.
-# In AKS (Project 03) KEDA drives this replica count from queue depth.
-resource "azurerm_container_app" "worker" {
-  name                         = "order-worker"
+# Image trỏ về cùng payment-service; nếu không dùng worker, hãy xóa khối này.
+resource "azurerm_container_app" "payment_worker" {
+  name                         = "payment-worker"
   resource_group_name          = azurerm_resource_group.rg.name
   container_app_environment_id = azurerm_container_app_environment.env.id
   revision_mode                = "Single"
 
   template {
     min_replicas = 0
-    max_replicas = 5
+    max_replicas = 3
 
     container {
-      name   = "order-worker"
-      image  = "${azurerm_container_registry.acr.login_server}/order-worker:${var.image_tag}"
+      name   = "payment-worker"
+      image  = "${azurerm_container_registry.acr.login_server}/payment-service:${var.image_tag}"
       cpu    = 0.25
       memory = "0.5Gi"
 
       env {
-        name        = "ConnectionStrings__DefaultConnection"
-        secret_name = "pg-connection"
+        name  = "SPRING_PROFILES_ACTIVE"
+        value = "production"
       }
       env {
-        name        = "ConnectionStrings__ServiceBus"
-        secret_name = "sb-connection"
+        name  = "SERVER_PORT"
+        value = "8080"
+      }
+      env {
+        name  = "SPRING_DATASOURCE_URL"
+        value = "jdbc:postgresql://${azurerm_postgresql_flexible_server.db.fqdn}:5432/FlashSaleDb"
+      }
+      env {
+        name  = "SPRING_DATASOURCE_USERNAME"
+        value = "psqladmin"
+      }
+      env {
+        name        = "SPRING_DATASOURCE_PASSWORD"
+        secret_name = "db-password"
+      }
+      env {
+        name  = "SPRING_DATA_REDIS_HOST"
+        value = azurerm_redis_cache.reservation.hostname
+      }
+      env {
+        name  = "SPRING_DATA_REDIS_PORT"
+        value = "6380"
+      }
+      env {
+        name  = "SPRING_DATA_REDIS_SSL_ENABLED"
+        value = "true"
+      }
+      env {
+        name        = "SPRING_DATA_REDIS_PASSWORD"
+        secret_name = "redis-password"
+      }
+      env {
+        name  = "SPRING_RABBITMQ_HOST"
+        value = "${azurerm_servicebus_namespace.orders.name}.servicebus.windows.net"
+      }
+      env {
+        name  = "SPRING_RABBITMQ_PORT"
+        value = "5672"
+      }
+      env {
+        name        = "SPRING_RABBITMQ_USERNAME"
+        secret_name = "sb-username"
+      }
+      env {
+        name        = "SPRING_RABBITMQ_PASSWORD"
+        secret_name = "sb-password"
+      }
+      env {
+        name        = "OIDC_ISSUER_URI"
+        secret_name = "oidc-issuer"
+      }
+      env {
+        name        = "OIDC_AUDIENCE"
+        secret_name = "oidc-audience"
       }
     }
   }
 
   secret {
-    name  = "pg-connection"
-    value = local.pg_connection
+    name  = "db-password"
+    value = coalesce(var.postgres_admin_password, random_password.pg.result)
   }
   secret {
-    name  = "sb-connection"
-    value = azurerm_servicebus_namespace.orders.default_primary_connection_string
+    name  = "redis-password"
+    value = azurerm_redis_cache.reservation.primary_access_key
+  }
+  secret {
+    name  = "sb-username"
+    value = azurerm_servicebus_namespace.orders.name
+  }
+  secret {
+    name  = "sb-password"
+    value = azurerm_servicebus_namespace.orders.default_primary_key
   }
   secret {
     name  = "acr-password"
     value = azurerm_container_registry.acr.admin_password
+  }
+  secret {
+    name  = "oidc-issuer"
+    value = var.oidc_issuer_uri
+  }
+  secret {
+    name  = "oidc-audience"
+    value = var.oidc_audience
   }
 
   registry {
