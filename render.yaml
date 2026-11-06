@@ -34,8 +34,12 @@ services:
         sync: false
       - key: SPRING_RABBITMQ_PASSWORD
         sync: false
-      - key: JWT_SIGNING_KEY
+      - key: OIDC_ISSUER_URI
         sync: false
+      - key: OIDC_AUDIENCE
+        sync: false
+      - key: OIDC_AUTHORITIES_CLAIM
+        value: roles
       - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
         value: "health,info,metrics,prometheus"
 
@@ -74,7 +78,11 @@ services:
         sync: false
       - key: SPRING_RABBITMQ_PASSWORD
         sync: false
-      - key: JWT_SIGNING_KEY
+      - key: OIDC_ISSUER_URI
         sync: false
+      - key: OIDC_AUDIENCE
+        sync: false
+      - key: OIDC_AUTHORITIES_CLAIM
+        value: roles
       - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
         value: "health,info,metrics,prometheus"

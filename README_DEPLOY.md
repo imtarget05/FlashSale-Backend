@@ -58,12 +58,18 @@ SPRING_RABBITMQ_HOST=<preview-rabbitmq-host>
 SPRING_RABBITMQ_PORT=5672
 SPRING_RABBITMQ_USERNAME=<rabbitmq-user>
 SPRING_RABBITMQ_PASSWORD=<rabbitmq-password>
-JWT_SIGNING_KEY=<32+ byte secret>
+OIDC_ISSUER_URI=<approved HTTPS issuer for this environment>
+OIDC_AUDIENCE=<payment-service audience for this environment>
+OIDC_AUTHORITIES_CLAIM=roles
 MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
 ```
 
 Provision the preview database, Redis, and RabbitMQ separately and use only
-preview credentials. The app does not require Kafka for this deployment.
+preview credentials. Configure a preview-approved OIDC issuer and audience;
+production uses its own issuer and audience. These services run with the
+`production` profile, so OIDC configuration is required at startup.
+`JWT_SIGNING_KEY` is not used by the production profile. The app does not
+require Kafka for this deployment.
 
 ### Production branch (`main`)
 
