@@ -1,4 +1,24 @@
-# Current Plan: OpsBridge Platform — Enterprise Integration, Reconciliation & Operations
+# Current Plan: FlashSale T09 G07/G08 Gate Follow-up
+
+**Scope:** Complete local readiness alert and rollback evidence without claiming production readiness.
+
+## Completed
+
+- Added Blackbox readiness probing and Alertmanager delivery to a loopback-only webhook test receiver.
+- Bound Redis connect/command timeouts and added a Testcontainers readiness regression test.
+- Verified local firing/resolved webhook delivery and performed a kind rollback to the prior healthy image.
+- Recorded that the candidate rollout is blocked by the kind database missing `payment_records.customer_email`.
+
+## Remaining before production approval
+
+- Apply and verify the database migration on a disposable deployment, then retry the candidate rollout.
+- Configure and verify an owner-approved external notification destination.
+- Run an authorized staging/Azure deployment and rollback drill.
+- Obtain named-owner G01–G12 evidence and signed go/no-go; production remains **NO-GO**.
+
+Detailed evidence and exact limits are in [`docs/benchmarks/t09-slo.md`](../docs/benchmarks/t09-slo.md).
+
+## Historical plan: OpsBridge Platform — Enterprise Integration, Reconciliation & Operations
 
 **Current Project**: OpsBridge (Enterprise Integration, Reconciliation & Operations Platform)  
 **Coordinating Project**: FactoryFlow (MiniERP, owned concurrently by Codex)  

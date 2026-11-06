@@ -13,19 +13,18 @@ services:
     ports:
       - "${PROMETHEUS_PORT:-9105}:9090"
     environment:
-      - FLASHSALE_API_TARGET=${FLASHSALE_API_TARGET:-host.docker.internal:5000}
-      - OPSBRIDGE_API_TARGET=${OPSBRIDGE_API_TARGET:-host.docker.internal:5001}
+      - PAYMENT_READINESS_URL=${PAYMENT_READINESS_URL:-http://host.docker.internal:8081/actuator/health/readiness}
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml.template:ro
       - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./scripts/start-prometheus.sh:/etc/prometheus/start-prometheus.sh:ro
       - prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--config.expand-env'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.enable-lifecycle'
+    entrypoint: ["/bin/sh", "/etc/prometheus/start-prometheus.sh"]
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      - alertmanager
+      - blackbox-exporter
 
   grafana:
     image: grafana/grafana:10.4.0
@@ -57,6 +56,39 @@ services:
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
+    depends_on:
+      webhook-receiver:
+        condition: service_healthy
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: flashsale-blackbox-exporter
+    restart: unless-stopped
+    expose:
+      - "9115"
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    command:
+      - '--config.file=/etc/blackbox_exporter/config.yml'
+
+  webhook-receiver:
+    image: python:3.12-alpine
+    container_name: flashsale-webhook-receiver
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${ALERT_RECEIVER_PORT:-9094}:9094"
+    volumes:
+      - ./scripts/alert_receiver.py:/app/alert_receiver.py:ro
+    command: ["python", "/app/alert_receiver.py"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9094/healthz')"
+      interval: 5s
+      timeout: 2s
+      retries: 5
 
 volumes:
   prometheus-data:

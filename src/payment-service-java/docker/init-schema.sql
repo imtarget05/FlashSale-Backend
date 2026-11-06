@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS payment_records (
     idempotency_key VARCHAR(128) PRIMARY KEY,
     payment_id UUID NOT NULL,
     order_id INTEGER NOT NULL,
+    customer_email VARCHAR(256),
     amount NUMERIC(12, 2) NOT NULL,
     currency VARCHAR(8) NOT NULL,
     success BOOLEAN NOT NULL,

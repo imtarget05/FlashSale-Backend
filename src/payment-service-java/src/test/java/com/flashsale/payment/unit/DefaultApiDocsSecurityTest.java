@@ -4,6 +4,7 @@ import com.flashsale.payment.controller.PaymentController;
 import com.flashsale.payment.security.AuthService;
 import com.flashsale.payment.security.DemoUserDetailsConfig;
 import com.flashsale.payment.security.JwtUtil;
+import com.flashsale.payment.security.RateLimiter;
 import com.flashsale.payment.security.SecurityConfig;
 import com.flashsale.payment.service.PaymentService;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,9 @@ class DefaultApiDocsSecurityTest {
 
 	@MockitoBean
 	private JwtUtil jwtUtil;
+
+	@MockitoBean
+	private RateLimiter rateLimiter;
 
 	@Test
 	void apiDocsRequireAuthenticationWithoutDemoProfile() throws Exception {
