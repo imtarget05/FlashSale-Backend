@@ -32,14 +32,14 @@ spring.jpa.hibernate.ddl-auto=validate
 
 | Mục | Trạng thái | Hành động cần thiết |
 |-----|-----------|-------------------|
-| Oracle JDBC driver | Có trong pom (optional) | ✅ |
-| DataSource wiring | Chưa có | Kích hoạt profile oracle, cung cấp ORACLE_JDBC_URL/USER/PASSWORD |
-| Hibernate dialect Oracle | Chưa có | Thêm `OracleDialect` trong profile |
-| Migration Oracle | Chưa có | Viết migration script tương thích Oracle (tipe NUMBER, VARCHAR2, CLOB) |
-| EXPLAIN PLAN / query plan | Chưa có | Chạy `EXPLAIN PLAN FOR` trên Oracle test database |
-| Integration test Oracle | Chưa có | Cần Oracle-compatible runtime (Testcontainers Oracle image) |
+| Oracle JDBC driver | Có trong pom (optional) | `THEORY_ONLY` — dependency được khai báo, chưa chạy |
+| DataSource wiring | Chưa có | `NOT_YET` — cần cấu hình DataSource Oracle qua môi trường được phê duyệt |
+| Hibernate dialect Oracle | Chưa có | `NOT_YET` — cần xác nhận trên Oracle runtime |
+| Migration Oracle | Chưa có | `NOT_YET` — cần viết và chạy migration tương thích Oracle (`NUMBER`, `VARCHAR2`, `CLOB`) |
+| EXPLAIN PLAN / query plan | Chưa có | `NOT_YET` — cần chạy `EXPLAIN PLAN FOR` trên Oracle test database |
+| Integration test Oracle | Chưa có | `NOT_YET` — cần Oracle-compatible runtime và integration test |
 
-**Đánh giá hiện tại**: `PARTIAL` — driver và profile template có sẵn, nhưng không có Oracle runtime test.
+**Đánh giá hiện tại**: `NOT_YET` cho Oracle runtime; `THEORY_ONLY` cho hiểu biết cấu hình từ driver/profile template. Oracle tooling/image chưa có sẵn ở local; không tải image Oracle trong lab này.
 
 ## 5. NoSQL (MongoDB)
 
@@ -55,4 +55,4 @@ spring.jpa.hibernate.ddl-auto=validate
 
 - **PostgreSQL**: `DEMONSTRATED` — authoritative, có schema, index, idempotency concurrency test.
 - **MongoDB (NoSQL)**: `DEMONSTRATED` — audit projection, có integration test.
-- **Oracle**: `PARTIAL` — driver + profile template có sẵn, cần runtime test để nâng lên `DEMONSTRATED`.
+- **Oracle**: `NOT_YET` cho runtime; driver + profile template chỉ là `THEORY_ONLY` cho đến khi có compatibility run.

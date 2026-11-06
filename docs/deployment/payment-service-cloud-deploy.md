@@ -16,7 +16,7 @@ Local Java verification on 2026-11-05: `mvn test` completed 22/22 tests (16 unit
 | `ALB` (Azure Load Balancer) | L4/L7 routing cho Payment Service | Chưa deploy — cần infra team mở quyền |
 | `azure.yaml` | `azd` descriptor (Container Apps) | Không deploy (chặn `no_azure_production_mutations`) |
 | `render.yaml` | Render Blueprint (Java Spring Boot) | Chưa có trong repo |
-| `wrangler.toml` | Cloudflare Pages/Workers config | Chưa có trong repo |
+| `wrangler.toml` | Cloudflare Pages config cho frontend | Có trong repo; không cấu hình payment-service proxy hay rate limiting |
 
 `azure.yaml` uses the `azd` schema (`services` is a map; `host: containerapp`). Azure region, compute plan and secrets belong to the provisioned ACA environment. The former file used Render Blueprint fields (`plan`, `autoDeploy`, `fromDatabase`) and did not configure Azure. No `render.yaml` or Cloudflare deployment config for this Java service is present in this repository.
 
@@ -24,7 +24,7 @@ Local Java verification on 2026-11-05: `mvn test` completed 22/22 tests (16 unit
 
 | Layer | Config | Trạng thái |
 |-------|--------|-----------|
-| **Cloudflare Pages/Workers** | Edge TLS, WAF, caching, rate limiting (`wrangler.toml`) | Chưa deploy — cần `CLOUDFLARE_API_TOKEN` |
+| **Cloudflare Pages/Workers** | `wrangler.toml` hiện chỉ khai báo frontend Pages; chưa có payment-service proxy hoặc rate-limit rule | Chưa deploy — cần cấu hình gateway phù hợp và xác minh `CLOUDFLARE_API_TOKEN` |
 | **Render** | Java Spring Boot, `/health/live`, OTEL | Chưa deploy — cần `RENDER_API_KEY` |
 | **Azure AKS** | AKS `aks-portfolio-dev` (eastasia), 3 nodes Ready, Payment Service LoadBalancer | **Deployed — verified live** |
 | **Azure** | ALB + Container Apps | Chặn bởi `no_azure_production_mutations` |

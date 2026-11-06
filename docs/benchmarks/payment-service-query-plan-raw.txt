@@ -15,37 +15,37 @@ query_case
 PAYMENT_LOOKUP_WITH_PRIMARY_KEY
 (1 row)
 QUERY PLAN
-Index Scan using payment_records_pkey on payment_records  (cost=0.42..8.44 rows=1 width=728) (actual time=0.006..0.007 rows=1 loops=1)
+Index Scan using payment_records_pkey on payment_records  (cost=0.42..8.44 rows=1 width=728) (actual time=0.013..0.013 rows=1 loops=1)
   Index Cond: ((idempotency_key)::text = 'key-50000'::text)
   Buffers: shared hit=4
 Planning:
   Buffers: shared hit=41
-Planning Time: 0.069 ms
-Execution Time: 0.014 ms
+Planning Time: 0.098 ms
+Execution Time: 0.022 ms
 (7 rows)
 query_case
 OUTBOX_WITH_PARTIAL_INDEX
 (1 row)
 QUERY PLAN
-Limit  (cost=1870.46..1871.09 rows=50 width=114) (actual time=4.862..4.883 rows=50 loops=1)
+Limit  (cost=1868.90..1869.52 rows=50 width=114) (actual time=4.837..4.858 rows=50 loops=1)
   Buffers: shared hit=1597
-  ->  LockRows  (cost=1870.46..1932.81 rows=4988 width=114) (actual time=4.862..4.880 rows=50 loops=1)
+  ->  LockRows  (cost=1868.90..1930.90 rows=4960 width=114) (actual time=4.837..4.856 rows=50 loops=1)
         Buffers: shared hit=1597
-        ->  Sort  (cost=1870.46..1882.93 rows=4988 width=114) (actual time=4.853..4.855 rows=50 loops=1)
+        ->  Sort  (cost=1868.90..1881.30 rows=4960 width=114) (actual time=4.828..4.829 rows=50 loops=1)
               Sort Key: created_at
               Sort Method: quicksort  Memory: 1549kB
               Buffers: shared hit=1547
-              ->  Bitmap Heap Scan on payment_outbox  (cost=122.94..1704.76 rows=4988 width=114) (actual time=0.533..3.141 rows=10000 loops=1)
+              ->  Bitmap Heap Scan on payment_outbox  (cost=122.73..1704.13 rows=4960 width=114) (actual time=0.507..2.877 rows=10000 loops=1)
                     Recheck Cond: ((next_attempt_at <= now()) AND (published_at IS NULL))
                     Heap Blocks: exact=1507
                     Buffers: shared hit=1547
-                    ->  Bitmap Index Scan on ix_payment_outbox_pending  (cost=0.00..121.70 rows=4988 width=0) (actual time=0.422..0.422 rows=10000 loops=1)
+                    ->  Bitmap Index Scan on ix_payment_outbox_pending  (cost=0.00..121.49 rows=4960 width=0) (actual time=0.393..0.393 rows=10000 loops=1)
                           Index Cond: (next_attempt_at <= now())
                           Buffers: shared hit=40
 Planning:
   Buffers: shared hit=35
-Planning Time: 0.060 ms
-Execution Time: 4.903 ms
+Planning Time: 0.071 ms
+Execution Time: 4.879 ms
 (19 rows)
 DROP INDEX
 ANALYZE
@@ -53,20 +53,20 @@ query_case
 OUTBOX_WITHOUT_PARTIAL_INDEX
 (1 row)
 QUERY PLAN
-Limit  (cost=3176.05..3176.68 rows=50 width=114) (actual time=11.712..11.735 rows=50 loops=1)
+Limit  (cost=3171.27..3171.89 rows=50 width=114) (actual time=10.157..10.182 rows=50 loops=1)
   Buffers: shared hit=1557
-  ->  LockRows  (cost=3176.05..3239.67 rows=5089 width=114) (actual time=11.711..11.732 rows=50 loops=1)
+  ->  LockRows  (cost=3171.27..3233.08 rows=4945 width=114) (actual time=10.156..10.178 rows=50 loops=1)
         Buffers: shared hit=1557
-        ->  Sort  (cost=3176.05..3188.78 rows=5089 width=114) (actual time=11.703..11.705 rows=50 loops=1)
+        ->  Sort  (cost=3171.27..3183.63 rows=4945 width=114) (actual time=10.145..10.147 rows=50 loops=1)
               Sort Key: created_at
               Sort Method: quicksort  Memory: 1549kB
               Buffers: shared hit=1507
-              ->  Seq Scan on payment_outbox  (cost=0.00..3007.00 rows=5089 width=114) (actual time=0.009..10.100 rows=10000 loops=1)
+              ->  Seq Scan on payment_outbox  (cost=0.00..3007.00 rows=4945 width=114) (actual time=0.006..8.624 rows=10000 loops=1)
                     Filter: ((published_at IS NULL) AND (next_attempt_at <= now()))
                     Rows Removed by Filter: 90000
                     Buffers: shared hit=1507
 Planning:
   Buffers: shared hit=37
-Planning Time: 0.187 ms
-Execution Time: 11.775 ms
+Planning Time: 0.083 ms
+Execution Time: 10.201 ms
 (16 rows)

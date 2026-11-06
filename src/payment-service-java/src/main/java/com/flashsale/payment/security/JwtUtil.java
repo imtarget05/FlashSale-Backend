@@ -14,12 +14,14 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-	private final SecretKey secretKey;
+	private static final int MIN_KEY_BYTES = 32;
+
+	private final String signingSecret;
 	private final long expirationMs;
 
 	public JwtUtil(@Value("${app.jwt.secret}") String secret,
 				   @Value("${app.jwt.expiration-ms:86400000}") long expirationMs) {
-		this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+		this.signingSecret = secret;
 		this.expirationMs = expirationMs;
 	}
 
@@ -28,7 +30,7 @@ public class JwtUtil {
 			.subject(userDetails.getUsername())
 			.issuedAt(new Date(System.currentTimeMillis()))
 			.expiration(new Date(System.currentTimeMillis() + expirationMs))
-			.signWith(secretKey)
+			.signWith(signingKey())
 			.compact();
 	}
 
@@ -47,7 +49,7 @@ public class JwtUtil {
 
 	private Claims extractAllClaims(String token) {
 		return Jwts.parser()
-			.verifyWith(secretKey)
+			.verifyWith(signingKey())
 			.build()
 			.parseSignedClaims(token)
 			.getPayload();
@@ -72,10 +74,23 @@ public class JwtUtil {
 
 	public boolean validateToken(String token) {
 		try {
-			Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token);
+			Jwts.parser().verifyWith(signingKey()).build().parseSignedClaims(token);
 			return true;
 		} catch (JwtException | IllegalArgumentException e) {
 			return false;
 		}
+	}
+
+	private SecretKey signingKey() {
+		if (signingSecret == null || signingSecret.isBlank()) {
+			throw new IllegalStateException(
+				"JWT_SIGNING_KEY (app.jwt.secret) must be set before using demo HS256 authentication");
+		}
+		byte[] keyBytes = signingSecret.getBytes(StandardCharsets.UTF_8);
+		if (keyBytes.length < MIN_KEY_BYTES) {
+			throw new IllegalStateException(
+				"JWT_SIGNING_KEY must be at least 32 bytes before using demo HS256 authentication");
+		}
+		return Keys.hmacShaKeyFor(keyBytes);
 	}
 }

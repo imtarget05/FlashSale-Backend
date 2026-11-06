@@ -12,8 +12,22 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 class JwtUtilTest {
+
+	@Test
+	void missingSigningKeyDoesNotPreventConstructionButCannotSignTokens() {
+		JwtUtil jwtUtil = new JwtUtil("", 60_000L);
+		UserDetails user = User.withUsername("staff@flashsale.local")
+			.password("password")
+			.roles("STAFF")
+			.build();
+
+		assertThatIllegalStateException()
+			.isThrownBy(() -> jwtUtil.generateToken(user))
+			.withMessageContaining("JWT_SIGNING_KEY");
+	}
 
 	@Test
 	void generateToken_shouldRoundTripAndValidate() {

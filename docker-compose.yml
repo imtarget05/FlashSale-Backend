@@ -18,7 +18,8 @@ services:
       - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
       - SPRING_DATA_REDIS_HOST=${REDIS_HOST:-redis}
       - SPRING_DATA_REDIS_PORT=${REDIS_PORT:-6379}
-      - SPRING_PROFILES_ACTIVE=demo
+      - SPRING_PROFILES_ACTIVE=demo,mongodb
+      - MONGODB_URI=mongodb://mongo:27017/flashsale
       - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env}
       - DEMO_AUTH_PASSWORD=${DEMO_AUTH_PASSWORD:?Set DEMO_AUTH_PASSWORD in .env}
     depends_on:
@@ -27,6 +28,8 @@ services:
       redis:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      mongo:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/health/readiness"]
@@ -70,6 +73,22 @@ services:
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - default
+      - portfolio-net
+
+  mongo:
+    image: mongo:7.0.5
+    ports:
+      - "${MONGO_HOST_PORT:-57017}:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 }).ok"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -127,6 +146,7 @@ services:
 volumes:
   postgres-data:
   rabbitmq-data:
+  mongo-data:
   clickhouse-data:
 
 networks:

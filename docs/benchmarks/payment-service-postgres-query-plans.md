@@ -32,9 +32,9 @@ output is in [payment-service-query-plan-raw.txt](payment-service-query-plan-raw
 
 | Query | Observed plan | Execution time in this run |
 | --- | --- | ---: |
-| Payment lookup by `idempotency_key` | `Index Scan using payment_records_pkey`, 1 row, 4 shared buffer hits | 0.014 ms |
-| Due outbox batch with `ix_payment_outbox_pending` | `Bitmap Index Scan` → `Bitmap Heap Scan` → sort by `created_at` → `LockRows`, 50 returned | 4.903 ms |
-| Same outbox query after dropping the partial index in the temporary database | `Seq Scan` of 100,000 rows → sort → `LockRows`, 50 returned | 11.775 ms |
+| Payment lookup by `idempotency_key` | `Index Scan using payment_records_pkey`, 1 row, 4 shared buffer hits | 0.022 ms |
+| Due outbox batch with `ix_payment_outbox_pending` | `Bitmap Index Scan` → `Bitmap Heap Scan` → sort by `created_at` → `LockRows`, 50 returned | 4.879 ms |
+| Same outbox query after dropping the partial index in the temporary database | `Seq Scan` of 100,000 rows → sort → `LockRows`, 50 returned | 10.201 ms |
 
 The primary key directly serves the idempotency lookup. The partial index
 limits the outbox scan to unpublished due events, but the query still sorts
@@ -44,7 +44,10 @@ if backlog size or relay latency becomes a real bottleneck. No index or query
 was changed in this task.
 
 These are single-run local observations, **not a production latency target or
-a statistically valid speedup**. Cache state, row distribution, row width,
-concurrent locks, PostgreSQL settings and instance size can change the plan.
-Before altering the outbox index, measure representative backlog/lock patterns
-and compare multiple warm and cold runs against the same workload.
+a statistically valid speedup**. A separate rerun on the same laptop produced
+different outbox timings (25.663 ms with the index and 22.206 ms without it),
+which demonstrates why one comparison cannot establish a reliable speedup.
+Cache state, row distribution, row width, concurrent locks, PostgreSQL settings
+and instance size can change the plan. Before altering the outbox index,
+measure representative backlog/lock patterns and compare multiple warm and
+cold runs against the same workload.

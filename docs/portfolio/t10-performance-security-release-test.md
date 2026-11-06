@@ -79,11 +79,11 @@ trivy image --exit-code 1 --severity HIGH,CRITICAL flashsale/payment-service:loc
 | Control | Trạng thái | Ghi chú |
 |---------|-----------|---------|
 | Input validation | ✅ | `@Valid`, `@NotBlank`, `@Size`, `@DecimalMin` |
-| Authentication | ✅ | JWT HS256, `JwtStartupValidator` fail closed |
+| Authentication | ✅ | Demo dùng JWT HS256; production dùng OIDC resource server. `JWT_SIGNING_KEY` legacy vẫn bị yêu cầu lúc khởi động dù không dùng cho OIDC request auth |
 | Authorization | ✅ | `@PreAuthorize`, role-based |
 | Security headers | ✅ | `ProductionSecurityConfig` (profile production) |
 | CORS | ✅ | Giới hạn origins, không wildcard |
-| Rate limiting | ⚠️ | Cấu hình sẵn (`app.security.rate-limit-enabled`), chưa có limiter runtime |
+| Rate limiting | ⚠️ | Chưa có gateway limiter hoặc test HTTP 429 cho payment-service; runtime rate limit chưa được chứng minh |
 | Secret management | ✅ | Env var, không hard-code |
 
 **Đánh giá**: `PARTIAL` — phần lớn control đã có, nhưng rate limiting runtime và OWASP scan report chưa rõ ràng.
