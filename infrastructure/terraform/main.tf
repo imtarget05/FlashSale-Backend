@@ -92,10 +92,10 @@ resource "azurerm_servicebus_namespace" "orders" {
 }
 
 resource "azurerm_servicebus_queue" "orders" {
-  name         = "orders"
-  namespace_id = azurerm_servicebus_namespace.orders.id
-  lock_duration                        = "PT1M"
-  max_delivery_count                   = 4
+  name               = "orders"
+  namespace_id       = azurerm_servicebus_namespace.orders.id
+  lock_duration      = "PT1M"
+  max_delivery_count = 4
 }
 
 resource "azurerm_container_app_environment" "env" {
@@ -141,6 +141,11 @@ resource "azurerm_container_app" "rabbitmq" {
     external_enabled = false
     target_port      = 5672
     transport        = "tcp"
+
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
   }
 }
 
