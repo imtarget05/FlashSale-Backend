@@ -6,7 +6,7 @@ metadata:
     app: order-api
     project: flash-sale
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: order-api
@@ -20,7 +20,7 @@ spec:
         runAsUser: 10001
       containers:
         - name: order-api
-          image: order-api:placeholder-set-by-overlay
+          image: order-api
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -39,11 +39,22 @@ spec:
               value: "production"
             - name: SERVER_PORT
               value: "8080"
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              value: "validate"
+            - name: SPRING_AUTOCONFIGURE_EXCLUDE
+              value: org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration,org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
             - name: SPRING_DATASOURCE_URL
               valueFrom:
                 secretKeyRef:
                   name: flashsale-secrets
                   key: pg-connection
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "postgres"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: pg-password
             - name: SPRING_DATA_REDIS_URL
               valueFrom:
                 secretKeyRef:
@@ -75,22 +86,22 @@ spec:
                   key: jwt-signing-key
           resources:
             requests:
-              cpu: 250m
-              memory: 512Mi
+              cpu: 50m
+              memory: 128Mi
             limits:
-              cpu: "1"
-              memory: 1Gi
+              cpu: 200m
+              memory: 256Mi
           livenessProbe:
             httpGet:
               path: /health/live
               port: 8080
-            initialDelaySeconds: 5
+            initialDelaySeconds: 60
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /health/ready
               port: 8080
-            initialDelaySeconds: 3
+            initialDelaySeconds: 45
             periodSeconds: 5
       volumes:
         - name: dlq-logs

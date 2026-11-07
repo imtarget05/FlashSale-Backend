@@ -20,7 +20,7 @@ spec:
         runAsUser: 10001
       containers:
         - name: order-worker
-          image: order-worker:placeholder-set-by-overlay
+          image: order-worker
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -66,11 +66,11 @@ spec:
               mountPath: /tmp
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 50m
+              memory: 128Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 200m
+              memory: 256Mi
       volumes:
         - name: dlq-logs
           emptyDir: {}

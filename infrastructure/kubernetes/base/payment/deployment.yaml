@@ -20,7 +20,7 @@ spec:
         runAsUser: 10001
       containers:
         - name: payment-service
-          image: payment-service:placeholder-set-by-overlay
+          image: payment-service
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -66,11 +66,11 @@ spec:
               value: http://otel-collector.flash-sale:4317
           resources:
             requests:
-              cpu: 50m
+              cpu: 25m
               memory: 64Mi
             limits:
-              cpu: 500m
-              memory: 256Mi
+              cpu: 100m
+              memory: 128Mi
           livenessProbe:
             httpGet:
               path: /health/live
