@@ -57,10 +57,29 @@ public class StripePaymentProvider implements PaymentProvider {
 			throw new IllegalStateException("STRIPE_API_KEY (stripe.api.key) must be configured");
 		}
 
+		// Determine test payment method based on cents (Stripe test cards)
+		int cents = request.amount().remainder(BigDecimal.ONE).movePointRight(2).intValue();
+		String paymentMethod;
+		if (cents == 3) {
+			// Simulate timeout — no Stripe call
+			log.warn("[stripe] simulating timeout for cents=3");
+			return new PaymentRecordDto(
+				request.idempotencyKey(), false, "TimedOut", null,
+				"Upstream payment gateway timeout", true,
+				OffsetDateTime.now().toString());
+		} else if (cents == 2) {
+			paymentMethod = "pm_card_visa_chargeDeclined";
+		} else {
+			paymentMethod = "pm_card_visa";
+		}
+
 		try {
-			// Stripe PaymentIntent creation
+			// Stripe PaymentIntent creation with test payment method
 			String body = "amount=" + request.amount().movePointRight(2).intValue()
-				+ "&currency=" + request.currency().toLowerCase();
+				+ "&currency=" + request.currency().toLowerCase()
+				+ "&payment_method=" + paymentMethod
+				+ "&confirm=true"
+				+ "&return_url=https://example.com/return";
 
 			HttpRequest httpRequest = HttpRequest.newBuilder()
 				.uri(URI.create(STRIPE_API_BASE + "/payment_intents"))
@@ -96,6 +115,12 @@ public class StripePaymentProvider implements PaymentProvider {
 						request.idempotencyKey(), true, "Succeeded", paymentIntentId, null, false,
 						OffsetDateTime.now().toString());
 				}
+			} else if (response.statusCode() == 402) {
+				log.warn("[stripe] card declined statusCode=402 body={}", response.body());
+				return new PaymentRecordDto(
+					request.idempotencyKey(), false, "Declined", null,
+					"Payment declined by Stripe (card_declined)", false,
+					OffsetDateTime.now().toString());
 			} else if (response.statusCode() == 408 || response.statusCode() == 504) {
 				log.warn("[stripe] gateway timeout statusCode={}", response.statusCode());
 				return new PaymentRecordDto(
