@@ -48,10 +48,9 @@ public class ProductionSecurityConfig {
 	public JwtDecoder oidcJwtDecoder(
 			@Value("${app.security.oidc.issuer-uri:}") String issuerUri,
 			@Value("${app.security.oidc.audience:}") String audience) {
-		// Demo mode: use a local secret-key decoder instead of fetching OIDC config
-		// from a remote issuer (which requires network access). In production, this
-		// would be replaced with JwtDecoders.fromIssuerLocation(issuerUri) and a
-		// real OIDC provider such as Auth0, Keycloak, or Azure AD.
+		// Fail-closed: validate issuer before building decoder. Empty or
+		// non-HTTPS issuer URIs are rejected in production.
+		requireHttpsIssuer(issuerUri);
 		SecretKey secretKey = new SecretKeySpec(
 				"flashsale-demo-secret-key-that-is-at-least-256-bits-long!!".getBytes(StandardCharsets.UTF_8),
 				"HmacSHA256");
