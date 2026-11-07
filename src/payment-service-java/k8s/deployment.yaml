@@ -29,8 +29,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: payment-service
-          image: REPLACE_WITH_ACR_LOGIN_SERVER/flashsale/payment-service:REPLACE_WITH_SHA
-          imagePullPolicy: Always
+          image: flashsale/payment-service:local
+          imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

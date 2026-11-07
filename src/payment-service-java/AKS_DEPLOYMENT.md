@@ -16,16 +16,24 @@ access-controlled env file containing:
 - `RABBITMQ_USER`, `RABBITMQ_PASSWORD`
 - `REDIS_PASSWORD` when required by the Redis instance
 - `JWT_SIGNING_KEY` (at least 32 bytes)
-- `DEMO_AUTH_PASSWORD` (at least 16 characters)
+- `OIDC_ISSUER_URI` (HTTPS issuer URL for the Identity Provider)
+- `OIDC_AUDIENCE` (API identifier/audience for the payment-service resource)
+- `OIDC_AUTHORITIES_CLAIM` (typically `roles`)
+- `DEMO_AUTH_PASSWORD` only when the demo profile is intentionally used
 
 The payment container runs as non-root UID/GID 65534 with privilege escalation
 disabled and a read-only root filesystem. Only `/tmp` is writable, through a
 64 MiB `emptyDir`.
 
-Do not use the removed placeholder credentials or the demo profile in
-production. gRPC is disabled, no gRPC port is published, and the Kubernetes
-Service is `ClusterIP`; use a deliberate TLS ingress design before exposing any
-endpoint outside the cluster.
+The sample production profile expects the OIDC variables to be present and valid.
+`SPRING_PROFILES_ACTIVE` in `k8s/configmap.yaml` is set to `production` and the
+service is behind a TLS/HTTPS ingress. Configure the actual issuer URL, audience,
+and DNS host before deploying to a public cluster.
+
+For TLS and ingress, ensure cert-manager is installed and `ClusterIssuer`
+`letsencrypt-prod` exists. Update the host in `k8s/ingress.yaml` (currently
+`api.quan-ly-kho.tanmainguyenbinh.workers.dev`) and the allowed origins list in the ConfigMap to
+match your real domain before applying the manifests.
 
 ## Validate locally without applying
 

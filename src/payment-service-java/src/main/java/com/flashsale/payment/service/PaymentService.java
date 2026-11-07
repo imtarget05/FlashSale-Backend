@@ -11,6 +11,7 @@ import com.flashsale.payment.exception.IdempotencyConflictException;
 import com.flashsale.payment.exception.PaymentTransientException;
 import com.flashsale.payment.outbox.PaymentOutbox;
 import com.flashsale.payment.outbox.PaymentOutboxRepository;
+import com.flashsale.payment.provider.PaymentProvider;
 import com.flashsale.payment.repository.PaymentRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -40,13 +41,15 @@ public class PaymentService {
 	private final PaymentRepository paymentRepository;
 	private final StringRedisTemplate redisTemplate;
 	private final PaymentOutboxRepository outboxRepository;
+	private final PaymentProvider paymentProvider;
 	private final ObjectMapper objectMapper;
 
 	public PaymentService(PaymentRepository paymentRepository, StringRedisTemplate redisTemplate,
-		PaymentOutboxRepository outboxRepository, ObjectMapper objectMapper) {
+		PaymentOutboxRepository outboxRepository, PaymentProvider paymentProvider, ObjectMapper objectMapper) {
 		this.paymentRepository = paymentRepository;
 		this.redisTemplate = redisTemplate;
 		this.outboxRepository = outboxRepository;
+		this.paymentProvider = paymentProvider;
 		this.objectMapper = objectMapper;
 	}
 
@@ -64,26 +67,12 @@ public class PaymentService {
 			return replay(request, existing.get());
 		}
 
-		BigDecimal amount = request.amount();
-		int cents = amount.remainder(BigDecimal.ONE).movePointRight(2).intValue();
+		PaymentRecordDto result = paymentProvider.process(request);
 
-		Payment record;
-		if (cents == 2) {
-			record = new Payment(
-				request.idempotencyKey(), request.paymentId(), request.orderId(), request.amount(),
-				request.currency(), false, "Declined", null,
-				"Insufficient funds in customer account", false, 				OffsetDateTime.now());
-		} else if (cents == 3) {
-			record = new Payment(
-				request.idempotencyKey(), request.paymentId(), request.orderId(), request.amount(),
-				request.currency(), false, "TimedOut", null,
-				"Upstream payment gateway timeout", true, 				OffsetDateTime.now());
-		} else {
-			record = new Payment(
-				request.idempotencyKey(), request.paymentId(), request.orderId(), request.amount(),
-				request.currency(), true, "Succeeded",
-				"tx_" + UUID.randomUUID().toString().replace("-", ""), null, false, 				OffsetDateTime.now());
-		}
+		Payment record = new Payment(
+			request.idempotencyKey(), request.paymentId(), request.orderId(), request.amount(),
+			request.currency(), result.success(), result.status(), result.transactionId(),
+			result.failureReason(), result.isTransientError(), OffsetDateTime.now());
 
 		record.setCustomerEmail(currentUserEmail());
 		int inserted = paymentRepository.insertIfAbsent(record);
@@ -96,7 +85,7 @@ public class PaymentService {
 			return replay(request, winner);
 		}
 
-		PaymentRecordDto result = toDto(record);
+		result = toDto(record);
 		String routingKey = result.success()
 			? RabbitConfig.ROUTING_KEY_PAYMENT_COMPLETED
 			: RabbitConfig.ROUTING_KEY_PAYMENT_FAILED;

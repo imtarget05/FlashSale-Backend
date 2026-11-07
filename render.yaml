@@ -26,6 +26,8 @@ services:
         sync: false
       - key: SPRING_DATA_REDIS_PORT
         value: "6379"
+      - key: SPRING_DATA_REDIS_PASSWORD
+        sync: false
       - key: SPRING_RABBITMQ_HOST
         sync: false
       - key: SPRING_RABBITMQ_PORT
@@ -40,6 +42,10 @@ services:
         sync: false
       - key: OIDC_AUTHORITIES_CLAIM
         value: roles
+      - key: JWT_SIGNING_KEY
+        sync: false
+      - key: STRIPE_API_KEY
+        sync: false
       - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
         value: "health,info,metrics,prometheus"
 
@@ -70,6 +76,8 @@ services:
         sync: false
       - key: SPRING_DATA_REDIS_PORT
         value: "6379"
+      - key: SPRING_DATA_REDIS_PASSWORD
+        sync: false
       - key: SPRING_RABBITMQ_HOST
         sync: false
       - key: SPRING_RABBITMQ_PORT
@@ -84,5 +92,9 @@ services:
         sync: false
       - key: OIDC_AUTHORITIES_CLAIM
         value: roles
+      - key: JWT_SIGNING_KEY
+        sync: false
+      - key: STRIPE_API_KEY
+        sync: false
       - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
         value: "health,info,metrics,prometheus"

@@ -11,7 +11,7 @@ output "postgres_fqdn" {
 }
 
 output "redis_hostname" {
-  value = azurerm_redis_cache.reservation.hostname
+  value = "deferred — Redis to be added separately"
 }
 
 output "servicebus_namespace_name" {

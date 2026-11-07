@@ -9,6 +9,7 @@ import com.flashsale.payment.exception.PaymentNotFoundException;
 import com.flashsale.payment.exception.IdempotencyConflictException;
 import com.flashsale.payment.outbox.PaymentOutbox;
 import com.flashsale.payment.outbox.PaymentOutboxRepository;
+import com.flashsale.payment.provider.PaymentProvider;
 import com.flashsale.payment.repository.PaymentRepository;
 import com.flashsale.payment.service.PaymentService;
 import org.junit.jupiter.api.AfterEach;
@@ -50,6 +51,9 @@ class PaymentServiceTest {
 	@Mock
 	private PaymentOutboxRepository outboxRepository;
 
+	@Mock
+	private PaymentProvider paymentProvider;
+
 	private PaymentService paymentService;
 
 	private ProcessPaymentRequest validRequest;
@@ -61,7 +65,7 @@ class PaymentServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		paymentService = new PaymentService(paymentRepository, redisTemplate, outboxRepository, new ObjectMapper());
+		paymentService = new PaymentService(paymentRepository, redisTemplate, outboxRepository, paymentProvider, new ObjectMapper());
 		validRequest = new ProcessPaymentRequest(
 			UUID.randomUUID(),
 			100,
@@ -69,6 +73,8 @@ class PaymentServiceTest {
 			new BigDecimal("10.01"),
 			"USD"
 		);
+		lenient().when(paymentProvider.process(any(ProcessPaymentRequest.class)))
+			.thenReturn(new PaymentRecordDto("idem-123", true, "Succeeded", "tx_123", null, false, OffsetDateTime.now().toString()));
 	}
 
 	@Test
@@ -95,6 +101,8 @@ class PaymentServiceTest {
 			UUID.randomUUID(), 101, "idem-2", new BigDecimal("10.02"), "USD");
 		when(paymentRepository.findByIdempotencyKey("idem-2")).thenReturn(Optional.empty());
 		when(paymentRepository.insertIfAbsent(any(Payment.class))).thenReturn(1);
+		when(paymentProvider.process(any(ProcessPaymentRequest.class)))
+			.thenReturn(new PaymentRecordDto("idem-2", false, "Declined", null, "Insufficient funds in customer account", false, OffsetDateTime.now().toString()));
 
 		PaymentRecordDto result = paymentService.processPayment(declined);
 
@@ -110,6 +118,8 @@ class PaymentServiceTest {
 			UUID.randomUUID(), 102, "idem-3", new BigDecimal("10.03"), "USD");
 		when(paymentRepository.findByIdempotencyKey("idem-3")).thenReturn(Optional.empty());
 		when(paymentRepository.insertIfAbsent(any(Payment.class))).thenReturn(1);
+		when(paymentProvider.process(any(ProcessPaymentRequest.class)))
+			.thenReturn(new PaymentRecordDto("idem-3", false, "TimedOut", null, "Upstream payment gateway timeout", true, OffsetDateTime.now().toString()));
 
 		assertThatThrownBy(() -> paymentService.processPayment(timedOut))
 			.isInstanceOf(com.flashsale.payment.exception.PaymentTransientException.class);

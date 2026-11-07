@@ -52,3 +52,10 @@ variable "oidc_audience" {
   type        = string
   default     = ""
 }
+
+variable "rabbitmq_password" {
+  description = "RabbitMQ password cho ACA (default: random)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

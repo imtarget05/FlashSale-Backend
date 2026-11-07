@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: flash-sale-prod
+
+resources:
+  - secret-store.yaml
+  - external-secret.yaml
+
+# Optional: enable in overlays that use Azure Key Vault or HashiCorp Vault.
+# Not included in base/ by default so local dev (kubectl kustomize base/) works
+# without External Secrets Operator installed.
+EOF

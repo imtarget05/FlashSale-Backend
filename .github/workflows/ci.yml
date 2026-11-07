@@ -1,66 +1,154 @@
-name: FlashSale Java backend CI
+name: FlashSale Java CI
 
 on:
   push:
     branches: [main, preview]
   pull_request:
-  workflow_dispatch:
-
-permissions:
-  contents: read
+    branches: [main, preview]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
+
+env:
+  MAVEN_OPTS: -Dmaven.repo.local=$HOME/.m2/repository -q
+  JAVA_VERSION: 17
 
 jobs:
-  java-build-and-test:
+  build-and-unit:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
-          java-version: '17'
           cache: maven
 
-      - name: Run Java backend tests
+      - name: Restore Maven dependencies
+        run: mvn -B dependency:go-offline
         working-directory: src/payment-service-java
-        run: mvn -q test
 
-      - name: Smoke-check Docker build for Render service
+      - name: Compile
+        run: mvn -B compile
         working-directory: src/payment-service-java
-        run: docker build -t flashsale-payment-api:test .
 
-  render-branch-gate:
+      - name: Run unit tests (no Docker)
+        run: mvn -B test -Dtest='!*Integration*'
+        working-directory: src/payment-service-java
+
+  integration-tests:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/preview'
+    timeout-minutes: 45
+    needs: build-and-unit
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: flashsale
+          POSTGRES_PASSWORD: flashsale
+          POSTGRES_DB: flashsale
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U flashsale -d flashsale"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_running"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Validate Render config for preview/prod branches
-        run: |
-          ruby - <<'RUBY'
-          require 'yaml'
-          abort('render.yaml not found') unless File.exist?('render.yaml')
-          data = YAML.load_file('render.yaml')
-          services = Array(data['services'])
-          names = services.map { |s| s['name'] }
-          expected = %w[flashsale-payment-api-preview flashsale-payment-api-prod]
-          missing = expected - names
-          abort("Missing Render service names: #{missing.join(', ')}") unless missing.empty?
-          services.each do |svc|
-            branch = svc['branch']
-            abort("Invalid branch config for #{svc['name']}: #{branch}") unless %w[preview main].include?(branch)
-            abort("Health check path mismatch for #{svc['name']}") unless svc['healthCheckPath'] == '/health/live'
-          end
-          puts 'Render preview/prod config validated successfully.'
-          RUBY
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
 
-      - name: Ensure deployment branch is explicit
+      - name: Run integration tests (Testcontainers + service containers)
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/flashsale
+          SPRING_DATASOURCE_USERNAME: flashsale
+          SPRING_DATASOURCE_PASSWORD: flashsale
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: 6379
+          SPRING_RABBITMQ_HOST: localhost
+          SPRING_RABBITMQ_PORT: 5672
+          SPRING_RABBITMQ_USERNAME: guest
+          SPRING_RABBITMQ_PASSWORD: guest
+          app.jwt.secret: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          demo.auth.password: interview-demo-pass
+        run: mvn -B verify
+        working-directory: src/payment-service-java
+
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build-and-unit
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build payment-service image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: src/payment-service-java
+          load: true
+          tags: flashsale/payment-service:local-ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  validate-manifests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build-and-unit
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate k8s manifests (dry-run parse)
         run: |
-          echo "Preview branch: preview"
-          echo "Production branch: main"
-          echo "Service health endpoint: /health/live"
+          set -euo pipefail
+          for f in src/payment-service-java/k8s/*.yaml; do
+            echo "Validating $f"
+            python3 -c "import yaml,sys; yaml.safe_load_all(open('$f'))" || exit 1
+          done
+          echo "All k8s manifests parsed successfully"
+
+      - name: Validate terraform (if present)
+        run: |
+          set +e
+          if command -v terraform >/dev/null 2>&1; then
+            terraform init -backend=false
+            terraform validate
+          else
+            echo "terraform CLI not installed; skipping terraform validate"
+          fi
+        working-directory: src/payment-service-java

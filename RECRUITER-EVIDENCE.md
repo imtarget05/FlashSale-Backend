@@ -61,3 +61,51 @@ Demo: `docker compose up` → `k6 run load-tests/k6/flash-sale.js` → Grafana `
 > This is an **index of evidence, not a production-readiness claim**. Nothing in
 > this repository is production-ready, and no statement above should be
 > presented as one.
+
+---
+
+## FlashSale-Backend (Java payment service) — portfolio evidence
+
+> **Scope:** `src/payment-service-java` (Spring Boot 4.0.9, Java 17). Backend-only portfolio surface; `frontend/` is a thin demo shell.
+
+**Problem:** Xử lý thanh toán flash sale với idempotency key, tránh double-charge khi yêu cầu trùng, mô phỏng kết quả thành công / từ chối / hết thời gian cổng thanh toán.
+
+**Architecture:** Ports & Adapters — `PaymentProvider` port isolates PSP integration; `SimulatedPaymentProvider` is deterministic local demo (not a real PSP). PostgreSQL source of truth with `ON CONFLICT DO NOTHING` idempotency; Redis cache; RabbitMQ transactional outbox + DLQ; JWT auth with OIDC fail-closed production profile.
+
+**Key files:**
+- `src/main/java/com/flashsale/payment/provider/PaymentProvider.java` — PSP port interface
+- `src/main/java/com/flashsale/payment/provider/SimulatedPaymentProvider.java` — local simulation adapter
+- `src/main/java/com/flashsale/payment/service/PaymentService.java` — idempotent payment processing, outbox
+- `src/main/java/com/flashsale/payment/repository/PaymentRepository.java` — `insertIfAbsent` with `ON CONFLICT DO NOTHING`
+- `src/main/java/com/flashsale/payment/security/SecurityConfig.java` + `ProductionSecurityConfig.java` — role-based auth, OIDC fail-closed
+- `src/main/java/com/flashsale/payment/outbox/PaymentOutboxRelay.java` — scheduled outbox publisher with retry/backoff
+- `src/main/java/com/flashsale/payment/event/OrderEventConsumer.java` — RabbitMQ consumer with manual ACK
+- `src/test/java/com/flashsale/payment/unit/PaymentServiceTest.java` — unit tests (Mockito)
+- `src/test/java/com/flashsale/payment/integration/PaymentServiceIntegrationTest.java` — Testcontainers PG/RabbitMQ/Redis/Mongo
+- `src/test/java/com/flashsale/payment/security/ProductionOidcConfigTest.java` — OIDC issuer/audience validation
+- `.github/workflows/ci.yml` — Java CI (compile, unit, integration, Docker build, k8s validation)
+- `scripts/ci-gate.sh` — local CI gate (no cloud credentials)
+- `k8s/overlays/{local,production}` — kustomize overlays; `scripts/render-manifests.sh`
+
+**Verified / Not verified:**
+
+| Claim | Evidence |
+|-------|----------|
+| Idempotent payment — same key + same payload → same result, one DB row, one outbox event | `PaymentServiceIntegrationTest.concurrentSamePayload_requestsCreateOnePaymentAndBothSucceed`, `processPayment_idempotentReplay_returnsSameResult` |
+| Idempotency conflict — same key + different payload → HTTP 409 | `PaymentServiceIntegrationTest.concurrentDifferentPayload_requestsReturnConflictAndCreateOnePayment` |
+| Declined / timeout simulation — .02 → Declined, .03 → 504 TimedOut | `PaymentServiceIntegrationTest.processPayment_declined_whenCentsIsTwo`, `processPayment_transientTimeout_whenCentsIsThree` |
+| OIDC fail-closed — production profile rejects missing/invalid issuer or audience | `ProductionOidcConfigTest` |
+| JWT validation — expired/tampered/missing token → 401 | `AuthSecurityIntegrationTest` |
+| Role-based access — CUSTOMER cannot POST /api/payments (403), STAFF/ADMIN can (200) | `AuthSecurityIntegrationTest.customerRolePostPayment_returns403`, `staffCanPostPayment_returns200` |
+| Transactional outbox — events persisted to `payment_outbox`, published via RabbitMQ with confirms | `PaymentOutboxRelay`, `PaymentEventPublisher`, `PaymentServiceIntegrationTest.validOrderEvent_persistsPaymentAndPublishesCompletion` |
+| DLQ — malformed order events routed to `payment.dlq` | `PaymentServiceIntegrationTest.malformedOrderEvent_isDeadLettered` |
+| Local CI gate — compile + unit tests + Docker build + k8s YAML validation | `scripts/ci-gate.sh` |
+
+**Not verified — do not claim these:**
+| Claim | Status |
+|-------|--------|
+| A real payment service provider | **Never exercised.** `SimulatedPaymentProvider` is deterministic local demo only. |
+| Production OIDC identity provider | **Not integrated.** `ProductionSecurityConfig` requires `OIDC_ISSUER_URI` / `OIDC_AUDIENCE` but no real IdP is configured. |
+| Live Render / AKS deployment | **Configuration only.** k8s manifests exist; never applied to a real cluster. |
+| Production-scale data | **None.** Schema verified from empty against local PostgreSQL only. |
+

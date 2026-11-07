@@ -10,23 +10,12 @@ terraform {
       version = "~> 3.6"
     }
   }
-  # Remote state lives in an Azure Storage backend. Create it once, then:
-  #   terraform init -backend-config="storage_account_name=<acct>" ...
-  # backend "azurerm" {
-  #   resource_group_name  = "rg-tfstate"
-  #   storage_account_name = "<tfstate-account>"
-  #   container_name       = "tfstate"
-  #   key                  = "flashsale.terraform.tfstate"
-  # }
 }
 
 provider "azurerm" {
   features {}
 }
 
-# ---------------------------------------------------------------
-# Foundation
-# ---------------------------------------------------------------
 resource "azurerm_resource_group" "rg" {
   name     = var.resource_group_name
   location = var.location
@@ -38,9 +27,6 @@ resource "random_string" "suffix" {
   upper   = false
 }
 
-# ---------------------------------------------------------------
-# Container Registry (images for api + worker)
-# ---------------------------------------------------------------
 resource "azurerm_container_registry" "acr" {
   name                = "acrflashsale${random_string.suffix.result}"
   resource_group_name = azurerm_resource_group.rg.name
@@ -49,9 +35,6 @@ resource "azurerm_container_registry" "acr" {
   admin_enabled       = true
 }
 
-# ---------------------------------------------------------------
-# Observability (Phase 10 landing zone)
-# ---------------------------------------------------------------
 resource "azurerm_log_analytics_workspace" "law" {
   name                = "law-flashsale"
   location            = azurerm_resource_group.rg.location
@@ -60,13 +43,16 @@ resource "azurerm_log_analytics_workspace" "law" {
   retention_in_days   = 30
 }
 
-# ---------------------------------------------------------------
-# PostgreSQL Flexible Server (source of truth)
-# ---------------------------------------------------------------
 resource "random_password" "pg" {
   length           = 24
   special          = true
-  override_special = "-_"
+  override_special = "_-"
+}
+
+resource "random_password" "rabbitmq" {
+  length           = 24
+  special          = true
+  override_special = "_-"
 }
 
 resource "azurerm_postgresql_flexible_server" "db" {
@@ -77,17 +63,11 @@ resource "azurerm_postgresql_flexible_server" "db" {
   administrator_login    = "psqladmin"
   administrator_password = coalesce(var.postgres_admin_password, random_password.pg.result)
   storage_mb             = 32768
-  sku_name               = var.enable_postgres_ha ? "GP_Standard_D2s_v3" : var.postgres_sku_name
+  sku_name               = var.postgres_sku_name
 
-  dynamic "high_availability" {
-    for_each = var.enable_postgres_ha ? [1] : []
-    content {
-      mode = "ZoneRedundant"
-    }
+  lifecycle {
+    ignore_changes = [zone]
   }
-
-  # Phase 4 lesson: reserve headroom above the app pool (80).
-  # 200 max connections leaves room for migrations, operators and the worker.
 }
 
 resource "azurerm_postgresql_flexible_server_database" "flashsaledb" {
@@ -104,25 +84,6 @@ resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_azure" {
   end_ip_address   = "0.0.0.0"
 }
 
-# ---------------------------------------------------------------
-# Redis (fast-fail reservation tier, ADR-003)
-# ---------------------------------------------------------------
-resource "azurerm_redis_cache" "reservation" {
-  name                = "redis-flashsale-${random_string.suffix.result}"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  capacity            = var.redis_sku == "Premium" ? 1 : (var.redis_sku == "Standard" ? 1 : 0)
-  family              = var.redis_sku == "Premium" ? "P" : "C"
-  sku_name            = var.redis_sku
-
-  redis_configuration {
-    maxmemory_policy = "noeviction" # never silently drop reservation state
-  }
-}
-
-# ---------------------------------------------------------------
-# Azure Service Bus (async fulfillment, ADR-004)
-# ---------------------------------------------------------------
 resource "azurerm_servicebus_namespace" "orders" {
   name                = "sb-flashsale-${random_string.suffix.result}"
   location            = azurerm_resource_group.rg.location
@@ -133,20 +94,54 @@ resource "azurerm_servicebus_namespace" "orders" {
 resource "azurerm_servicebus_queue" "orders" {
   name         = "orders"
   namespace_id = azurerm_servicebus_namespace.orders.id
-
   lock_duration                        = "PT1M"
-  max_delivery_count                   = 4 # mirrors OrderProcessor.MaxAttempts
-  dead_lettering_on_message_expiration = false
+  max_delivery_count                   = 4
 }
 
-# ---------------------------------------------------------------
-# Azure Container Apps Environment (Phase 7 compute)
-# ---------------------------------------------------------------
 resource "azurerm_container_app_environment" "env" {
   name                       = "cae-flashsale"
   location                   = azurerm_resource_group.rg.location
   resource_group_name        = azurerm_resource_group.rg.name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
+}
+
+resource "azurerm_container_app" "rabbitmq" {
+  name                         = "rabbitmq"
+  resource_group_name          = azurerm_resource_group.rg.name
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  revision_mode                = "Single"
+
+  template {
+    min_replicas = 1
+    max_replicas = 1
+
+    container {
+      name   = "rabbitmq"
+      image  = "rabbitmq:3.13-management-alpine"
+      cpu    = 0.25
+      memory = "0.5Gi"
+
+      env {
+        name  = "RABBITMQ_DEFAULT_USER"
+        value = "flashsale"
+      }
+      env {
+        name        = "RABBITMQ_DEFAULT_PASS"
+        secret_name = "rabbitmq-password"
+      }
+    }
+  }
+
+  secret {
+    name  = "rabbitmq-password"
+    value = coalesce(var.rabbitmq_password, random_password.rabbitmq.result)
+  }
+
+  ingress {
+    external_enabled = false
+    target_port      = 5672
+    transport        = "tcp"
+  }
 }
 
 resource "azurerm_container_app" "payment_api" {
@@ -157,7 +152,7 @@ resource "azurerm_container_app" "payment_api" {
 
   template {
     min_replicas = 1
-    max_replicas = 3
+    max_replicas = 10
 
     container {
       name   = "payment-api"
@@ -186,24 +181,8 @@ resource "azurerm_container_app" "payment_api" {
         secret_name = "db-password"
       }
       env {
-        name  = "SPRING_DATA_REDIS_HOST"
-        value = azurerm_redis_cache.reservation.hostname
-      }
-      env {
-        name  = "SPRING_DATA_REDIS_PORT"
-        value = "6380"
-      }
-      env {
-        name  = "SPRING_DATA_REDIS_SSL_ENABLED"
-        value = "true"
-      }
-      env {
-        name        = "SPRING_DATA_REDIS_PASSWORD"
-        secret_name = "redis-password"
-      }
-      env {
         name  = "SPRING_RABBITMQ_HOST"
-        value = "${azurerm_servicebus_namespace.orders.name}.servicebus.windows.net"
+        value = "rabbitmq"
       }
       env {
         name  = "SPRING_RABBITMQ_PORT"
@@ -211,11 +190,11 @@ resource "azurerm_container_app" "payment_api" {
       }
       env {
         name        = "SPRING_RABBITMQ_USERNAME"
-        secret_name = "sb-username"
+        secret_name = "rabbitmq-username"
       }
       env {
         name        = "SPRING_RABBITMQ_PASSWORD"
-        secret_name = "sb-password"
+        secret_name = "rabbitmq-password"
       }
       env {
         name        = "OIDC_ISSUER_URI"
@@ -238,6 +217,7 @@ resource "azurerm_container_app" "payment_api" {
         path             = "/healthz"
         port             = 8080
         transport        = "HTTP"
+        initial_delay    = 5
         interval_seconds = 10
       }
       readiness_probe {
@@ -254,16 +234,12 @@ resource "azurerm_container_app" "payment_api" {
     value = coalesce(var.postgres_admin_password, random_password.pg.result)
   }
   secret {
-    name  = "redis-password"
-    value = azurerm_redis_cache.reservation.primary_access_key
+    name  = "rabbitmq-username"
+    value = "flashsale"
   }
   secret {
-    name  = "sb-username"
-    value = azurerm_servicebus_namespace.orders.name
-  }
-  secret {
-    name  = "sb-password"
-    value = azurerm_servicebus_namespace.orders.default_primary_key
+    name  = "rabbitmq-password"
+    value = coalesce(var.rabbitmq_password, random_password.rabbitmq.result)
   }
   secret {
     name  = "acr-password"
@@ -283,20 +259,8 @@ resource "azurerm_container_app" "payment_api" {
     username             = azurerm_container_registry.acr.admin_username
     password_secret_name = "acr-password"
   }
-
-  ingress {
-    external_enabled = true
-    target_port      = 8080
-    transport        = "auto"
-    traffic_weight {
-      latest_revision = true
-      percentage      = 100
-    }
-  }
 }
 
-# Worker shares the Service Bus contract; scale-to-zero friendly.
-# Image trỏ về cùng payment-service; nếu không dùng worker, hãy xóa khối này.
 resource "azurerm_container_app" "payment_worker" {
   name                         = "payment-worker"
   resource_group_name          = azurerm_resource_group.rg.name
@@ -334,24 +298,8 @@ resource "azurerm_container_app" "payment_worker" {
         secret_name = "db-password"
       }
       env {
-        name  = "SPRING_DATA_REDIS_HOST"
-        value = azurerm_redis_cache.reservation.hostname
-      }
-      env {
-        name  = "SPRING_DATA_REDIS_PORT"
-        value = "6380"
-      }
-      env {
-        name  = "SPRING_DATA_REDIS_SSL_ENABLED"
-        value = "true"
-      }
-      env {
-        name        = "SPRING_DATA_REDIS_PASSWORD"
-        secret_name = "redis-password"
-      }
-      env {
         name  = "SPRING_RABBITMQ_HOST"
-        value = "${azurerm_servicebus_namespace.orders.name}.servicebus.windows.net"
+        value = "rabbitmq"
       }
       env {
         name  = "SPRING_RABBITMQ_PORT"
@@ -359,11 +307,11 @@ resource "azurerm_container_app" "payment_worker" {
       }
       env {
         name        = "SPRING_RABBITMQ_USERNAME"
-        secret_name = "sb-username"
+        secret_name = "rabbitmq-username"
       }
       env {
         name        = "SPRING_RABBITMQ_PASSWORD"
-        secret_name = "sb-password"
+        secret_name = "rabbitmq-password"
       }
       env {
         name        = "OIDC_ISSUER_URI"
@@ -381,16 +329,12 @@ resource "azurerm_container_app" "payment_worker" {
     value = coalesce(var.postgres_admin_password, random_password.pg.result)
   }
   secret {
-    name  = "redis-password"
-    value = azurerm_redis_cache.reservation.primary_access_key
+    name  = "rabbitmq-username"
+    value = "flashsale"
   }
   secret {
-    name  = "sb-username"
-    value = azurerm_servicebus_namespace.orders.name
-  }
-  secret {
-    name  = "sb-password"
-    value = azurerm_servicebus_namespace.orders.default_primary_key
+    name  = "rabbitmq-password"
+    value = coalesce(var.rabbitmq_password, random_password.rabbitmq.result)
   }
   secret {
     name  = "acr-password"
@@ -411,5 +355,3 @@ resource "azurerm_container_app" "payment_worker" {
     password_secret_name = "acr-password"
   }
 }
-
-

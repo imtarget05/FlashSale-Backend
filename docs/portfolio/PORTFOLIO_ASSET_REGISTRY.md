@@ -1,7 +1,7 @@
 # Master Portfolio Asset Registry — Multi-Repo Engineering Platform
 
-> **Registry Date**: 2026-10-22  
-> **Audited Scope**: 5 Full-Scale Repositories (`OpsBridge`, `retail-finance-core-platform`, `QuanLyKho`, `AKS-SRE-Platform`, `SmartDocumentChatbot`)  
+> **Registry Date**: 2026-11-06  
+> **Audited Scope**: 6 Full-Scale Repositories (`FlashSale-Backend`, `OpsBridge`, `retail-finance-core-platform`, `QuanLyKho`, `AKS-SRE-Platform`, `SmartDocumentChatbot`)  
 > **Requirement Reference**: Closes **G17** & **G18** from the Gap Register.
 
 ---
@@ -11,6 +11,7 @@
 | Repository | Tech Stack | Architectural Style | Core Business Mission | Primary Engineering Invariant | Test Evidence & CI Status |
 |---|---|---|---|---|---|
 | **OpsBridge** | .NET 10, C# 13, EF Core, Redis, RabbitMQ, PostgreSQL | Clean Architecture (DDD), Transactional Outbox | Flash-sale order placement with extreme concurrency & 3-way supplier reconciliation | **Zero Oversell**: Redis Lua CAS admission + Authoritative conditional SQL (`Stock >= @qty`) | **310 PASS / 0 FAIL** (`dotnet test AzureFlashSale.slnx`); 50/10 concurrency harness verified |
+| **FlashSale-Backend** | Java 17, Spring Boot 4.0.9, PostgreSQL, Redis, RabbitMQ, MongoDB | Clean Architecture (Ports & Adapters), Transactional Outbox | Flash-sale payment processing with idempotency & PSP port abstraction | **Idempotent Payment**: DB-level `ON CONFLICT DO NOTHING` + idempotency-key replay | **Unit + Integration** (`mvn verify`, Testcontainers PG/RabbitMQ/Redis/Mongo); GitHub Actions `.github/workflows/ci.yml` |
 | **retail-finance-core** | Java 17, Spring Boot 3, MySQL 8, Testcontainers, Python | Layered Architecture (Ports & Adapters) | Core banking general ledger & automated transaction reconciliation | **Double-Entry Balance**: Total Debits = Total Credits; Account version optimistic lock | **26 PASS / 0 FAIL** (`mvn test`); GitHub Actions run 39630546625 green |
 | **QuanLyKho** | Python 3.11, FastAPI, SQLAlchemy 2.0, PostgreSQL 16 | Modular Monolith (Clean) | Multi-branch warehouse ingredient management & cash simulation | **Two-Man Rule (Maker-Checker)**: `maker_id != checker_id`; FEFO batch expiration ordering | **387 PASS, 8 SKIP, 0 FAIL** (`pytest backend/tests`); keyset pagination verified |
 | **AKS-SRE-Platform** | Kubernetes (kind / AKS), Terraform, ArgoCD, Prometheus | Cloud Native SRE Platform, GitOps, Zero-Trust | High-reliability Kubernetes runtime, GitOps delivery, observability & disaster recovery | **Zero-Downtime Resilience**: PDB drain tolerance, Calico network isolation, 0 cloud leak | **47 PASS / 0 FAIL** (`python tests/test_gates.py`); 5 production SRE runbooks verified |
@@ -43,6 +44,10 @@
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────────────────┤
 │ SmartDocumentChatbot   │ Strict Tenant Data Filter   │ backend/app/services/vector_store.py            │
 │                        │ Agent Circuit Breaker       │ backend/src/main/java/.../AgentClient.java      │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────────────────┤
+│ FlashSale-Backend      │ Idempotent Payment          │ com.flashsale.payment.repository.PaymentRepository│
+│                        │ (ON CONFLICT DO NOTHING)    │ com.flashsale.payment.service.PaymentService      │
+│                        │ PSP Port Abstraction        │ com.flashsale.payment.provider.PaymentProvider    │
 └────────────────────────┴─────────────────────────────┴─────────────────────────────────────────────────┘
 ```
 
@@ -97,4 +102,29 @@ backend/
 ├── frontend/                 # Next.js 14 App Router, Tailwind CSS, TypeScript
 ├── backend/                  # FastAPI LangChain/LlamaIndex RAG pipeline
 └── docs/adr/                 # ADRs 0001–0010 (Security boundaries, queue durability, fallback)
+```
+
+### 3.6 FlashSale-Backend (Java Payment Service)
+```text
+src/payment-service-java/
+├── pom.xml                  # Spring Boot 4.0.9, Java 17
+├── Dockerfile               # Multi-stage (Maven build → Temurin JRE)
+├── docker/init-schema.sql   # PostgreSQL bootstrap schema
+├── src/main/proto/          # Protocol Buffers gRPC contract
+├── src/main/java/com/flashsale/payment/
+│   ├── controller/          # PaymentController, HealthController
+│   ├── service/             # PaymentService (uses PaymentProvider port)
+│   ├── provider/            # PaymentProvider port + SimulatedPaymentProvider
+│   ├── repository/ + entity/# PaymentRepository, Payment (JPA)
+│   ├── dto/                 # PaymentRecordDto, ProcessPaymentRequest, LoginRequest, AuthResponse
+│   ├── exception/           # GlobalExceptionHandler, PaymentNotFoundException, IdempotencyConflictException
+│   ├── security/            # JWT auth, SecurityConfig, ProductionSecurityConfig (OIDC fail-closed)
+│   ├── grpc/                # gRPC service adapter (TLS-only, disabled by default)
+│   ├── config/              # RabbitConfig, CacheConfig
+│   ├── event/               # OrderEventConsumer, PaymentEventPublisher, OrderEventDTO
+│   ├── outbox/              # PaymentOutbox, PaymentOutboxRepository, PaymentOutboxRelay
+│   └── audit/               # MongoDB audit projection (read-only, not source of truth)
+├── src/test/                # Unit tests + Testcontainers integration tests
+├── k8s/                     # K8s manifests + overlays/local, overlays/production
+└── scripts/                 # smoke-local.sh
 ```

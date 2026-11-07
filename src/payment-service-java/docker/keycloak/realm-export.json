@@ -1,0 +1,113 @@
+{
+  "realm": "flashsale",
+  "enabled": true,
+  "displayName": "FlashSale Payment Service",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginTheme": "keycloak",
+  "clients": [
+    {
+      "clientId": "payment-service",
+      "name": "Payment Service API",
+      "description": "FlashSale payment service resource server",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "payment-service-secret-change-in-production",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "access.token.lifespan": "3600"
+      },
+      "redirectUris": [
+        "http://localhost:8081/*",
+        "https://api.quan-ly-kho.tanmainguyenbinh.workers.dev/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8081",
+        "https://api.quan-ly-kho.tanmainguyenbinh.workers.dev"
+      ],
+      "protocolMappers": [
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "user.attribute": "foo",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "CUSTOMER",
+        "description": "Customer role - can view own payments"
+      },
+      {
+        "name": "STAFF",
+        "description": "Staff role - can process and list payments"
+      },
+      {
+        "name": "ADMIN",
+        "description": "Admin role - full access including audit"
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "customer@flashsale.local",
+      "enabled": true,
+      "email": "customer@flashsale.local",
+      "firstName": "Demo",
+      "lastName": "Customer",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "interview-demo-pass",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["CUSTOMER"]
+    },
+    {
+      "username": "staff@flashsale.local",
+      "enabled": true,
+      "email": "staff@flashsale.local",
+      "firstName": "Demo",
+      "lastName": "Staff",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "interview-demo-pass",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["STAFF"]
+    },
+    {
+      "username": "admin@flashsale.local",
+      "enabled": true,
+      "email": "admin@flashsale.local",
+      "firstName": "Demo",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "interview-demo-pass",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ADMIN"]
+    }
+  ]
+}

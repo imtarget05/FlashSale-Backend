@@ -14,7 +14,7 @@ Local Java verification on 2026-11-05: `mvn test` completed 22/22 tests (16 unit
 
 | `SONAR_TOKEN` (GitHub Actions secret) | SonarCloud scan | Cần config: `gh secret set SONAR_TOKEN -R FlashSale-Backend -b "<token>"` (tên secret, giá trị không hardcode) |
 | `ALB` (Azure Load Balancer) | L4/L7 routing cho Payment Service | Chưa deploy — cần infra team mở quyền |
-| `azure.yaml` | `azd` descriptor (Container Apps) | Không deploy (chặn `no_azure_production_mutations`) |
+| `azure.yaml` | `azd` descriptor (Container Apps) | Không deploy trong lúc không có môi trường Azure được xác thực và phê duyệt |
 | `render.yaml` | Render Blueprint (Java Spring Boot) | Chưa có trong repo |
 | `wrangler.toml` | Cloudflare Pages config cho frontend | Có trong repo; không cấu hình payment-service proxy hay rate limiting |
 
@@ -27,7 +27,7 @@ Local Java verification on 2026-11-05: `mvn test` completed 22/22 tests (16 unit
 | **Cloudflare Pages/Workers** | `wrangler.toml` hiện chỉ khai báo frontend Pages; chưa có payment-service proxy hoặc rate-limit rule | Chưa deploy — cần cấu hình gateway phù hợp và xác minh `CLOUDFLARE_API_TOKEN` |
 | **Render** | Java Spring Boot, `/health/live`, OTEL | Chưa deploy — cần `RENDER_API_KEY` |
 | **Azure AKS** | AKS `aks-portfolio-dev` (eastasia), 3 nodes Ready, Payment Service LoadBalancer | **Deployed — verified live** |
-| **Azure** | ALB + Container Apps | Chặn bởi `no_azure_production_mutations` |
+| **Azure** | ALB + Container Apps | Cần kiểm tra và xác thực môi trường trước khi triển khai |
 
 ## AKS live verification (2026-11-05)
 

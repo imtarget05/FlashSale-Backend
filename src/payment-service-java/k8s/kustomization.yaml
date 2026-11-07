@@ -6,10 +6,11 @@ resources:
   - configmap.yaml
   - deployment.yaml
   - service.yaml
+  - ingress.yaml
   - hpa.yaml
   - networkpolicy.yaml
   - pdb.yaml
 images:
-  - name: REPLACE_WITH_ACR_LOGIN_SERVER/flashsale/payment-service
-    newName: REPLACE_WITH_ACR_LOGIN_SERVER/flashsale/payment-service
-    newTag: REPLACE_WITH_SHA
+  - name: flashsale/payment-service
+    newName: flashsale/payment-service
+    newTag: local

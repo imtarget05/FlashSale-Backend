@@ -13,7 +13,29 @@
 
 This repository contains a single Java/Spring Boot microservice: **payment-service** (`src/payment-service-java`). It handles simulated payment processing, idempotency, JWT auth, and RabbitMQ order events. PostgreSQL is the authoritative store; Redis backs the payment cache.
 
-The previous C#/.NET solution and its projects (`FlashSale.Domain`, `Order.Api`, `HealthProbe`, OpsBridge, `AzureFlashSale.slnx`) have been removed to keep one stack: **Java-only**.
+Payment processing is abstracted behind the `PaymentProvider` port (`com.flashsale.payment.provider.PaymentProvider`). The included adapter `SimulatedPaymentProvider` is a deterministic local simulation (.01→success, .02→declined, .03→timeout) — **not a real PSP**. A production PSP adapter can be plugged in by implementing the port and wiring it as a Spring bean, without touching business logic.
+
+## Portfolio status (local-only)
+
+This is a **portfolio/demo repository**, not a production-live system. All claims below are verifiable locally; none require cloud credentials or a live Azure/Render deployment.
+
+| Area | Status | Evidence |
+|------|--------|----------|
+| API & business flow | Implemented & tested | `PaymentController`, `PaymentService`, OpenAPI at `/v3/api-docs` |
+| Security | JWT + OIDC fail-closed | `SecurityConfig`, `ProductionSecurityConfig`, `JwtUtil`, tests |
+| Data layer | PostgreSQL source of truth | JPA + Flyway migrations, `PaymentRepository`, Testcontainers |
+| Messaging | RabbitMQ + transactional outbox | `PaymentOutboxRelay`, `OrderEventConsumer`, DLQ |
+| CI/CD | GitHub Actions + local gate | `.github/workflows/ci.yml`, `scripts/ci-gate.sh`, `scripts/deploy.sh` |
+| Infra / k8s | Kustomize overlays | `k8s/`, `k8s/overlays/{local,production}`, `scripts/render-manifests.sh` |
+| UX / frontend | Demo shell | `frontend/` (Vite + React), login, payment history, lookup by key |
+| PSP integration | Port + adapter (simulated + Stripe) | `provider/PaymentProvider`, `SimulatedPaymentProvider`, `StripePaymentProvider` |
+| OIDC (production) | Keycloak local realm | `docker-compose.oidc.yml`, `docker/keycloak/realm-export.json` |
+| Secrets management | Template + vault CSI | `docs/deployment/SECRETS_MANAGEMENT.md` |
+| Load testing | k6 script | `load-tests/k6/payment-service.js` |
+| Seed data | SQL seed (1000 records) | `docker/seed-data.sql` |
+
+**OUT-OF-SCOPE (no cloud evidence, not claimed):** real PSP provider, OIDC identity provider on cloud, production-scale data, live Render/AKS deploy, production secrets.
+
 
 ## Scope and product focus
 
@@ -30,13 +52,16 @@ src/payment-service-java/
 └── src/main/java/com/flashsale/payment/
     ├── controller/          # PaymentController, HealthController
     ├── service/             # PaymentService
+    ├── provider/            # PaymentProvider port + SimulatedPaymentProvider adapter
     ├── repository/ + entity/# PaymentRepository, Payment (JPA)
     ├── dto/                 # PaymentRecordDto, ProcessPaymentRequest, LoginRequest, AuthResponse
     ├── exception/           # GlobalExceptionHandler, PaymentNotFoundException, IdempotencyConflictException
     ├── security/            # REST/JWT security and gRPC JWT interceptor
     ├── grpc/                # gRPC service adapter and TLS-only optional server
     ├── config/              # RabbitConfig, CacheConfig
-    └── event/               # OrderEventConsumer, PaymentEventPublisher, OrderEventDTO
+    ├── event/               # OrderEventConsumer, PaymentEventPublisher, OrderEventDTO
+    ├── outbox/              # PaymentOutbox, PaymentOutboxRepository, PaymentOutboxRelay
+    └── audit/               # MongoDB audit projection (read-only, not source of truth)
 ```
 
 ## Run locally
@@ -49,6 +74,9 @@ export DEMO_AUTH_PASSWORD="$(openssl rand -base64 24)"
 
 # Start the Java service and its PostgreSQL, Redis, and RabbitMQ dependencies.
 docker compose up --build -d
+
+# Optional: start Keycloak OIDC provider for production-profile testing.
+docker compose -f docker-compose.oidc.yml up -d
 
 # Liveness and dependency readiness.
 curl http://localhost:8081/healthz
@@ -120,6 +148,12 @@ cd src/payment-service-java
 mvn -q test -Dtest='!*Integration*'
 ```
 
+Local CI gate (compile + unit tests + Docker build + k8s manifest validation):
+
+```bash
+./scripts/ci-gate.sh
+```
+
 Integration tests use Testcontainers (PostgreSQL, Redis, RabbitMQ) and need a running Docker daemon:
 
 ```bash
@@ -144,8 +178,9 @@ prove that a remote Azure DevOps run has passed.
 |---|---|---|
 | `/healthz` | GET | Liveness probe |
 | `/actuator/health/readiness` | GET | Dependency readiness probe |
-| `/api/payments` | POST | Process a payment (idempotent) |
-| `/api/payments/{idempotencyKey}` | GET | Get payment record |
+| `/api/payments` | POST | Process a payment (idempotent, STAFF/ADMIN) |
+| `/api/payments` | GET | List payments paginated (STAFF/ADMIN) |
+| `/api/payments/{idempotencyKey}` | GET | Get payment record (CUSTOMER/STAFF/ADMIN) |
 | `/api/auth/login` | POST | JWT login |
 
 OpenAPI/Swagger UI is public at `/swagger-ui.html` only in the demo profile.
