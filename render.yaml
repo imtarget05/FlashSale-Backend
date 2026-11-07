@@ -4,9 +4,9 @@ services:
     runtime: docker
     plan: free
     region: oregon
-    branch: preview
+    branch: main
     autoDeploy: false
-    healthCheckPath: /health/live
+    healthCheckPath: /healthz
     dockerfilePath: ./src/payment-service-java/Dockerfile
     dockerContext: ./src/payment-service-java
     envVars:
@@ -22,12 +22,20 @@ services:
         sync: false
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SPRING_DATA_REDIS_SSL_ENABLED
+        value: "true"
       - key: SPRING_DATA_REDIS_HOST
         sync: false
       - key: SPRING_DATA_REDIS_PORT
         value: "6379"
       - key: SPRING_DATA_REDIS_PASSWORD
         sync: false
+      - key: SPRING_RABBITMQ_ADDRESSES
+        sync: false
+      - key: SPRING_RABBITMQ_SSL_ENABLED
+        value: "true"
       - key: SPRING_RABBITMQ_HOST
         sync: false
       - key: SPRING_RABBITMQ_PORT
@@ -42,8 +50,6 @@ services:
         sync: false
       - key: OIDC_AUTHORITIES_CLAIM
         value: roles
-      - key: JWT_SIGNING_KEY
-        sync: false
       - key: STRIPE_API_KEY
         sync: false
       - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
@@ -56,7 +62,7 @@ services:
     region: oregon
     branch: main
     autoDeploy: false
-    healthCheckPath: /health/live
+    healthCheckPath: /healthz
     dockerfilePath: ./src/payment-service-java/Dockerfile
     dockerContext: ./src/payment-service-java
     envVars:
@@ -72,12 +78,20 @@ services:
         sync: false
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SPRING_DATA_REDIS_SSL_ENABLED
+        value: "true"
       - key: SPRING_DATA_REDIS_HOST
         sync: false
       - key: SPRING_DATA_REDIS_PORT
         value: "6379"
       - key: SPRING_DATA_REDIS_PASSWORD
         sync: false
+      - key: SPRING_RABBITMQ_ADDRESSES
+        sync: false
+      - key: SPRING_RABBITMQ_SSL_ENABLED
+        value: "true"
       - key: SPRING_RABBITMQ_HOST
         sync: false
       - key: SPRING_RABBITMQ_PORT
@@ -92,8 +106,6 @@ services:
         sync: false
       - key: OIDC_AUTHORITIES_CLAIM
         value: roles
-      - key: JWT_SIGNING_KEY
-        sync: false
       - key: STRIPE_API_KEY
         sync: false
       - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE

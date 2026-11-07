@@ -16,6 +16,8 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
 
 	boolean existsByIdempotencyKey(String idempotencyKey);
 
+	Optional<Payment> findByTransactionId(String transactionId);
+
 	@Modifying
 	@Query(value = """
 		INSERT INTO payment_records (

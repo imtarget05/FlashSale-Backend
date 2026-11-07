@@ -39,15 +39,13 @@ public class PaymentService {
 	private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
 
 	private final PaymentRepository paymentRepository;
-	private final StringRedisTemplate redisTemplate;
 	private final PaymentOutboxRepository outboxRepository;
 	private final PaymentProvider paymentProvider;
 	private final ObjectMapper objectMapper;
 
-	public PaymentService(PaymentRepository paymentRepository, StringRedisTemplate redisTemplate,
+	public PaymentService(PaymentRepository paymentRepository,
 		PaymentOutboxRepository outboxRepository, PaymentProvider paymentProvider, ObjectMapper objectMapper) {
 		this.paymentRepository = paymentRepository;
-		this.redisTemplate = redisTemplate;
 		this.outboxRepository = outboxRepository;
 		this.paymentProvider = paymentProvider;
 		this.objectMapper = objectMapper;

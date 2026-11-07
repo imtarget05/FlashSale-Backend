@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  MAVEN_OPTS: -Dmaven.repo.local=$HOME/.m2/repository -q
   JAVA_VERSION: 17
+  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
 jobs:
   build-and-unit:
@@ -105,6 +105,40 @@ jobs:
         run: mvn -B verify
         working-directory: src/payment-service-java
 
+
+  sonar-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build-and-unit
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Run tests with JaCoCo coverage
+        run: mvn -B verify -Dtest='!*Integration*' -Djacoco.skip=false
+        working-directory: src/payment-service-java
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.projectKey=imtarget05_FlashSale-Backend
+            -Dsonar.organization=imtarget05
+            -Dsonar.host.url=https://sonarcloud.io
+
   docker-build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -138,17 +172,18 @@ jobs:
           set -euo pipefail
           for f in src/payment-service-java/k8s/*.yaml; do
             echo "Validating $f"
-            python3 -c "import yaml,sys; yaml.safe_load_all(open('$f'))" || exit 1
+            ruby -ryaml -e 'YAML.load_stream(File.read(ARGV.fetch(0)))' "$f"
           done
           echo "All k8s manifests parsed successfully"
 
-      - name: Validate terraform (if present)
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.16.3"
+
+      - name: Validate Terraform
         run: |
-          set +e
-          if command -v terraform >/dev/null 2>&1; then
-            terraform init -backend=false
-            terraform validate
-          else
-            echo "terraform CLI not installed; skipping terraform validate"
-          fi
-        working-directory: src/payment-service-java
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate -no-color
+        working-directory: infrastructure/terraform

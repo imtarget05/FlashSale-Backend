@@ -6,9 +6,6 @@ COPY src ./src
 RUN mvn -q -DskipTests package
 
 FROM eclipse-temurin:17-jre
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /workspace/target/*.jar /app/app.jar
 EXPOSE 8080

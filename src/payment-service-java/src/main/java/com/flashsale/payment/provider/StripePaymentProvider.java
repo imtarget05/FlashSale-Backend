@@ -60,14 +60,13 @@ public class StripePaymentProvider implements PaymentProvider {
 		try {
 			// Stripe PaymentIntent creation
 			String body = "amount=" + request.amount().movePointRight(2).intValue()
-				+ "&currency=" + request.currency().toLowerCase()
-				+ "&payment_method_types[]=card"
-				+ "&idempotency_key=" + request.idempotencyKey();
+				+ "&currency=" + request.currency().toLowerCase();
 
 			HttpRequest httpRequest = HttpRequest.newBuilder()
 				.uri(URI.create(STRIPE_API_BASE + "/payment_intents"))
 				.header("Authorization", "Bearer " + apiKey)
 				.header("Content-Type", "application/x-www-form-urlencoded")
+				.header("Idempotency-Key", request.idempotencyKey())
 				.timeout(Duration.ofSeconds(30))
 				.POST(HttpRequest.BodyPublishers.ofString(body))
 				.build();
