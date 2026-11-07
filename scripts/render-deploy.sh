@@ -30,12 +30,26 @@ case "$TARGET" in
     ;;
 esac
 
-curl -sS -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+# Capture HTTP status code and response body separately so we can fail on 4xx/5xx.
+# `curl -sS` alone does NOT fail on HTTP errors, so a bad service ID / expired key
+# would otherwise be reported as a successful deploy.
+TMP_BODY="$(mktemp)"
+trap 'rm -f "$TMP_BODY"' EXIT
+
+HTTP_CODE="$(curl -sS -o "$TMP_BODY" -w "%{http_code}" \
+  -X POST "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
   -H "Authorization: Bearer ${RENDER_API_KEY}" \
   -H "Content-Type: application/json" \
-  -d '{"clearCache": false}'
+  -d '{"clearCache": false}')"
 
+echo "Render API response (HTTP $HTTP_CODE):"
+cat "$TMP_BODY"
 echo
+
+if [[ "$HTTP_CODE" -lt 200 || "$HTTP_CODE" -ge 300 ]]; then
+  echo "Render deploy FAILED with HTTP $HTTP_CODE for service ${SERVICE_ID} (${TARGET})." >&2
+  exit 1
+fi
 
 echo "Triggered Render deploy for service ${SERVICE_ID} (${TARGET})."
 echo "Monitor the deployment in Render dashboard logs and wait for the service to become healthy before promoting to production."

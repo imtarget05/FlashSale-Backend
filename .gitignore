@@ -16,6 +16,8 @@ node_modules/
 
 # Local env / drill artifacts (never commit)
 .env
+.env.production
+.env.*.local
 frontend/.env
 frontend/.env.local
 frontend/.env.production

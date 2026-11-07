@@ -26,20 +26,20 @@ observability
 deployment reliability
 
 TECHNOLOGY DIRECTION:
-Backend: C#, ASP.NET Core Web API, .NET
-Data: PostgreSQL
-Caching / inventory reservation: Redis
-Messaging: Azure Service Bus
-Cloud: Microsoft Azure
-Initial compute: Azure Container Apps
-Later infrastructure: Azure Kubernetes Service (AKS)
+Backend: Java 17, Spring Boot 3.2.5 (payment-service-java)
+Data: Render PostgreSQL (managed)
+Caching / inventory reservation: Render Key Value (Redis, TLS)
+Messaging: CloudAMQP (RabbitMQ over AMQPS)
+Cloud: Render (Free preview / Starter production) + Cloudflare (edge)
 Containerization: Docker
-Infrastructure as Code: Terraform
+Infrastructure as Code: render.yaml (managed service blueprint); Terraform not currently used for Render resources
 CI/CD: GitHub Actions
-Secrets: Azure Key Vault
-Observability: Azure Monitor, Application Insights, OpenTelemetry, Prometheus / Grafana
-Performance testing: k6
-OS / automation: Linux, Bash / PowerShell
+Secrets: Render environment variables / GitHub Actions secrets (no Azure Key Vault)
+Auth: Auth0 (OIDC) — password grant unavailable on free tier; use client credentials / JWT as appropriate
+Payments: Stripe
+Observability: Spring Boot Actuator (health, info, metrics, prometheus), structured logging
+Performance testing: k6 (load-tests/)
+OS / automation: Linux, Bash
 
 ENGINEERING PRINCIPLES:
 Do not over-engineer.
