@@ -42,8 +42,6 @@ services:
         sync: false
       - key: OIDC_AUTHORITIES_CLAIM
         value: roles
-      - key: JWT_SIGNING_KEY
-        sync: false
       - key: STRIPE_API_KEY
         sync: false
       - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
@@ -92,8 +90,6 @@ services:
         sync: false
       - key: OIDC_AUTHORITIES_CLAIM
         value: roles
-      - key: JWT_SIGNING_KEY
-        sync: false
       - key: STRIPE_API_KEY
         sync: false
       - key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
