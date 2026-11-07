@@ -6,7 +6,7 @@ services:
     region: oregon
     branch: main
     autoDeploy: false
-    healthCheckPath: /health/live
+    healthCheckPath: /healthz
     dockerfilePath: ./src/payment-service-java/Dockerfile
     dockerContext: ./src/payment-service-java
     envVars:
@@ -62,7 +62,7 @@ services:
     region: oregon
     branch: main
     autoDeploy: false
-    healthCheckPath: /health/live
+    healthCheckPath: /healthz
     dockerfilePath: ./src/payment-service-java/Dockerfile
     dockerContext: ./src/payment-service-java
     envVars:
