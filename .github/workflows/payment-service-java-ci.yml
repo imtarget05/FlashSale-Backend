@@ -48,12 +48,12 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: flashsale
+          POSTGRES_PASSWORD: ci-only-disposable-password
+          POSTGRES_DB: flashsale
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U postgres -d FlashSaleDb"
+          --health-cmd "pg_isready -U flashsale -d flashsale"
           --health-interval 5s --health-timeout 3s --health-retries 10
       redis:
         image: redis:7-alpine
@@ -78,9 +78,9 @@ jobs:
       - name: Run integration tests
         working-directory: src/payment-service-java
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/${{ secrets.POSTGRES_DB }}
-          SPRING_DATASOURCE_USERNAME: ${{ secrets.POSTGRES_USER }}
-          SPRING_DATASOURCE_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/flashsale
+          SPRING_DATASOURCE_USERNAME: flashsale
+          SPRING_DATASOURCE_PASSWORD: ci-only-disposable-password
           SPRING_RABBITMQ_HOST: localhost
           SPRING_RABBITMQ_PORT: 5672
           SPRING_DATA_REDIS_HOST: localhost
