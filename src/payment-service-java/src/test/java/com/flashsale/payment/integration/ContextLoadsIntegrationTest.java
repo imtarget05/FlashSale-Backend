@@ -27,6 +27,11 @@ class ContextLoadsIntegrationTest {
 		registry.add("spring.rabbitmq.password", () -> "guest");
 		registry.add("spring.rabbitmq.listener.simple.auto-startup", () -> "false");
 		registry.add("app.jwt.secret", () -> "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+		// Context-load smoke test only: migrations are validated by PaymentSchemaMigrationTest.
+		// The legacy init script duplicates V1 (lacks V2's customer_email column), so both
+		// Flyway initialization and Hibernate schema validation are skipped here.
+		registry.add("spring.flyway.enabled", () -> "false");
+		registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
 	}
 
 	@Test

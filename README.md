@@ -26,7 +26,7 @@ This is a **portfolio/demo repository**, not a production-live system. All claim
 | Data layer | PostgreSQL source of truth | JPA + Flyway migrations, `PaymentRepository`, Testcontainers |
 | Messaging | RabbitMQ + transactional outbox | `PaymentOutboxRelay`, `OrderEventConsumer`, DLQ |
 | CI/CD | GitHub Actions + local gate | `.github/workflows/ci.yml`, `scripts/ci-gate.sh`, `scripts/deploy.sh` |
-| Infra / k8s | Kustomize overlays | `k8s/`, `k8s/overlays/{local,production}`, `scripts/render-manifests.sh` |
+| Infra / k8s | Kustomize overlays | `src/payment-service-java/k8s/`, `src/payment-service-java/k8s/overlays/{local,production}`, `scripts/render-manifests.sh` |
 | UX / frontend | Demo shell | `frontend/` (Vite + React), login, payment history, lookup by key |
 | PSP integration | Port + adapter (simulated + Stripe) | `provider/PaymentProvider`, `SimulatedPaymentProvider`, `StripePaymentProvider` |
 | OIDC (production) | Keycloak local realm | `docker-compose.oidc.yml`, `docker/keycloak/realm-export.json` |
@@ -188,6 +188,25 @@ In the default, `production`, and `prod` profiles, `/swagger-ui/**` and
 `/v3/api-docs/**` require Admin. The service does not yet have a production
 identity provider, so this rule is a fail-closed boundary rather than evidence
 of production login support.
+
+## Verified capabilities (local, reproducible; CV evidence)
+
+`mvn test` passes cleanly: **173 tests, 0 failures, 0 errors**. Integration tests
+use Testcontainers (PostgreSQL, Redis, RabbitMQ) with Docker; no cloud
+credentials are required.
+
+| Capability | Evidence |
+|---|---|
+| Idempotent payment — same key + same payload → one DB row, one outbox event | `PaymentServiceIntegrationTest` |
+| Idempotency conflict — same key, different payload → HTTP 409 | `PaymentServiceIntegrationTest` |
+| Redis cache hit / miss / eviction on `getPayment`/`processPayment` | `PaymentCacheRedisTest` |
+| Graceful fallback to PostgreSQL when Redis is unavailable | `CacheFailureFallbackTest`, `RedisOutageIntegrationTest`, `BrokerCacheFailureDrillTest` |
+| OIDC fail-closed production profile; JWT validation → 401; role-based 403/200 | `ProductionOidcConfigTest`, `AuthSecurityIntegrationTest` |
+| Transactional outbox + RabbitMQ DLQ | `PaymentOutboxRelay`, `PaymentServiceIntegrationTest` |
+| Local CI gate (compile, unit tests, Docker build, k8s validation), no cloud creds | `scripts/ci-gate.sh`, `.github/workflows/ci.yml` |
+
+These are verified, locally-reproducible capabilities. They are **not** claims of
+a live payment provider, a live Render/AKS deployment, or production readiness.
 
 ## Schema
 

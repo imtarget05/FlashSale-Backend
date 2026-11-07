@@ -49,9 +49,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: flashsale
-          POSTGRES_PASSWORD: flashsale
-          POSTGRES_DB: flashsale
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
         ports:
           - 5432:5432
         options: >-
@@ -91,15 +91,15 @@ jobs:
 
       - name: Run integration tests (Testcontainers + service containers)
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/flashsale
-          SPRING_DATASOURCE_USERNAME: flashsale
-          SPRING_DATASOURCE_PASSWORD: flashsale
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/${{ secrets.POSTGRES_DB }}
+          SPRING_DATASOURCE_USERNAME: ${{ secrets.POSTGRES_USER }}
+          SPRING_DATASOURCE_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           SPRING_DATA_REDIS_HOST: localhost
           SPRING_DATA_REDIS_PORT: 6379
           SPRING_RABBITMQ_HOST: localhost
           SPRING_RABBITMQ_PORT: 5672
-          SPRING_RABBITMQ_USERNAME: guest
-          SPRING_RABBITMQ_PASSWORD: guest
+          SPRING_RABBITMQ_USERNAME: ${{ secrets.RABBITMQ_USER }}
+          SPRING_RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
           app.jwt.secret: ${{ secrets.APP_JWT_SECRET }}
           demo.auth.password: ${{ secrets.DEMO_AUTH_PASSWORD }}
         run: mvn -B verify

@@ -91,6 +91,20 @@ class ProductionOidcConfigTest {
 	}
 
 	@Test
+	void rejectsExpiredTokensWithJwtValidationException() {
+		JwtDecoder underlying = org.mockito.Mockito.mock(JwtDecoder.class);
+		org.mockito.Mockito.when(underlying.decode("expired-token"))
+			.thenThrow(new org.springframework.security.oauth2.jwt.JwtValidationException(
+				"token expired",
+				List.of(new org.springframework.security.oauth2.core.OAuth2Error("invalid_token", "expired", null))));
+		JwtDecoder decoder = ProductionSecurityConfig.requireAudience(underlying, "payment-service");
+
+		assertThatThrownBy(() -> decoder.decode("expired-token"))
+			.isInstanceOf(org.springframework.security.oauth2.jwt.JwtValidationException.class)
+			.hasMessageContaining("token expired");
+	}
+
+	@Test
 	void acceptsTokensForTheConfiguredAudience() {
 		Jwt jwt = Jwt.withTokenValue("test-token")
 			.header("alg", "RS256")

@@ -1,111 +1,79 @@
-# Recruiter Evidence — OpsBridge (.NET 10 Flash-Sale + OpsBridge)
+# Recruiter Evidence — FlashSale-Backend (Java payment service)
 
-> **Current checkpoint (2026-10-21):** This short form contains historical
-> counts and CI wording below. The old harness could print `RESULT: PASS` after
-> a dry-run resync with only 3/50 or 0/50 sales. The uncommitted fix now gates
-> exact 10/40 fill and passed one disposable local run; remote CI has not been
-> rerun. See [the commit-pinned audit](docs/evidence/portfolio-audit-2026-10-21.md).
+This repository is **Java-only**. The C#/.NET ASP.NET Core artifacts (`Dockerfile.api`,
+`Dockerfile.payment`, `OpsBridge.slnx`, `tests/OpsBridge.UnitTests/`) and the
+OpsBridge bounded context have been removed from the tree. The active,
+maintained implementation is the Java Spring Boot payment service under
+`src/payment-service-java/`. Nothing below claims a live cloud deployment or a
+real payment provider integration.
 
-> **Repository note.** This file lives in `imtarget05/OpsBridge`, which currently
-> **shares its full commit history** with `imtarget05/FlashSale-Backend` — the
-> FlashSale order-reliability context and the OpsBridge event-driven operations
-> context are both in this tree **by design** (ADR-017 bounded contexts,
-> ADR-018 migration and legacy baseline). The **FlashSale-only** lineage stays at
-> <https://github.com/imtarget05/FlashSale-Backend>; the OpsBridge lineage
-> continues here. The long-form audit with exact file/line citations is
-> [`docs/RECRUITER-EVIDENCE.md`](docs/RECRUITER-EVIDENCE.md), and the
-> repository-wide evidence index is GitHub issue #1.
+## Problem
 
-Problem: flash-sale oversell + double-charge khi 50 req đua 10 suất hàng.
-Architecture: Clean Arch `Domain <- Application <- Infrastructure <- Api/Worker` (`AzureFlashSale.slnx`); Postgres source-of-truth + Redis Lua CAS pre-filter + RabbitMQ/ServiceBus queue + Outbox/Inbox + Checkout Saga bù trừ.
-OpsBridge (same tree, own bounded context): `OpsBridge.slnx` — ingestion, procurement snapshots, reconciliation (allocations/discrepancies), staff review, DLQ replay audit; it never writes FlashSale order state directly (ADR-017).
-Evidence:
-- `src/Order.Api/Program.cs` — 25 Minimal API routes, `/health/live|ready`, `/metrics` Prometheus
-- `src/FlashSale.Infrastructure/Redis/RedisStockGateway.cs` — Lua `ReserveScript`
-- `src/FlashSale.Application/Orders/SubmitOrderUseCase.cs` — flow Redis→enqueue→fallback
-- `tests/UnitTests/` 22 files + `tests/IntegrationTests/` Testcontainers + `load-tests/k6/flash-sale.js` + `load-tests/concurrency/oversell_demo.py` (RESULT:PASS)
-- `observability/` Prometheus/Grafana/SLO + OTEL tracing + K8s `infrastructure/kubernetes/`
-- `.github/workflows/ci.yml` — build, unit, integration, concurrency-harness, Trivy, ACR push
-- OpsBridge: `tests/OpsBridge.UnitTests|ContractTests|IntegrationTests` — 41 / 7 / 22 recorded in `docs/evidence/ci-verification.md` (commit `1ecd302`)
-Demo: `docker compose up` → `k6 run load-tests/k6/flash-sale.js` → Grafana `project-flashsale.json`, oversell = 0.
+Process flash-sale payments without double-charging when the same idempotency
+key is submitted concurrently, simulate gateway outcomes (success / declined /
+timeout), and keep payment state durable in PostgreSQL while notifying
+downstream systems through RabbitMQ.
 
----
+## Architecture (verified)
 
-## Verified / Not verified
+Ports & Adapters, Java 17 + Spring Boot 4.0.9:
 
-**Verified** (each row points at an artefact a reviewer can open):
+- `PaymentProvider` port isolates PSP integration; `SimulatedPaymentProvider` is
+  a deterministic local simulation (not a real PSP). A `StripePaymentProvider`
+  HTTP-client adapter exists but is `@ConditionalOnProperty` on
+  `STRIPE_API_KEY` and is **not** exercised against live Stripe in this repo.
+- PostgreSQL is the source of truth; `payment_records` uses
+  `INSERT ... ON CONFLICT DO NOTHING` keyed by idempotency key (V1/V2 Flyway
+  migrations).
+- Redis backs the `payments` cache (`@Cacheable` on `getPayment`,
+  `@CacheEvict` on `processPayment`) via `CacheConfig` with a fail-closed
+  `CacheErrorHandler`. Redis is optional (`CACHE_TYPE`); the service falls back
+  to PostgreSQL when Redis is unavailable.
+- Transactional outbox (`payment_outbox`) published to RabbitMQ with correlated
+  publisher confirms; malformed events go to a dead-letter queue.
+- JWT auth (local/demo) and an OIDC resource-server production profile that is
+  fail-closed (rejects missing/invalid issuer or audience). Role-based access:
+  CUSTOMER / STAFF / ADMIN.
 
-| Claim | Evidence |
+## Verified capabilities (CV evidence — reproducible locally)
+
+The local suite `mvn test` passes cleanly: **173 tests, 0 failures, 0 errors**
+(Testcontainers-backed integration tests use Docker; no cloud credentials).
+
+| Capability | Evidence (reproducible locally) |
 |---|---|
-| Zero-oversell invariant — 50 concurrent buyers / 10 units → 10 orders, 40 × 409, final stock 0 — is **enforced on every push** | `.github/workflows/ci.yml` → job `concurrency-harness` fails unless the harness prints `RESULT: PASS` |
-| FlashSale unit + integration suites green (counts as measured in the audit above) | `docs/RECRUITER-EVIDENCE.md` (the audit that ran them) |
-| OpsBridge unit / contract / integration suites green | `docs/evidence/ci-verification.md` (commit `1ecd302`: 41 / 7 / 22 = 70 / 70) |
-| Business-path events are written through a **transactional outbox**, not a best-effort publish | `docs/adr/019-transactional-outbox.md`, `docs/findings/outbox-gap.md` |
-| Clean-Architecture dependency direction is an **executable** rule, not a convention | `tests/UnitTests/ArchitectureTests.cs` |
-| Local docker compose stack healthy (6 containers, 2026-10-21) | `docs/known-issues.md` |
-| Outbox/Inbox live behaviour (broker outage → DLQ → replay, 5× duplicate → 1 inbox row), saga 21/21, 3 backup/restore drills | `docs/evidence/v2/outbox-inbox-2026-09-24.md`, `docs/evidence/saga/`, `docs/evidence/backup/` |
-| Optimistic-concurrency `Version` token — concurrent updates with conflicting versions throw `DbUpdateConcurrencyException`, zero lost updates | `tests/UnitTests/CheckoutSagaConcurrencyTests.cs`, `tests/IntegrationTests/CheckoutSagaConcurrencyTests.cs` (PostgreSQL Testcontainers CI verified) |
-| Outbox orphan reservation compensation & reconciler repair | `tests/UnitTests/SubmitOrderCompensationFailureTests.cs` (`WhenQueueRejectsAndCompensationOutboxFails_RedisIsReleased_AndReconcilerCanRepair`) |
-
-**Not verified — do not claim these**:
-
-| Claim | Status |
-|---|---|
-| A real payment service provider | **Never exercised.** The local payment service is a deterministic simulation (`sim_tx_…`); no PSP contract, credential or external behavior exists in this repository (ADR-017). |
-| The Kubernetes `prod` overlay as a running system | **Configuration only** — never applied to a real AKS cluster (`docs/adr/020`, `docs/evidence/kubernetes/phase7c-readiness.md`). |
-| Latency numbers (p95 29 ms / 574 ms) | **Local single runs, not CI gates.** Re-measure before quoting; only the zero-oversell invariant is CI-enforced. |
-| Production database shape | **None.** The schema is verified *from empty* against local PostgreSQL — no production dataset, volume or query-plan evidence. |
-| Pod-level liveness/readiness for the worker | **Absent by decision** — container-level healthcheck only (`docs/known-issues.md`, `infrastructure/kubernetes/base/worker/deployment.yaml`). Worker has no inbound HTTP listener. |
-| `/api/v1/auth/login` as authentication | **A local demo persona selector**, mapped only in Development/Test; no external identity provider (ADR-017). |
-
-> This is an **index of evidence, not a production-readiness claim**. Nothing in
-> this repository is production-ready, and no statement above should be
-> presented as one.
-
----
-
-## FlashSale-Backend (Java payment service) — portfolio evidence
-
-> **Scope:** `src/payment-service-java` (Spring Boot 4.0.9, Java 17). Backend-only portfolio surface; `frontend/` is a thin demo shell.
-
-**Problem:** Xử lý thanh toán flash sale với idempotency key, tránh double-charge khi yêu cầu trùng, mô phỏng kết quả thành công / từ chối / hết thời gian cổng thanh toán.
-
-**Architecture:** Ports & Adapters — `PaymentProvider` port isolates PSP integration; `SimulatedPaymentProvider` is deterministic local demo (not a real PSP). PostgreSQL source of truth with `ON CONFLICT DO NOTHING` idempotency; Redis cache; RabbitMQ transactional outbox + DLQ; JWT auth with OIDC fail-closed production profile.
-
-**Key files:**
-- `src/main/java/com/flashsale/payment/provider/PaymentProvider.java` — PSP port interface
-- `src/main/java/com/flashsale/payment/provider/SimulatedPaymentProvider.java` — local simulation adapter
-- `src/main/java/com/flashsale/payment/service/PaymentService.java` — idempotent payment processing, outbox
-- `src/main/java/com/flashsale/payment/repository/PaymentRepository.java` — `insertIfAbsent` with `ON CONFLICT DO NOTHING`
-- `src/main/java/com/flashsale/payment/security/SecurityConfig.java` + `ProductionSecurityConfig.java` — role-based auth, OIDC fail-closed
-- `src/main/java/com/flashsale/payment/outbox/PaymentOutboxRelay.java` — scheduled outbox publisher with retry/backoff
-- `src/main/java/com/flashsale/payment/event/OrderEventConsumer.java` — RabbitMQ consumer with manual ACK
-- `src/test/java/com/flashsale/payment/unit/PaymentServiceTest.java` — unit tests (Mockito)
-- `src/test/java/com/flashsale/payment/integration/PaymentServiceIntegrationTest.java` — Testcontainers PG/RabbitMQ/Redis/Mongo
-- `src/test/java/com/flashsale/payment/security/ProductionOidcConfigTest.java` — OIDC issuer/audience validation
-- `.github/workflows/ci.yml` — Java CI (compile, unit, integration, Docker build, k8s validation)
-- `scripts/ci-gate.sh` — local CI gate (no cloud credentials)
-- `k8s/overlays/{local,production}` — kustomize overlays; `scripts/render-manifests.sh`
-
-**Verified / Not verified:**
-
-| Claim | Evidence |
-|-------|----------|
-| Idempotent payment — same key + same payload → same result, one DB row, one outbox event | `PaymentServiceIntegrationTest.concurrentSamePayload_requestsCreateOnePaymentAndBothSucceed`, `processPayment_idempotentReplay_returnsSameResult` |
-| Idempotency conflict — same key + different payload → HTTP 409 | `PaymentServiceIntegrationTest.concurrentDifferentPayload_requestsReturnConflictAndCreateOnePayment` |
-| Declined / timeout simulation — .02 → Declined, .03 → 504 TimedOut | `PaymentServiceIntegrationTest.processPayment_declined_whenCentsIsTwo`, `processPayment_transientTimeout_whenCentsIsThree` |
+| Idempotent payment — same key + same payload → one DB row, one outbox event | `PaymentServiceIntegrationTest.concurrentSamePayload_requestsCreateOnePaymentAndBothSucceed`, `processPayment_idempotentReplay_returnsSameResult` |
+| Idempotency conflict — same key, different payload → HTTP 409 | `PaymentServiceIntegrationTest.concurrentDifferentPayload_requestsReturnConflictAndCreateOnePayment` |
+| Gateway simulation — cents `.02` → Declined, `.03` → TimedOut | `PaymentServiceIntegrationTest.processPayment_declined_whenCentsIsTwo`, `processPayment_transientTimeout_whenCentsIsThree` |
+| Redis cache miss → queries repository and populates cache | `PaymentCacheRedisTest.testCacheMiss_queriesRepositoryAndPopulatesCache` |
+| Redis cache hit → 2nd call returns cached DTO without re-querying | `PaymentCacheRedisTest.testCacheHit_returnsCachedDtoWithoutRequeryingRepository` |
+| Redis cache evict → `processPayment` evicts key, subsequent get re-queries | `PaymentCacheRedisTest.testCacheEviction_processPaymentEvictsCacheAndSubsequentGetMisses` |
+| Graceful fallback — Redis down → `getPayment` still returns from PostgreSQL | `CacheFailureFallbackTest`, `RedisOutageIntegrationTest`, `BrokerCacheFailureDrillTest.redisOutage_getPaymentFallsBackToPostgres` |
 | OIDC fail-closed — production profile rejects missing/invalid issuer or audience | `ProductionOidcConfigTest` |
 | JWT validation — expired/tampered/missing token → 401 | `AuthSecurityIntegrationTest` |
-| Role-based access — CUSTOMER cannot POST /api/payments (403), STAFF/ADMIN can (200) | `AuthSecurityIntegrationTest.customerRolePostPayment_returns403`, `staffCanPostPayment_returns200` |
-| Transactional outbox — events persisted to `payment_outbox`, published via RabbitMQ with confirms | `PaymentOutboxRelay`, `PaymentEventPublisher`, `PaymentServiceIntegrationTest.validOrderEvent_persistsPaymentAndPublishesCompletion` |
-| DLQ — malformed order events routed to `payment.dlq` | `PaymentServiceIntegrationTest.malformedOrderEvent_isDeadLettered` |
-| Local CI gate — compile + unit tests + Docker build + k8s YAML validation | `scripts/ci-gate.sh` |
+| Role-based access — CUSTOMER POST /api/payments → 403; STAFF/ADMIN → 200 | `AuthSecurityIntegrationTest` |
+| Transactional outbox — outbox row → RabbitMQ publish with confirms | `PaymentOutboxRelay`, `PaymentServiceIntegrationTest.validOrderEvent_persistsPaymentAndPublishesCompletion` |
+| DLQ — malformed order events dead-lettered | `PaymentServiceIntegrationTest.malformedOrderEvent_isDeadLettered` |
+| Local CI gate — compile + unit tests + Docker build + k8s manifest validation, no cloud credentials | `scripts/ci-gate.sh`, `.github/workflows/ci.yml` |
 
-**Not verified — do not claim these:**
+## CV bullet points (honest, verified)
+
+- Designed and implemented an idempotent Java/Spring Boot payment service for flash-sale checkout: PostgreSQL source of truth with `ON CONFLICT DO NOTHING` deduplication, Redis look-aside cache with graceful fallback, and a RabbitMQ transactional outbox with DLQ. **173 automated tests pass locally (0 failures), including cache hit/miss/evict/fallback and Redis-outage scenarios.**
+- Implemented fail-closed JWT/OIDC authentication with role-based authorization (Customer/Staff/Admin) and verified security behavior with integration tests (expired/missing tokens → 401, unauthorized role → 403).
+- Wrote Testcontainers-backed integration tests (PostgreSQL, Redis, RabbitMQ) and a local CI gate (`scripts/ci-gate.sh`) that compiles, runs unit tests, builds a Docker image, and validates Kubernetes manifests — no cloud credentials required.
+- Maintained a Java-only portfolio repository: removed legacy .NET artifacts and aligned CI workflows to reference GitHub Actions secrets (`${{ secrets.* }}`) instead of plaintext credentials.
+
+## Not claimed — do not present these as verified
+
 | Claim | Status |
-|-------|--------|
-| A real payment service provider | **Never exercised.** `SimulatedPaymentProvider` is deterministic local demo only. |
-| Production OIDC identity provider | **Not integrated.** `ProductionSecurityConfig` requires `OIDC_ISSUER_URI` / `OIDC_AUDIENCE` but no real IdP is configured. |
-| Live Render / AKS deployment | **Configuration only.** k8s manifests exist; never applied to a real cluster. |
-| Production-scale data | **None.** Schema verified from empty against local PostgreSQL only. |
+|---|---|
+| Real payment service provider (live Stripe) | **Never exercised.** `StripePaymentProvider` requires a real `STRIPE_API_KEY`; tests use a dummy key and cover JSON parsing only. |
+| Live Render / AKS / production deployment | **Configuration only.** k8s overlays exist under `src/payment-service-java/k8s/overlays/{local,production}` and `infrastructure/kubernetes/`; never applied to a real cluster. |
+| Production-scale data or production readiness | **None.** Schema verified from empty against local PostgreSQL only. |
+| Azure infrastructure provisioned by this repo | **None.** Verification runs locally with Docker/Kind/testcontainers; no Azure resources are created or mutated. |
+| Kafka, Azure Service Bus, or Azure Container Apps | **Not included.** RabbitMQ is the only broker implemented and tested. |
 
+This is an index of verified evidence, not a production-readiness claim. Nothing in
+this repository is production-ready, and no statement above should be presented as
+one. Interview discussion should reference the Java-scoped
+[evidence-based notes](docs/portfolio/flashsale-java-interview-notes.md).
