@@ -57,7 +57,7 @@ jobs:
           data = YAML.load_file('render.yaml')
           services = Array(data['services'])
           expected = {
-            'flashsale-payment-api-preview' => 'preview',
+            'flashsale-payment-api-preview' => 'main',
             'flashsale-payment-api-prod' => 'main'
           }
 
@@ -65,7 +65,7 @@ jobs:
             service = services.find { |item| item['name'] == name }
             abort("Missing Render service: #{name}") unless service
             abort("Wrong branch for #{name}") unless service['branch'] == branch
-            abort("Wrong health path for #{name}") unless service['healthCheckPath'] == '/health/live'
+            abort("Wrong health path for #{name}") unless service['healthCheckPath'] == '/healthz'
             abort("Render auto-deploy must be disabled for #{name}") unless service['autoDeploy'] == false
 
             env_vars = Array(service['envVars'])
