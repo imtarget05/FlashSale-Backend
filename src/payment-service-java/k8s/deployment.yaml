@@ -29,7 +29,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: payment-service
-          image: flashsale/payment-service:local
+          image: flashsale/payment-service@sha256:aa06d8133a7fc61c2967fc6368bdcc2c05c11fa67c6210693f0e3e4e5351524d
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false

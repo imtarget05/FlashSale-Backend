@@ -141,7 +141,7 @@ jobs:
 
   docker-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     needs: build-and-unit
     steps:
       - name: Checkout repository
@@ -158,6 +158,27 @@ jobs:
           tags: flashsale/payment-service:local-ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Run Trivy image vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image: 'flashsale/payment-service:local-ci'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
+
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          trivy image --format cyclonedx --output sbom.cdx.json flashsale/payment-service:local-ci
+          echo "SBOM written to sbom.cdx.json"
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: payment-service-sbom
+          path: sbom.cdx.json
+          retention-days: 30
 
   validate-manifests:
     runs-on: ubuntu-latest

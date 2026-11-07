@@ -13,4 +13,6 @@ resources:
 images:
   - name: flashsale/payment-service
     newName: flashsale/payment-service
-    newTag: local
+    # Digest-pinned image set in deployment.yaml (@sha256:...). Kustomize
+    # newTag/newDigest does not apply to digest references; the digest is
+    # replaced with the real ACR digest at deploy time (phase 2.6).

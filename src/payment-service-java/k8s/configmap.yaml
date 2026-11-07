@@ -11,7 +11,7 @@ data:
   SPRING_PROFILES_ACTIVE: "production"
   SPRING_JPA_HIBERNATE_DDL_AUTO: "validate"
   APP_JWT_EXPIRATION_MS: "86400000"
-  APP_SECURITY_ALLOWED_ORIGINS: "https://api.quan-ly-kho.tanmainguyenbinh.workers.dev,https://www.flashsale.example.com"
+  APP_SECURITY_ALLOWED_ORIGINS: "https://api.flashsale.example.com,https://www.flashsale.example.com"
   APP_SECURITY_OIDC_AUTHORITIES_CLAIM: "roles"
   OIDC_ISSUER_URI: "https://auth.flashsale.tanmainguyenbinh.workers.dev/"
   OIDC_AUDIENCE: "payment-service"

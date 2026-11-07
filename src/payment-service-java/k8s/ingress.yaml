@@ -15,10 +15,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - api.quan-ly-kho.tanmainguyenbinh.workers.dev
+        - api.flashsale.example.com
       secretName: payment-service-tls
   rules:
-    - host: api.quan-ly-kho.tanmainguyenbinh.workers.dev
+    - host: api.flashsale.example.com
       http:
         paths:
           - path: /
