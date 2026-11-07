@@ -2,6 +2,7 @@ package com.flashsale.payment.provider;
 
 import com.flashsale.payment.dto.PaymentRecordDto;
 import com.flashsale.payment.dto.ProcessPaymentRequest;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -17,9 +18,13 @@ import java.util.UUID;
  *   <li>ngược lại → Succeeded</li>
  * </ul>
  * <p><strong>Không phải PSP thật.</strong> Không có credential, hợp đồng, hoặc hành vi
- * bên ngoài nào được gọi. Dùng cho showcase kỹ thuật cục bộ.
+ * bên ngoài nào được gọi. Chỉ được tải trong các profile khác production/prod
+ * (@{@link Profile}); trong production nếu không cấu hình PSP thật (Stripe),
+ * ứng dụng sẽ không khởi tạo bean PaymentProvider nào → fail-closed, không
+ * bao giờ trả kết quả thanh toán mô phỏng trong môi trường production.
  */
 @Component
+@Profile("!production & !prod")
 @org.springframework.boot.autoconfigure.condition.ConditionalOnExpression(
 	"'${stripe.api.key:}'.trim().length() == 0")
 public class SimulatedPaymentProvider implements PaymentProvider {
