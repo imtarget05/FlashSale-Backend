@@ -134,9 +134,13 @@ jobs:
         run: |
           npm ci --prefix frontend
           VITE_API_URL="$RENDER_URL" VITE_ENV=preview npm run build --prefix frontend
+          if ! npx --yes wrangler@4 pages project list --json | jq -e 'any(.[]; .name == "flashsale-frontend")' > /dev/null; then
+            npx --yes wrangler@4 pages project create flashsale-frontend --production-branch=main
+          fi
           npx --yes wrangler@4 pages deploy frontend/dist \
             --project-name=flashsale-frontend \
-            --branch=preview
+            --branch=preview \
+            --commit-hash="$GITHUB_SHA"
 
   deploy-production:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy_to_production
