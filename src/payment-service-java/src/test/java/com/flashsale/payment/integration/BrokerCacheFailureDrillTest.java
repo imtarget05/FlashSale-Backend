@@ -231,13 +231,10 @@ class BrokerCacheFailureDrillTest {
 	}
 
 	private void execRabbitMqCtl(String command) throws Exception {
-		String[] cmd = new String[] { "sh", "-c", "rabbitmqctl " + command };
-		var execCreate = rabbitmq.getDockerClient().execCreateCmd(rabbitmq.getContainerId())
-			.withCmd(cmd)
-			.withAttachStdout(true)
-			.withAttachStderr(true);
-		String execId = execCreate.exec().getId();
-		rabbitmq.getDockerClient().execStartCmd(execId);
+		var result = rabbitmq.execInContainer("rabbitmqctl", command);
+		assertThat(result.getExitCode())
+			.as("rabbitmqctl %s: %s", command, result.getStderr())
+			.isZero();
 	}
 
 	private void awaitRabbitMqConnection() throws Exception {
