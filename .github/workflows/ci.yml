@@ -162,7 +162,7 @@ jobs:
       - name: Run Trivy image vulnerability scan
         uses: aquasecurity/trivy-action@master
         with:
-          image: 'flashsale/payment-service:local-ci'
+          image-ref: 'flashsale/payment-service:local-ci'
           format: 'table'
           exit-code: '0'
           ignore-unfixed: true
