@@ -135,9 +135,6 @@ jobs:
           npm ci --prefix frontend
           VITE_API_URL="$RENDER_URL" VITE_ENV=preview npm run build --prefix frontend
           printf '{"release_sha":"%s"}\n' "$GITHUB_SHA" > frontend/dist/version.json
-          if ! npx --yes wrangler@4 pages project list --json | jq -e 'any(.[]; .name == "flashsale-frontend")' > /dev/null; then
-            npx --yes wrangler@4 pages project create flashsale-frontend --production-branch=main
-          fi
           npx --yes wrangler@4 pages deploy frontend/dist \
             --project-name=flashsale-frontend \
             --branch=preview \
