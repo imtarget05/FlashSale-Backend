@@ -85,7 +85,7 @@ jobs:
           SPRING_RABBITMQ_PORT: 5672
           SPRING_DATA_REDIS_HOST: localhost
           SPRING_DATA_REDIS_PORT: 6379
-          APP_JWT_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          APP_JWT_SECRET: ${{ secrets.APP_JWT_SECRET }}
         run: mvn -B verify
 
   docker-build-scan:

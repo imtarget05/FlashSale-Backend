@@ -100,8 +100,8 @@ jobs:
           SPRING_RABBITMQ_PORT: 5672
           SPRING_RABBITMQ_USERNAME: guest
           SPRING_RABBITMQ_PASSWORD: guest
-          app.jwt.secret: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-          demo.auth.password: interview-demo-pass
+          app.jwt.secret: ${{ secrets.APP_JWT_SECRET }}
+          demo.auth.password: ${{ secrets.DEMO_AUTH_PASSWORD }}
         run: mvn -B verify
         working-directory: src/payment-service-java
 

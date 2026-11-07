@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      JWT_SIGNING_KEY: local-ci-only-signing-key-with-at-least-32-bytes
+      JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
           docker run --rm --network host --user "$(id -u):$(id -g)" \
             -e BASE_URL=http://127.0.0.1:8081 \
             -e STAFF_EMAIL=staff@flashsale.local \
-            -e STAFF_PASSWORD=password \
+            -e STAFF_PASSWORD=${{ secrets.STAFF_PASSWORD }} \
             -v "$PWD:/workspace" -w /workspace \
             grafana/k6:0.57.0 run \
             --out json=results.json --summary-export=summary.json \
