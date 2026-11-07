@@ -4,7 +4,7 @@ services:
     runtime: docker
     plan: free
     region: oregon
-    branch: preview
+    branch: main
     autoDeploy: false
     healthCheckPath: /health/live
     dockerfilePath: ./src/payment-service-java/Dockerfile
@@ -22,12 +22,20 @@ services:
         sync: false
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SPRING_DATA_REDIS_SSL_ENABLED
+        value: "true"
       - key: SPRING_DATA_REDIS_HOST
         sync: false
       - key: SPRING_DATA_REDIS_PORT
         value: "6379"
       - key: SPRING_DATA_REDIS_PASSWORD
         sync: false
+      - key: SPRING_RABBITMQ_ADDRESSES
+        sync: false
+      - key: SPRING_RABBITMQ_SSL_ENABLED
+        value: "true"
       - key: SPRING_RABBITMQ_HOST
         sync: false
       - key: SPRING_RABBITMQ_PORT
@@ -70,12 +78,20 @@ services:
         sync: false
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SPRING_DATA_REDIS_SSL_ENABLED
+        value: "true"
       - key: SPRING_DATA_REDIS_HOST
         sync: false
       - key: SPRING_DATA_REDIS_PORT
         value: "6379"
       - key: SPRING_DATA_REDIS_PASSWORD
         sync: false
+      - key: SPRING_RABBITMQ_ADDRESSES
+        sync: false
+      - key: SPRING_RABBITMQ_SSL_ENABLED
+        value: "true"
       - key: SPRING_RABBITMQ_HOST
         sync: false
       - key: SPRING_RABBITMQ_PORT

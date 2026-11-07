@@ -68,7 +68,7 @@ Sau khi set xong env vars:
 3. Hoặc gọi API:
    ```bash
    curl -s -X POST 'https://api.render.com/v1/services/srv-dbmoohrm8hqs73b20jd0/deploys' \
-     -H 'Authorization: Bearer rnd_kWKul0esBKDd3ujzAMEwxPLlL3kv' \
+     -H "Authorization: Bearer $RENDER_API_KEY" \
      -H 'Content-Type: application/json' -d '{}'
    ```
 

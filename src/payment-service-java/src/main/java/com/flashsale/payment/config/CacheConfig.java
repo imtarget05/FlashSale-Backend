@@ -2,6 +2,8 @@ package com.flashsale.payment.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.boot.data.redis.autoconfigure.DataRedisProperties;
 import org.springframework.cache.Cache;
 import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.interceptor.CacheErrorHandler;
@@ -12,6 +14,31 @@ import org.springframework.context.annotation.Configuration;
 public class CacheConfig implements CachingConfigurer {
 
 	private static final Logger log = LoggerFactory.getLogger(CacheConfig.class);
+
+	@Bean
+	public static BeanPostProcessor dataRedisPropertiesPostProcessor() {
+		return new BeanPostProcessor() {
+			@Override
+			public Object postProcessBeforeInitialization(Object bean, String beanName) {
+				if (bean instanceof DataRedisProperties properties) {
+					if (properties.getUrl() != null && properties.getUrl().isBlank()) {
+						properties.setUrl(null);
+					}
+				}
+				return bean;
+			}
+
+			@Override
+			public Object postProcessAfterInitialization(Object bean, String beanName) {
+				if (bean instanceof DataRedisProperties properties) {
+					if (properties.getUrl() != null && properties.getUrl().isBlank()) {
+						properties.setUrl(null);
+					}
+				}
+				return bean;
+			}
+		};
+	}
 
 	@Bean
 	@Override

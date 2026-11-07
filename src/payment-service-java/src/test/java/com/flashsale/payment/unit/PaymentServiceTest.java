@@ -65,7 +65,7 @@ class PaymentServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		paymentService = new PaymentService(paymentRepository, redisTemplate, outboxRepository, paymentProvider, new ObjectMapper());
+		paymentService = new PaymentService(paymentRepository, outboxRepository, paymentProvider, new ObjectMapper());
 		validRequest = new ProcessPaymentRequest(
 			UUID.randomUUID(),
 			100,
