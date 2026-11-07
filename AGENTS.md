@@ -26,7 +26,7 @@ observability
 deployment reliability
 
 TECHNOLOGY DIRECTION:
-Backend: Java 17, Spring Boot 3.2.5 (payment-service-java)
+Backend: Java 17, Spring Boot 4.0.9 (payment-service-java)
 Data: Render PostgreSQL (managed)
 Caching / inventory reservation: Render Key Value (Redis, TLS)
 Messaging: CloudAMQP (RabbitMQ over AMQPS)
