@@ -28,7 +28,7 @@ Instead of relying on fragile in-memory synchronization or optimistic applicatio
 | **Cache Fault Tolerance** | Redis look-aside cache (`@Cacheable` / `@CacheEvict`) backed by custom `CacheErrorHandler` logging warnings and falling through to PostgreSQL without throwing 500s. | `RedisOutageIntegrationTest` using Testcontainers Docker API container pause (`dockerClient.pauseContainerCmd`). |
 | **Security & Governance** | Fail-closed OIDC resource server under production profile (mandatory HTTPS issuer, audience check, strict CORS, security headers), BOLA ownership checks, and token bucket rate limiting (100 req/min). | `ProductionOidcConfigTest`, `ProductionSecurityHeadersTest`, `AuthSecurityIntegrationTest`. |
 | **DevSecOps Automation** | Multi-stage Dockerfile (`USER 10001:10001`), Trivy image scanner (`HIGH,CRITICAL`), CycloneDX SBOM generation, Kubernetes manifest dry-run parsing, and Terraform validation in CI. | GitHub Actions CI (`.github/workflows/ci.yml`), `scripts/ci-gate.sh`. |
-| **Automated Test Suite** | **173 automated tests passed (0 failures, 0 errors)**: 123 unit tests + 50 Testcontainers-backed integration tests (PostgreSQL 15, RabbitMQ 3, Redis 7, MongoDB 7). | Full test run reproducible via `mvn test -Dspring.flyway.enabled=true`. |
+| **Automated Test Suite** | **173 automated tests passed across 37 test classes**: 135 pure unit & slice tests across 28 classes + 38 Testcontainers integration tests across 9 classes (PostgreSQL 15, RabbitMQ 3, Redis 7, MongoDB 7). *(Note: `mvn test -Dtest='!*Integration*'` executes 144 tests across 31 classes by name pattern, 3 of which utilize Testcontainers).* | Verified across PostgreSQL 15, RabbitMQ 3, Redis 7, and MongoDB 7 test suites. |
 
 ---
 
@@ -84,6 +84,15 @@ The service is organized strictly according to **Hexagonal Architecture (Ports a
    - *Problem*: Publishing directly to RabbitMQ inside the payment transaction creates a dual-write vulnerability (transaction rolls back, but event was already published; or broker crashes after commit).
    - *Decision*: Write outbox records into the same ACID transaction. A scheduled relay polls pending records using `SELECT ... FOR UPDATE SKIP LOCKED`.
    - *Trade-off*: Polling introduces a slight sub-second publication delay compared to stream tailing, but avoids the infrastructure overhead, Zookeeper/Kafka dependencies, and operational complexity of running Debezium connectors for a single microservice.
+
+### Architecture Decision Records (ADRs)
+
+The architectural choices and resiliency patterns in this service are formally documented in the repository's ADR log:
+- **[ADR-015](docs/adr/015-transactional-outbox-and-rabbitmq-reliability.md)**: Transactional Outbox Pattern & Correlated RabbitMQ Publisher Confirms
+- **[ADR-023](docs/adr/023-confirm-retry-before-ack-and-fail-closed-edge.md)**: Confirm Retry Before Ack & Fail-Closed Edge Policy
+- **[ADR-025](docs/adr/025-standalone-backend-and-infrastructure-boundary.md)**: Standalone Microservice Backend & Honest Cloud Infrastructure Boundary
+- **[ADR-027](docs/adr/027-rabbitmq-only-java-payment-runtime.md)**: RabbitMQ-Only Java Payment Runtime Boundary
+- **[ADR-028](docs/adr/028-payment-provider-port.md)**: Payment Provider Port & Simulated / Stripe Adapters
 
 ---
 
@@ -241,7 +250,7 @@ If Redis suffers a network timeout or connection breakdown:
 Security is designed with zero-trust principles, enforcing strict boundaries between public customers and internal staff/administrators.
 
 ### 1. Fail-Closed OIDC Resource Server (Production Profile)
-When running under `SPRING_PROFILES_ACTIVE=production` (`ProductionSecurityConfig.java`, lines 33–152):
+When running under `SPRING_PROFILES_ACTIVE=production` (`ProductionSecurityConfig.java`, lines 37–164; [ADR-023](docs/adr/023-confirm-retry-before-ack-and-fail-closed-edge.md)):
 - **Mandatory HTTPS Issuer**: `requireHttpsIssuer` validates that `OIDC_ISSUER_URI` uses the `https://` protocol and rejects any embedded user info, query parameters, or fragments.
 - **Audience Validation**: `requireAudience` intercepts every JWT and confirms the `aud` claim matches the configured `OIDC_AUDIENCE`. Missing or mismatched audience claims reject authentication with `JwtValidationException`.
 - **Strict CORS Enforcement**: Wildcard origins (`*`) are disallowed. CORS is strictly restricted to explicitly declared domains.
@@ -322,18 +331,18 @@ Every capability asserted in this portfolio is grounded in reproducible code, in
 |---|---|---|---|
 | **1** | **PostgreSQL Engine Deduplication** | `PaymentRepository.java`: lines 21–35 (`ON CONFLICT (idempotency_key) DO NOTHING`) | `PaymentServiceIntegrationTest.java`: lines 468–481 (`concurrentSamePayload_requestsCreateOnePaymentAndBothSucceed`) |
 | **2** | **Payload Tampering Detection (409)** | `PaymentService.java`: lines 109–116 (`replay()` throws `IdempotencyConflictException`) | `PaymentServiceIntegrationTest.java`: lines 484–499 (`concurrentDifferentPayload_requestsReturnConflictAndCreateOnePayment`) |
-| **3** | **Transactional Outbox Consistency** | `PaymentService.java`: lines 54, 76, 91–96 (`@Transactional` with `outboxRepository.save`) | `PaymentServiceIntegrationTest.java`: lines 208–224 (`validOrderEvent_persistsPaymentAndPublishesCompletion`) |
+| **3** | **Transactional Outbox Consistency** | `PaymentService.java`: lines 54, 76, 91–96 (`@Transactional` with `outboxRepository.save`); [ADR-015](docs/adr/015-transactional-outbox-and-rabbitmq-reliability.md) | `PaymentServiceIntegrationTest.java`: lines 208–224 (`validOrderEvent_persistsPaymentAndPublishesCompletion`) |
 | **4** | **Multi-Instance Safe Polling Relay** | `PaymentOutboxRepository.java`: lines 15–22 (`FOR UPDATE SKIP LOCKED`) | `PaymentOutboxRelay.java` / Testcontainers concurrent poll verification |
-| **5** | **RabbitMQ Publisher Confirms & Returns** | `PaymentEventPublisher.java`: lines 39–60 (`correlation.getFuture().get()`, `correlation.getReturned()`) | `RabbitMqOutageIntegrationTest.java`: lines 80–123 (`publishPendingEvents` retry on broker outage) |
-| **6** | **Manual ACK & Dead-Letter Queue (DLQ)** | `OrderEventConsumer.java`: lines 33, 65–79 (`basicNack(deliveryTag, false, false)`), `RabbitConfig.java`: line 40 | `PaymentServiceIntegrationTest.java`: lines 288–296 (`malformedOrderEvent_isDeadLettered`) |
+| **5** | **RabbitMQ Publisher Confirms & Returns** | `PaymentEventPublisher.java`: lines 39–60 (`correlation.getFuture().get()`, `correlation.getReturned()`); [ADR-015](docs/adr/015-transactional-outbox-and-rabbitmq-reliability.md) | `RabbitMqOutageIntegrationTest.java`: lines 80–123 (`publishPendingEvents` retry on broker outage) |
+| **6** | **Manual ACK & Dead-Letter Queue (DLQ)** | `OrderEventConsumer.java`: lines 33, 65–79 (`basicNack(deliveryTag, false, false)`), `RabbitConfig.java`: line 40; [ADR-023](docs/adr/023-confirm-retry-before-ack-and-fail-closed-edge.md) | `PaymentServiceIntegrationTest.java`: lines 288–296 (`malformedOrderEvent_isDeadLettered`) |
 | **7** | **Redis Look-Aside Caching (Hit/Miss/Evict)** | `PaymentService.java`: line 55 (`@CacheEvict`), line 119 (`@Cacheable`) | `PaymentCacheRedisTest.java`: lines 208–288 (`testCacheMiss_*`, `testCacheHit_*`, `testCacheEviction_*`) |
 | **8** | **Cache Outage Fallback Resilience** | `CacheConfig.java`: lines 43–67 (`CacheErrorHandler` logs warning, no exception thrown) | `RedisOutageIntegrationTest.java`: lines 74–105 (`paymentLookupFallsBackToPostgresDuringRedisOutageAndRecoversAfterward`) |
-| **9** | **Fail-Closed OIDC Production Security** | `ProductionSecurityConfig.java`: lines 62–88 (`requireHttpsIssuer`, `requireAudience`) | `ProductionOidcConfigTest.java`: lines 26–65 |
+| **9** | **Fail-Closed OIDC Production Security** | `ProductionSecurityConfig.java`: lines 73–99 (`requireHttpsIssuer`, `requireAudience`); [ADR-023](docs/adr/023-confirm-retry-before-ack-and-fail-closed-edge.md) | `ProductionOidcConfigTest.java`: lines 21–65 |
 | **10** | **BOLA / IDOR Ownership Protection** | `PaymentController.java`: lines 80–88, `PaymentService.java`: lines 127–132 | `PaymentCacheRedisTest.java`: lines 317–334 (`testBolaOwnershipCheck_deniesAccessWhenNotOwner`) |
 | **11** | **Token Bucket Rate Limiting** | `InMemoryTokenBucketRateLimiter.java`: lines 21–60 (100 req/min per IP) | `PaymentController.java`: lines 58–61 (returns HTTP 429) |
 | **12** | **Container Hardening & SBOM** | `Dockerfile`: lines 12–14 (`USER 10001:10001`), `.github/workflows/ci.yml`: lines 162–182 | Trivy scan (`HIGH,CRITICAL`), CycloneDX artifact `sbom.cdx.json` |
 | **13** | **Index Optimization on Outbox & Schema** | `V1__create_payment_schema.sql`: lines 28–30 (`ix_payment_outbox_pending`) | `QueryOptimizationTest.java`: lines 55–88 (`EXPLAIN ANALYZE` confirms Index Scan on 1,000 rows) |
-| **14** | **Clean Codebase (0 Legacy .NET Artifacts)** | Repository root: `src/payment-service-java/` only | File search: 0 `.cs`, `.csproj`, `.sln`, `.slnx` files exist |
+| **14** | **Clean Codebase (0 Legacy .NET Artifacts)** | Repository root: `src/payment-service-java/` only; [ADR-027](docs/adr/027-rabbitmq-only-java-payment-runtime.md) | File search: 0 `.cs`, `.csproj`, `.sln`, `.slnx` files exist |
 
 ---
 
@@ -368,7 +377,7 @@ Executes all unit tests, security assertions, cache slice tests, and mock provid
 cd src/payment-service-java
 mvn test -Dtest='!*Integration*'
 ```
-*Expected Result*: `BUILD SUCCESS` (123 tests passed, 0 failures).
+*Expected Result*: `BUILD SUCCESS` (Executes 144 tests across 31 classes by name pattern, 3 of which utilize Testcontainers; pure unit & slice baseline is 135 tests across 28 classes without Docker).
 
 ### 2. Run Full Integration Suite (Testcontainers)
 Spins up isolated PostgreSQL 15, Redis 7, RabbitMQ 3, and MongoDB 7 containers via Testcontainers:
@@ -376,7 +385,7 @@ Spins up isolated PostgreSQL 15, Redis 7, RabbitMQ 3, and MongoDB 7 containers v
 cd src/payment-service-java
 mvn test -Dspring.flyway.enabled=true
 ```
-*Expected Result*: `BUILD SUCCESS` (**173 tests passed, 0 failures, 0 errors** across unit and integration suites).
+*Expected Result*: `BUILD SUCCESS` (**173 automated tests passed across 37 test classes**: 135 pure unit & slice tests across 28 classes + 38 Testcontainers integration tests across 9 classes covering PostgreSQL 15, RabbitMQ 3, Redis 7, MongoDB 7; 0 failures, 0 errors).
 
 ### 3. Run End-to-End Local CI Gate
 Simulates the entire GitHub Actions pipeline locally (compilation, unit testing, container build, user check, and Kubernetes manifest validation):
