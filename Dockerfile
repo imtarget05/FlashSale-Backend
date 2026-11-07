@@ -9,7 +9,7 @@ FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /workspace/payment-service-java/target/*.jar /app/app.jar
 EXPOSE 8080
-USER nobody
+USER 10001:10001
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 --start-period=20s \
   CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

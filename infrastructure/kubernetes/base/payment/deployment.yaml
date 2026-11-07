@@ -17,7 +17,7 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1654
+        runAsUser: 10001
       containers:
         - name: payment-service
           image: payment-service:placeholder-set-by-overlay
@@ -33,20 +33,35 @@ spec:
             - name: tmp
               mountPath: /tmp
           env:
-            - name: ASPNETCORE_ENVIRONMENT
-              value: Production
-            - name: ASPNETCORE_URLS
-              value: http://+:8080
-            # Payment.Service uses the SAME in-cluster PostgreSQL instance as the
-            # order API, but only its own table (payment_records) — the
-            # microservice decomposition rule forbids cross-service table reads.
-            # So the connection string is the shared `pg-connection` key; the
-            # service namespaces its own rows, not its own database.
-            - name: ConnectionStrings__PaymentDb
+            - name: SPRING_PROFILES_ACTIVE
+              value: "production"
+            - name: SERVER_PORT
+              value: "8080"
+            - name: SPRING_DATASOURCE_URL
               valueFrom:
                 secretKeyRef:
                   name: flashsale-secrets
                   key: pg-connection
+            - name: SPRING_DATA_REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: redis-connection
+            - name: SPRING_RABBITMQ_ADDRESSES
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: rabbitmq-connection
+            - name: SPRING_RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: rabbitmq-username
+            - name: SPRING_RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: flashsale-secrets
+                  key: rabbitmq-password
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://otel-collector.flash-sale:4317
           resources:
@@ -62,14 +77,12 @@ spec:
               port: 8080
             initialDelaySeconds: 15
             periodSeconds: 10
-            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /health/ready
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 5
-            timeoutSeconds: 5
       volumes:
         - name: tmp
           emptyDir: {}
