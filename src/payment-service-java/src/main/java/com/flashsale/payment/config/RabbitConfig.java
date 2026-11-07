@@ -7,6 +7,8 @@ import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @Configuration
 public class RabbitConfig {
@@ -16,6 +18,7 @@ public class RabbitConfig {
 	public static final String PAYMENT_QUEUE = "payment.queue";
 	public static final String PAYMENT_DLQ = "payment.dlq";
 	public static final String PAYMENT_RETRY_EXCHANGE = "payment.retry";
+	public static final String DEMO_PAYMENT_EVENTS_QUEUE = "payment.demo.events";
 	public static final String ROUTING_KEY_ORDER_CREATED = "order.created";
 	public static final String ROUTING_KEY_ORDER_CANCELLED = "order.cancelled";
 	public static final String ROUTING_KEY_PAYMENT_COMPLETED = "payment.completed";
@@ -61,6 +64,31 @@ public class RabbitConfig {
 		return BindingBuilder.bind(paymentDlq)
 			.to(paymentEventsExchange)
 			.with(ROUTING_KEY_PAYMENT_FAILED);
+	}
+
+	@Bean
+	@Profile("demo & !production & !prod")
+	public Queue demoPaymentEventQueue() {
+		return QueueBuilder.durable(DEMO_PAYMENT_EVENTS_QUEUE)
+			.withArgument("x-message-ttl", 86_400_000)
+			.withArgument("x-max-length", 1_000)
+			.build();
+	}
+
+	@Bean
+	@Profile("demo & !production & !prod")
+	public Binding demoPaymentCompletedBinding(
+		@Qualifier("demoPaymentEventQueue") Queue queue,
+		@Qualifier("paymentEventsExchange") DirectExchange exchange) {
+		return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY_PAYMENT_COMPLETED);
+	}
+
+	@Bean
+	@Profile("demo & !production & !prod")
+	public Binding demoPaymentFailedBinding(
+		@Qualifier("demoPaymentEventQueue") Queue queue,
+		@Qualifier("paymentEventsExchange") DirectExchange exchange) {
+		return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY_PAYMENT_FAILED);
 	}
 
 	@Bean
