@@ -20,8 +20,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtValidationException;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -132,6 +134,39 @@ class ProductionApiDocsSecurityTest {
 
 		mockMvc.perform(get("/api/payments").header("Authorization", "Bearer test-token"))
 			.andExpect(status().isOk());
+	}
+
+	@Test
+	void oidcRejectsExpiredTokenWithUnauthorized() throws Exception {
+		when(jwtDecoder.decode("expired-token"))
+			.thenThrow(new JwtValidationException(
+				"Jwt is expired",
+				List.of(new OAuth2Error("invalid_token", "Jwt is expired", null))));
+
+		mockMvc.perform(get("/api/payments").header("Authorization", "Bearer expired-token"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void oidcRejectsInvalidIssuerWithUnauthorized() throws Exception {
+		when(jwtDecoder.decode("invalid-issuer-token"))
+			.thenThrow(new JwtValidationException(
+				"Invalid issuer",
+				List.of(new OAuth2Error("invalid_token", "The Issuer \"https://untrusted.issuer\" is not valid", null))));
+
+		mockMvc.perform(get("/api/payments").header("Authorization", "Bearer invalid-issuer-token"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void oidcRejectsMissingOrInvalidAudienceWithUnauthorized() throws Exception {
+		when(jwtDecoder.decode("invalid-audience-token"))
+			.thenThrow(new JwtValidationException(
+				"Invalid token audience",
+				List.of(new OAuth2Error("invalid_token", "Token audience is invalid", null))));
+
+		mockMvc.perform(get("/api/payments").header("Authorization", "Bearer invalid-audience-token"))
+			.andExpect(status().isUnauthorized());
 	}
 
 	@Test

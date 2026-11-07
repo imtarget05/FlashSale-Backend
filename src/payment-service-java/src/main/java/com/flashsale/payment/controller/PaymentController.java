@@ -19,7 +19,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -73,8 +75,17 @@ public class PaymentController {
 	@GetMapping("/payments/{idempotencyKey}")
 	@PreAuthorize("hasAnyRole('CUSTOMER', 'STAFF', 'ADMIN')")
 	public ResponseEntity<PaymentRecordDto> getPayment(
-		@Parameter(description = "Idempotency key of the payment") @PathVariable String idempotencyKey) {
+		@Parameter(description = "Idempotency key of the payment") @PathVariable String idempotencyKey,
+		Authentication authentication) {
 		PaymentRecordDto dto = paymentService.getPayment(idempotencyKey);
+		if (dto != null && dto.customerEmail() != null && authentication != null) {
+			boolean isPrivileged = authentication.getAuthorities().stream()
+				.anyMatch(a -> "ROLE_STAFF".equals(a.getAuthority()) || "ROLE_ADMIN".equals(a.getAuthority()));
+			if (!isPrivileged && !dto.customerEmail().equals(authentication.getName())) {
+				throw new AccessDeniedException(
+					"Payment '" + idempotencyKey + "' does not belong to the authenticated user");
+			}
+		}
 		return ResponseEntity.ok(dto);
 	}
 

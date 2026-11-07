@@ -116,6 +116,7 @@ public class PaymentService {
 		return toDto(stored);
 	}
 
+	@Cacheable(value = "payments", key = "#idempotencyKey")
 	@Timed(value = "payment.get.payment", description = "Time spent getting a payment")
 	@Counted(value = "payment.get.payment.calls", description = "Number of getPayment calls")
 	public PaymentRecordDto getPayment(String idempotencyKey) {
@@ -155,7 +156,8 @@ public class PaymentService {
 			payment.getTransactionId(),
 			payment.getFailureReason(),
 			payment.getIsTransientError(),
-			payment.getProcessedAt() != null ? payment.getProcessedAt().toString() : null
+			payment.getProcessedAt() != null ? payment.getProcessedAt().toString() : null,
+			payment.getCustomerEmail()
 		);
 	}
 }
