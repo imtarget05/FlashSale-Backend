@@ -1,238 +1,26 @@
-# FlashSale Backend — Java-only (payment service)
+# FlashSale-Backend — Payment Service (Demo)
 
-| Badge | Value |
-|---|---|
-| ![Java 17](https://img.shields.io/badge/Java-17-007396?logo=java) | Runtime |
-| ![Spring Boot 4](https://img.shields.io/badge/Spring%20Boot-4.0.9-6DB33F?logo=spring-boot) | Framework |
-| ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql) | Database |
-| ![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?logo=redis) | Cache / inventory mirror |
-| ![RabbitMQ](https://img.shields.io/badge/RabbitMQ-Messaging-FF6600?logo=rabbitmq) | Messaging |
-| ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker) | Containerization |
+Portfolio demo: Java/Spring Boot payment microservice with idempotency, JWT auth, RabbitMQ outbox. **Demo only** — simulated PSP, not a real payment processor.
 
-## Overview
+## Evidence (verified 2026-11-07)
 
-This repository contains a single Java/Spring Boot microservice: **payment-service** (`src/payment-service-java`). It handles simulated payment processing, idempotency, JWT auth, and RabbitMQ order events. PostgreSQL is the authoritative store; Redis backs the payment cache.
+- Tested backend SHA: `65a8ce13cf4812c6ce61d55190f2e86eb09e244d` (Render `preview` branch)
+- Java CI: https://github.com/imtarget05/FlashSale-Backend/actions/runs/42336764210 (success)
+- PR #25 carried CI + Terraform gate fixes to preview; Render deploy `dep-dbnab1qjnfac73bqhg6g` reached Live
+- Dedicated Render Free PostgreSQL `flashsale_payment_db_preview`, Render Free KV (TLS), CloudAMQP Little Lemur `flashsale-interview-demo` (AMQPS); Flyway validated 2 migrations (schema v2); RabbitMQ connected in logs
+- `/actuator/health/readiness` -> 200 UP; `/health/live` -> 200
+- Synthetic payment journey PASS: 10.01 USD -> Succeeded; replay -> same payment ID; GET by idempotency key -> Succeeded
+- Negative paths: 10.02 USD -> Declined (success=false); 10.03 USD -> 504 TimedOut (success=false). No real PSP charge.
+- Full evidence: see `INTERVIEW_CLOUD_EVIDENCE_2026-11-07.md`
 
-Payment processing is abstracted behind the `PaymentProvider` port (`com.flashsale.payment.provider.PaymentProvider`). The included adapter `SimulatedPaymentProvider` is a deterministic local simulation (.01→success, .02→declined, .03→timeout) — **not a real PSP**. A production PSP adapter can be plugged in by implementing the port and wiring it as a Spring bean, without touching business logic.
+## Open (not claimed)
 
-## Portfolio status (local-only)
+Release-SHA reconciliation after frontend deploy, Cloudflare Pages verification, backup/restore & rollback drills, load/rate-limit evidence, external IdP, business sign-off. Production go-live NO.
 
-This is a **portfolio/demo repository**, not a production-live system. All claims below are verifiable locally; none require cloud credentials or a live Azure/Render deployment.
+## Stack
 
-| Area | Status | Evidence |
-|------|--------|----------|
-| API & business flow | Implemented & tested | `PaymentController`, `PaymentService`, OpenAPI at `/v3/api-docs` |
-| Security | JWT + OIDC fail-closed | `SecurityConfig`, `ProductionSecurityConfig`, `JwtUtil`, tests |
-| Data layer | PostgreSQL source of truth | JPA + Flyway migrations, `PaymentRepository`, Testcontainers |
-| Messaging | RabbitMQ + transactional outbox | `PaymentOutboxRelay`, `OrderEventConsumer`, DLQ |
-| CI/CD | GitHub Actions + local gate | `.github/workflows/ci.yml`, `scripts/ci-gate.sh`, `scripts/deploy.sh` |
-| Infra / k8s | Kustomize overlays | `src/payment-service-java/k8s/`, `src/payment-service-java/k8s/overlays/{local,production}`, `scripts/render-manifests.sh` |
-| UX / frontend | Demo shell | `frontend/` (Vite + React), login, payment history, lookup by key |
-| PSP integration | Port + adapter (simulated + Stripe) | `provider/PaymentProvider`, `SimulatedPaymentProvider`, `StripePaymentProvider` |
-| OIDC (production) | Keycloak local realm | `docker-compose.oidc.yml`, `docker/keycloak/realm-export.json` |
-| Secrets management | Template + vault CSI | `docs/deployment/SECRETS_MANAGEMENT.md` |
-| Load testing | k6 script | `load-tests/k6/payment-service.js` |
-| Seed data | SQL seed (1000 records) | `docker/seed-data.sql` |
-
-**OUT-OF-SCOPE (no cloud evidence, not claimed):** real PSP provider, OIDC identity provider on cloud, production-scale data, live Render/AKS deploy, production secrets.
-
-
-## Scope and product focus
-
-The primary product is the Java backend. The `frontend/` folder is a thin demo shell for preview testing and smoke checks only; it is not the core business surface of the repo. Backend logic, payment idempotency, security, and API contracts remain the canonical source of truth.
-
-## Module layout
-
-```
-src/payment-service-java/
-├── pom.xml                  # Spring Boot 4.0.9, Java 17
-├── Dockerfile               # multi-stage (maven build → temurin JRE)
-├── docker/init-schema.sql   # PostgreSQL schema (payment_records, idempotency keys)
-├── src/main/proto/          # Protocol Buffers gRPC contract
-└── src/main/java/com/flashsale/payment/
-    ├── controller/          # PaymentController, HealthController
-    ├── service/             # PaymentService
-    ├── provider/            # PaymentProvider port + SimulatedPaymentProvider adapter
-    ├── repository/ + entity/# PaymentRepository, Payment (JPA)
-    ├── dto/                 # PaymentRecordDto, ProcessPaymentRequest, LoginRequest, AuthResponse
-    ├── exception/           # GlobalExceptionHandler, PaymentNotFoundException, IdempotencyConflictException
-    ├── security/            # REST/JWT security and gRPC JWT interceptor
-    ├── grpc/                # gRPC service adapter and TLS-only optional server
-    ├── config/              # RabbitConfig, CacheConfig
-    ├── event/               # OrderEventConsumer, PaymentEventPublisher, OrderEventDTO
-    ├── outbox/              # PaymentOutbox, PaymentOutboxRepository, PaymentOutboxRelay
-    └── audit/               # MongoDB audit projection (read-only, not source of truth)
-```
+Java 17, Spring Boot, PostgreSQL, Redis, RabbitMQ, Flyway, Docker, GitHub Actions.
 
 ## Run locally
 
-```bash
-# Create a local env file and per-run demo credentials; do not commit .env.
-cp .env.example .env
-export JWT_SIGNING_KEY="$(openssl rand -base64 48)"
-export DEMO_AUTH_PASSWORD="$(openssl rand -base64 24)"
-
-# Start the Java service and its PostgreSQL, Redis, and RabbitMQ dependencies.
-docker compose up --build -d
-
-# Optional: start Keycloak OIDC provider for production-profile testing.
-docker compose -f docker-compose.oidc.yml up -d
-
-# Liveness and dependency readiness.
-curl http://localhost:8081/healthz
-curl http://localhost:8081/actuator/health/readiness
-```
-
-The Compose service maps `8081:8080` and waits for PostgreSQL, Redis, and
-RabbitMQ to become healthy. Set the local database and RabbitMQ credentials in
-`.env`; the service has no checked-in credential fallback.
-
-## Optional gRPC API
-
-The unary gRPC contract is in `src/payment-service-java/src/main/proto/payment.proto`.
-`ProcessPayment` delegates to the same idempotent application service as REST
-and requires a valid JWT with Staff or Admin role. `CheckHealth` is public.
-The listener is disabled by default; enabling it requires TLS files and binds
-port 9090:
-
-```bash
-GRPC_SERVER_ENABLED=true \
-GRPC_TLS_CERT_CHAIN=/path/to/server.crt \
-GRPC_TLS_PRIVATE_KEY=/path/to/server.key \
-mvn -f src/payment-service-java/pom.xml spring-boot:run
-```
-
-Do not expose gRPC until certificates, client trust, and network policy are
-configured. The AKS sample intentionally leaves the listener disabled and
-does not publish port 9090. This is a code-level demo, not evidence of a
-production gRPC deployment. The command assumes the same database, broker, and
-JWT environment variables used by the local service are already configured.
-
-## Optional MongoDB audit read model
-
-The optional `mongodb` profile projects payment events into MongoDB while
-PostgreSQL remains the authoritative payment store. Payment events are written
-to the PostgreSQL outbox, relayed through RabbitMQ, and idempotently stored by
-idempotency key. This projection is eventually consistent; a recently
-processed payment may briefly return `404` until the event is consumed.
-
-Start the local demo with the MongoDB overlay:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.mongodb.yml up --build -d
-```
-
-The staff/admin-only `GET /api/audit/payments/{idempotencyKey}` endpoint reads
-the MongoDB projection. If MongoDB cannot store a message, RabbitMQ routes it
-to the dedicated `payment.mongo-audit.dlq` for operator recovery. This is a
-non-production portfolio demonstration, not a financial ledger or a banking
-compliance certification.
-
-After starting the MongoDB overlay, run the local API smoke flow with the same
-demo password used by Compose:
-
-```bash
-src/payment-service-java/scripts/smoke-local.sh
-```
-
-The script checks login, success, same-key replay, conflicting replay (409),
-decline, timeout, and the asynchronously projected MongoDB audit event. It
-does not deploy to cloud or substitute for the RabbitMQ DLQ integration tests.
-
-## Tests
-
-Unit tests (no Docker required):
-
-```bash
-cd src/payment-service-java
-mvn -q test -Dtest='!*Integration*'
-```
-
-Local CI gate (compile + unit tests + Docker build + k8s manifest validation):
-
-```bash
-./scripts/ci-gate.sh
-```
-
-Integration tests use Testcontainers (PostgreSQL, Redis, RabbitMQ) and need a running Docker daemon:
-
-```bash
-mvn -q test
-```
-
-The Maven suite includes Testcontainers-backed PostgreSQL, Redis, and RabbitMQ
-integration tests; see the latest exact-commit CI run for current counts and
-results.
-
-## Azure Pipelines CI
-
-`azure-pipelines.yml` runs Java 17 `mvn clean verify` (including Testcontainers
-tests) and a local Docker image build for `main`, `preview`, and pull requests.
-It requires no cloud credentials and does not push images or deploy. Connect
-this YAML file as an Azure DevOps pipeline to run it; this repository cannot
-prove that a remote Azure DevOps run has passed.
-
-## API surface (key endpoints)
-
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/healthz` | GET | Liveness probe |
-| `/actuator/health/readiness` | GET | Dependency readiness probe |
-| `/api/payments` | POST | Process a payment (idempotent, STAFF/ADMIN) |
-| `/api/payments` | GET | List payments paginated (STAFF/ADMIN) |
-| `/api/payments/{idempotencyKey}` | GET | Get payment record (CUSTOMER/STAFF/ADMIN) |
-| `/api/auth/login` | POST | JWT login |
-
-OpenAPI/Swagger UI is public at `/swagger-ui.html` only in the demo profile.
-In the default, `production`, and `prod` profiles, `/swagger-ui/**` and
-`/v3/api-docs/**` require Admin. The service does not yet have a production
-identity provider, so this rule is a fail-closed boundary rather than evidence
-of production login support.
-
-## Verified capabilities (local, reproducible; CV evidence)
-
-`mvn test` passes cleanly: **173 tests, 0 failures, 0 errors**. Integration tests
-use Testcontainers (PostgreSQL, Redis, RabbitMQ) with Docker; no cloud
-credentials are required.
-
-| Capability | Evidence |
-|---|---|
-| Idempotent payment — same key + same payload → one DB row, one outbox event | `PaymentServiceIntegrationTest` |
-| Idempotency conflict — same key, different payload → HTTP 409 | `PaymentServiceIntegrationTest` |
-| Redis cache hit / miss / eviction on `getPayment`/`processPayment` | `PaymentCacheRedisTest` |
-| Graceful fallback to PostgreSQL when Redis is unavailable | `CacheFailureFallbackTest`, `RedisOutageIntegrationTest`, `BrokerCacheFailureDrillTest` |
-| OIDC fail-closed production profile; JWT validation → 401; role-based 403/200 | `ProductionOidcConfigTest`, `AuthSecurityIntegrationTest` |
-| Transactional outbox + RabbitMQ DLQ | `PaymentOutboxRelay`, `PaymentServiceIntegrationTest` |
-| Local CI gate (compile, unit tests, Docker build, k8s validation), no cloud creds | `scripts/ci-gate.sh`, `.github/workflows/ci.yml` |
-
-These are verified, locally-reproducible capabilities. They are **not** claims of
-a live payment provider, a live Render/AKS deployment, or production readiness.
-
-## Schema
-
-PostgreSQL schema changes are versioned in
-`src/payment-service-java/src/main/resources/db/migration` and applied by Flyway
-before Hibernate validates the schema. The baseline at version 1 supports
-pre-Flyway databases; version 2 adds the nullable `customer_email` column
-without rebuilding `payment_records`. The optional Oracle profile disables
-these PostgreSQL migrations.
-
-`docker/init-schema.sql` remains a fresh-volume bootstrap for local Compose.
-Because the Postgres entrypoint runs it only for a new data directory, use
-Flyway—not that init script—to update an existing database.
-
-## Notes
-
-- No real PSP contract, credential, or behaviour is exercised anywhere; payment outcomes are simulated for local/demo runs.
-- Local mock identities exist only in the explicit `demo` profile and require
-  `DEMO_AUTH_PASSWORD`; never enable this profile in production.
-- `JWT_SIGNING_KEY` and `DEMO_AUTH_PASSWORD` are required for local demo compose
-  and must not be committed.
-- RabbitMQ is the only implemented broker in this demo. Kafka is not included in
-  the runtime or tested here and should not be claimed as hands-on experience.
-- The Java module includes a non-production AKS validation manifest and runbook
-  at [AKS_DEPLOYMENT.md](src/payment-service-java/AKS_DEPLOYMENT.md); it is not a
-  production deployment claim.
-- Interview preparation should use the Java-scoped
-  [evidence-based notes](docs/portfolio/flashsale-java-interview-notes.md),
-  not claims from unrelated repositories.
+See `src/payment-service-java`, `frontend/`, `scripts/ci-gate.sh`.
