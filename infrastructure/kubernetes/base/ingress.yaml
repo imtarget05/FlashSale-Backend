@@ -21,10 +21,3 @@ spec:
                 name: payment-service
                 port:
                   number: 80
-          - path: /api/orders
-            pathType: Prefix
-            backend:
-              service:
-                name: order-api
-                port:
-                  number: 80

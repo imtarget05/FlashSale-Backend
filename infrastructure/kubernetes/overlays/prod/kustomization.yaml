@@ -8,16 +8,10 @@ resources:
   - httproute.yaml
 
 replicas:
-  - name: order-api
+  - name: payment-service
     count: 2
 
 images:
-  - name: order-api
-    newName: acrflashsalep6.azurecr.io/order-api
-    newTag: d5725a1ea1d2f47708d23638f0ca84ed256f7058
-  - name: order-worker
-    newName: acrflashsalep6.azurecr.io/order-worker
-    newTag: d5725a1ea1d2f47708d23638f0ca84ed256f7058
   - name: payment-service
     newName: acrflashsalep6.azurecr.io/payment-service
     newTag: d5725a1ea1d2f47708d23638f0ca84ed256f7058

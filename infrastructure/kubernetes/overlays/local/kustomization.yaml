@@ -24,24 +24,13 @@ resources:
   - httproute.yaml
   # V2.4 — KEDA is a local-platform capability; production keeps its managed
   # autoscaling contract outside this portfolio kind overlay.
-  - keda/scaledobject.yaml
   - keda/rabbitmq-mgmt.yaml
   - kafka-topic-init-job.yaml
-
-replicas:
-  - name: order-api
-    count: 2
 
 images:
   # `name` MUST equal the registry-neutral image name used in base, otherwise
   # Kustomize skips the transform silently (same trap documented in
   # overlays/prod/kustomization.yaml).
-  - name: order-api
-    newName: flashsale/order-api
-    newTag: local
-  - name: order-worker
-    newName: flashsale/order-worker
-    newTag: local
   - name: payment-service
     newName: flashsale/payment-service
     newTag: local

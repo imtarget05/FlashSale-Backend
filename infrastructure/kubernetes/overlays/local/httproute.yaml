@@ -27,5 +27,5 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: order-api
+        - name: payment-service
           port: 80

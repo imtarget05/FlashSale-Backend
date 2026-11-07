@@ -7,13 +7,10 @@ kind: Kustomization
 #   - Redis      → Azure Managed Redis (PaaS, TLS)
 #   - RabbitMQ   → RabbitMQ Cluster Operator trên AKS (quorum queues, 3 node)
 # Secret `flashsale-secrets` cung cấp kết nối đến các dịch vụ PaaS/Operator.
+# order-api / order-worker / order-migrate đã được retire; payment-service là workload còn lại.
 resources:
-  - api/deployment.yaml
-  - api/service.yaml
   - payment/deployment.yaml
   - payment/service.yaml
-  - worker/deployment.yaml
-  - migration/job.yaml
   - ingress.yaml
 
 labels:
