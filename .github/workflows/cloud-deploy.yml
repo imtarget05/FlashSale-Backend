@@ -134,6 +134,7 @@ jobs:
         run: |
           npm ci --prefix frontend
           VITE_API_URL="$RENDER_URL" VITE_ENV=preview npm run build --prefix frontend
+          printf '{"release_sha":"%s"}\n' "$GITHUB_SHA" > frontend/dist/version.json
           if ! npx --yes wrangler@4 pages project list --json | jq -e 'any(.[]; .name == "flashsale-frontend")' > /dev/null; then
             npx --yes wrangler@4 pages project create flashsale-frontend --production-branch=main
           fi
@@ -141,6 +142,19 @@ jobs:
             --project-name=flashsale-frontend \
             --branch=preview \
             --commit-hash="$GITHUB_SHA"
+          attempt=1
+          while [ "$attempt" -le 36 ]; do
+            if curl --fail --silent --show-error --max-time 10 \
+              https://preview.flashsale-frontend.pages.dev/version.json \
+              | jq -e --arg sha "$GITHUB_SHA" '.release_sha == $sha' > /dev/null; then
+              echo "Cloudflare preview serves the release SHA."
+              exit 0
+            fi
+            sleep 10
+            attempt=$((attempt + 1))
+          done
+          echo "Cloudflare preview did not serve this release SHA within 6 minutes."
+          exit 1
 
   deploy-production:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy_to_production
@@ -186,6 +200,8 @@ jobs:
         run: |
           npm ci --prefix frontend
           VITE_API_URL="$RENDER_URL" VITE_ENV=production npm run build --prefix frontend
+          printf '{"release_sha":"%s"}\n' "$GITHUB_SHA" > frontend/dist/version.json
           npx --yes wrangler@4 pages deploy frontend/dist \
             --project-name=flashsale-frontend \
-            --branch=main
+            --branch=main \
+            --commit-hash="$GITHUB_SHA"

@@ -80,18 +80,20 @@ class RabbitMqOutageIntegrationTest {
 	void pendingOutboxEventRetriesAndPublishesAfterRabbitMqRecovers() throws Exception {
 		String idempotencyKey = "rabbit-outage-" + UUID.randomUUID();
 		OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(1);
-		PaymentOutbox event = outboxRepository.saveAndFlush(new PaymentOutbox(
+		PaymentOutbox event = new PaymentOutbox(
 			idempotencyKey,
 			RabbitConfig.ROUTING_KEY_PAYMENT_COMPLETED,
 			"""
 				{"idempotencyKey":"%s","success":true,"status":"Succeeded","transactionId":"tx-1",
 				"failureReason":null,"isTransientError":false,"processedAt":"%s"}
 				""".formatted(idempotencyKey, createdAt),
-			createdAt));
+			createdAt);
 
-		// Simulate broker outage: stop the AMQP application cleanly so connections close.
+		// Stop the broker before inserting the due event, so the scheduled relay
+		// cannot publish it between insertion and the outage.
 		execRabbitMqCtl("stop_app");
 		try {
+			outboxRepository.saveAndFlush(event);
 			outboxRelay.publishPendingEvents();
 
 			PaymentOutbox pending = outboxRepository.findById(event.getId()).orElseThrow();
@@ -123,13 +125,10 @@ class RabbitMqOutageIntegrationTest {
 	}
 
 	private void execRabbitMqCtl(String command) throws Exception {
-		String[] cmd = new String[] { "sh", "-c", "rabbitmqctl " + command };
-		var execCreate = rabbitmq.getDockerClient().execCreateCmd(rabbitmq.getContainerId())
-			.withCmd(cmd)
-			.withAttachStdout(true)
-			.withAttachStderr(true);
-		String execId = execCreate.exec().getId();
-		rabbitmq.getDockerClient().execStartCmd(execId);
+		var result = rabbitmq.execInContainer("rabbitmqctl", command);
+		assertThat(result.getExitCode())
+			.as("rabbitmqctl %s: %s", command, result.getStderr())
+			.isZero();
 	}
 
 	private void awaitRabbitMqConnection() throws Exception {
