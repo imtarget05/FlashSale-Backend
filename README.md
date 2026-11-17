@@ -350,14 +350,14 @@ Every capability asserted in this portfolio is grounded in reproducible code, in
 
 A hallmark of senior engineering is transparently defining system boundaries and distinguishing between production-ready architecture and preview/demo cloud infrastructure.
 
-### Production-Grade Capabilities (Implemented & Verified)
+### Production-oriented capabilities (implemented and locally tested)
 - **Application Architecture**: Strict Ports & Adapters separation, modular domain design, clean error contracts.
 - **Data Integrity**: Zero dual-write hazard between PostgreSQL and RabbitMQ; zero double-charge hazard under concurrent identical requests.
 - **Fail-Closed Security**: Mandatory HTTPS OIDC token verification with audience binding, granular RBAC, and BOLA checks.
 - **Graceful Degradation**: Microservice remains operational and continues serving payment lookups when Redis crashes.
 
 ### Architectural Boundaries & Explicit Constraints
-- **Managed Preview Deployment**: The live cloud deployment is hosted on **Render Free / Starter web services** with **CloudAMQP Little Lemur** (free tier) and managed Render PostgreSQL/Redis (`render.yaml`). It operates as a preview demonstration, not an enterprise multi-region cloud topology.
+- **Managed Preview Configuration**: `render.yaml` describes Render web services, PostgreSQL, Redis, and CloudAMQP integration. This repository does not currently contain a verified, successful live deployment run; the GitHub Actions deployment workflow's latest successful run skipped both deploy jobs. Treat the endpoints in `README_DEPLOY.md` as configured targets until a health check and deployment record are captured.
 - **Payment Gateway Simulation**: To ensure reproducible testing without incurring real financial charges, payments default to `SimulatedPaymentProvider` (deterministic cents: `.01` = Success, `.02` = Declined, `.03` = 504 Timeout). While a complete `StripePaymentProvider` HTTP client adapter exists with JSON deserialization, it is gated by `@ConditionalOnProperty(name = "STRIPE_API_KEY")` and is not connected to live banking rails.
 - **In-Memory Rate Limiter**: The token bucket rate limiter runs in heap memory (`ConcurrentHashMap`), which is ideal for a single-replica deployment. Multi-replica horizontal autoscaling would require moving the bucket counters into a shared Redis cluster via Lua scripts.
 - **Kubernetes & Terraform State**: Kubernetes manifests (`infrastructure/kubernetes/`) and Terraform files (`infrastructure/terraform/`) are fully validated for syntax and schema compliance in CI, but are not actively deployed to an enterprise AKS cluster.
