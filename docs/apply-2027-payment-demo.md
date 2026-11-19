@@ -1,6 +1,6 @@
 # Backend Java application demo: payment consistency
 
-Main evidence: [`87b79a6a652176e64a1c1d5d5664875778e8db68`](https://github.com/imtarget05/FlashSale-Backend/tree/87b79a6a652176e64a1c1d5d5664875778e8db68), [Java CI run 44054310812](https://github.com/imtarget05/FlashSale-Backend/actions/runs/44054310812). That run passed unit and Testcontainers integration jobs, built the image, scanned it, and ran Sonar. The successful deploy workflow skipped deployment jobs, so this is **database-backed test evidence**, not a live deployment claim.
+Main source commit: [`baf2aa169789c5fd9e7db9a2b6a777b390ded178`](https://github.com/imtarget05/FlashSale-Backend/tree/baf2aa169789c5fd9e7db9a2b6a777b390ded178). [Java CI run 44103195451](https://github.com/imtarget05/FlashSale-Backend/actions/runs/44103195451) passed unit and Testcontainers integration jobs, image build, vulnerability scan and Sonar on that commit. The [2026-11-19 local Testcontainers result](evidence/payment-local-testcontainers-2026-11-19.json) records **175/175 tests passed** on the same source, with PostgreSQL 15, RabbitMQ, Redis and MongoDB containers observed running. The successful deploy workflow skipped deployment jobs, so this is **database-backed test evidence**, not a live deployment claim.
 
 ## Reproduce the five-minute story
 
@@ -11,7 +11,7 @@ cd src/payment-service-java
 mvn -B test -Dspring.flyway.enabled=true
 ```
 
-Inspect `target/surefire-reports/` for the test cases below. The root README also gives a Compose-based HTTP walkthrough, but the automated tests are the cited evidence.
+Inspect `target/surefire-reports/` for the test cases below. The local run used JDK 17.0.20, Maven 3.9.16 and Docker 29.6.1 on an Apple Silicon Mac; it completed in 2 minutes 57 seconds. Test duration is not payment API latency. The root README also gives a Compose-based HTTP walkthrough, but the automated tests are the cited evidence.
 
 | Scenario | Test and assertion |
 | --- | --- |
