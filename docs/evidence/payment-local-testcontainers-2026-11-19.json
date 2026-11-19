@@ -1,0 +1,76 @@
+{
+  "scope": "local_maven_testcontainers_synthetic_payment",
+  "source_sha": "baf2aa169789c5fd9e7db9a2b6a777b390ded178",
+  "command": "cd src/payment-service-java && mvn -B test -Dspring.flyway.enabled=true",
+  "run_finished_local": "2026-11-19T15:45:26+07:00",
+  "environment": {
+    "java": "17.0.20",
+    "maven": "3.9.16",
+    "docker_server": "29.6.1",
+    "host": "macOS 27.2.1 arm64"
+  },
+  "result": "BUILD SUCCESS",
+  "totals": {
+    "tests": 175,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "surefire_xml_files": 38,
+  "surefire_xml_aggregate_sha256": "2225abedcdb9ba674698b2a4961c6fdca40934731969934ab25f8aeeb8dae722",
+  "testcontainers_images_observed_started": [
+    "mongo:7.0.5",
+    "postgres:15-alpine",
+    "rabbitmq:3-management-alpine",
+    "redis:7-alpine"
+  ],
+  "selected_cases": [
+    {
+      "class": "com.flashsale.payment.integration.BrokerCacheFailureDrillTest",
+      "name": "redisOutage_getPaymentFallsBackToPostgres",
+      "seconds": 0.046,
+      "status": "passed"
+    },
+    {
+      "class": "com.flashsale.payment.integration.BrokerCacheFailureDrillTest",
+      "name": "rabbitMqStopStart_outboxReplayPublishesAfterRecovery",
+      "seconds": 0.094,
+      "status": "passed"
+    },
+    {
+      "class": "com.flashsale.payment.integration.PaymentServiceIntegrationTest",
+      "name": "paymentOutboxEvent_isProjectedToMongoAndReadableByStaff",
+      "seconds": 0.84,
+      "status": "passed"
+    },
+    {
+      "class": "com.flashsale.payment.integration.PaymentServiceIntegrationTest",
+      "name": "concurrentSamePayload_requestsCreateOnePaymentAndBothSucceed",
+      "seconds": 0.026,
+      "status": "passed"
+    },
+    {
+      "class": "com.flashsale.payment.integration.PaymentServiceIntegrationTest",
+      "name": "concurrentDifferentPayload_requestsReturnConflictAndCreateOnePayment",
+      "seconds": 0.019,
+      "status": "passed"
+    },
+    {
+      "class": "com.flashsale.payment.integration.PaymentServiceIntegrationTest",
+      "name": "duplicateOrderEvent_persistsAndPublishesOnlyOnce",
+      "seconds": 1.083,
+      "status": "passed"
+    },
+    {
+      "class": "com.flashsale.payment.integration.RabbitMqOutageIntegrationTest",
+      "name": "pendingOutboxEventRetriesAndPublishesAfterRabbitMqRecovers",
+      "seconds": 0.066,
+      "status": "passed"
+    }
+  ],
+  "boundaries": [
+    "Payment provider deterministic and simulated",
+    "No real money or bank rail",
+    "No cloud deployment or throughput claim"
+  ]
+}
