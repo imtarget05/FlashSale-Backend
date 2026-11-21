@@ -10,7 +10,7 @@ The evidence branch adds `responseLostAfterCommit_retryReturnsPersistedPaymentWi
 | --- | --- | --- |
 | Transaction and idempotency behavior | `src/payment-service-java/src/test/java/com/flashsale/payment/integration/` and the CI integration job | A green suite does not by itself prove crash recovery at every commit/response boundary |
 | Outbox relay and broker failure handling | `PaymentOutboxRelayTest`, `BrokerCacheFailureDrillTest`, `RabbitMqOutageIntegrationTest` | At-least-once delivery permits duplicates; do not claim end-to-end exactly once |
-| Security checks | `src/payment-service-java/src/test/java/com/flashsale/payment/security/` and `PaymentCacheRedisTest` | Review individual cases before claiming complete BOLA or rate-limit coverage |
+| Security checks | `AuthSecurityIntegrationTest` covers expired JWT; `ProductionOidcSecurityTest` covers expired/missing-audience tokens; `PaymentCacheRedisTest` covers a BOLA ownership denial | These cases do not establish exhaustive access-control or rate-limit coverage |
 | Performance | [Existing Apache Bench report](../benchmarks/t10-load-test.md) | It measured `/healthz` through `kubectl port-forward` on kind, not payment throughput; p95 exceeded the stated 500 ms target in that setup. The contribution of each latency source was not isolated |
 
 ## Two-minute demo
