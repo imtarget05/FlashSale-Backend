@@ -1,0 +1,298 @@
+{
+  "info": {
+    "_postman_id": "c1f72a45-6a55-46b2-a421-4f0563462967",
+    "name": "FlashSale-Payment",
+    "description": "FlashSale Payment processing, idempotency replay, conflict rejection, and timeout test suite",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Login as Staff",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "var jsonData = pm.response.json();",
+              "",
+              "pm.test(\"Auth response contains accessToken or token\", function () {",
+              "    var token = jsonData.accessToken || jsonData.token;",
+              "    pm.expect(token).to.be.a('string').and.not.empty;",
+              "    pm.environment.set(\"jwt_token\", token);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"staff@flashsale.local\",\n  \"password\": \"{{auth_password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/auth/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Initial Payment (Deterministic Success)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "var uuid = pm.variables.replaceIn('{{$guid}}');",
+              "pm.environment.set(\"idempotency_key\", \"pm-\" + uuid);",
+              "pm.environment.set(\"payment_id\", uuid);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "var jsonData = pm.response.json();",
+              "",
+              "pm.test(\"Payment success is true and status is Succeeded\", function () {",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.status).to.eql(\"Succeeded\");",
+              "});",
+              "",
+              "var paymentId = jsonData.paymentId || jsonData.transactionId || pm.environment.get(\"payment_id\");",
+              "pm.environment.set(\"first_payment_id\", paymentId);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentId\": \"{{payment_id}}\",\n  \"orderId\": 1001,\n  \"idempotencyKey\": \"{{idempotency_key}}\",\n  \"amount\": 10.01,\n  \"currency\": \"USD\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/payments",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "payments"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Retry Payment (Idempotent Replay)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "var jsonData = pm.response.json();",
+              "",
+              "pm.test(\"Retry returns matching paymentId and status Succeeded\", function () {",
+              "    var currentPaymentId = jsonData.paymentId || jsonData.transactionId || pm.environment.get(\"payment_id\");",
+              "    pm.expect(currentPaymentId).to.eql(pm.environment.get(\"first_payment_id\"));",
+              "    pm.expect(jsonData.status).to.eql(\"Succeeded\");",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentId\": \"{{payment_id}}\",\n  \"orderId\": 1001,\n  \"idempotencyKey\": \"{{idempotency_key}}\",\n  \"amount\": 10.01,\n  \"currency\": \"USD\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/payments",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "payments"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Payment Conflict (Conflicting Payload)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 409 Conflict\", function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "var jsonData = pm.response.json();",
+              "",
+              "pm.test(\"Error code is IDEMPOTENCY_CONFLICT\", function () {",
+              "    pm.expect(jsonData.error).to.eql(\"IDEMPOTENCY_CONFLICT\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentId\": \"{{payment_id}}\",\n  \"orderId\": 1001,\n  \"idempotencyKey\": \"{{idempotency_key}}\",\n  \"amount\": 99.99,\n  \"currency\": \"USD\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/payments",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "payments"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. Payment Timeout (Gateway Timeout)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "var timeoutUuid = pm.variables.replaceIn('{{$guid}}');",
+              "pm.environment.set(\"timeout_idempotency_key\", \"timeout-\" + timeoutUuid);",
+              "pm.environment.set(\"timeout_payment_id\", timeoutUuid);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 504 Gateway Timeout\", function () {",
+              "    pm.response.to.have.status(504);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{timeout_idempotency_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentId\": \"{{timeout_payment_id}}\",\n  \"orderId\": 1002,\n  \"idempotencyKey\": \"{{timeout_idempotency_key}}\",\n  \"amount\": 10.03,\n  \"currency\": \"USD\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/payments",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "payments"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

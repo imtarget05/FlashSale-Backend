@@ -53,7 +53,7 @@ public class SecurityConfig {
 				} else {
 					auth.requestMatchers("/api/auth/**").permitAll();
 				}
-				auth.requestMatchers("/health", "/health/live", "/healthz", "/actuator/health/readiness").permitAll();
+				auth.requestMatchers("/health", "/health/live", "/healthz", "/actuator/health", "/actuator/health/**").permitAll();
 				if (demoOnlyProfile) {
 					auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
 				} else {

@@ -1,0 +1,34 @@
+stages:
+  - lint
+  - test
+  - scan
+
+lint:k8s-manifests:
+  stage: lint
+  image: python:3.11-alpine
+  before_script:
+    - pip install --no-cache-dir pyyaml
+  script:
+    - python3 -c "import glob, yaml, sys; files = glob.glob('infrastructure/kubernetes/**/*.yaml', recursive=True) + glob.glob('src/payment-service-java/k8s/**/*.yaml', recursive=True); [list(yaml.safe_load_all(open(f))) for f in files]; print(f'Successfully validated {len(files)} YAML files.')"
+
+test:payment-unit:
+  stage: test
+  image: maven:3.9.6-eclipse-temurin-17
+  script:
+    - cd src/payment-service-java
+    - mvn -B test -Dtest="com.flashsale.payment.unit.*Test"
+  artifacts:
+    when: always
+    paths:
+      - src/payment-service-java/target/surefire-reports/
+    reports:
+      junit:
+        - src/payment-service-java/target/surefire-reports/TEST-*.xml
+
+scan:trivy-fs:
+  stage: scan
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy fs --no-progress --severity HIGH,CRITICAL --exit-code 0 .

@@ -1,0 +1,143 @@
+name: Payment Service Newman API CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/payment-service-java/**'
+      - 'postman/**'
+      - '.github/workflows/newman-ci.yml'
+  pull_request:
+    paths:
+      - 'src/payment-service-java/**'
+      - 'postman/**'
+      - '.github/workflows/newman-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  newman-api-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: flashsale
+          POSTGRES_PASSWORD: ci-only-disposable-password
+          POSTGRES_DB: flashsale
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U flashsale -d flashsale"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_running"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 8
+      mongodb:
+        image: mongo:7.0.5
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval \"db.adminCommand('ping').ok\""
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build payment-service JAR
+        working-directory: src/payment-service-java
+        run: mvn -B package -DskipTests
+
+      - name: Boot payment-service-java
+        env:
+          SPRING_PROFILES_ACTIVE: demo,mongodb
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/flashsale
+          SPRING_DATASOURCE_USERNAME: flashsale
+          SPRING_DATASOURCE_PASSWORD: ci-only-disposable-password
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: 6379
+          SPRING_RABBITMQ_HOST: localhost
+          SPRING_RABBITMQ_PORT: 5672
+          SPRING_RABBITMQ_USERNAME: guest
+          SPRING_RABBITMQ_PASSWORD: guest
+          MONGODB_URI: mongodb://localhost:27017/flashsale
+          JWT_SIGNING_KEY: ci-only-disposable-jwt-secret-key-must-be-32-bytes-long
+          DEMO_AUTH_PASSWORD: ci-disposable-password
+        run: |
+          java -jar src/payment-service-java/target/payment-service-1.0.0.jar --spring.profiles.active=demo,mongodb > payment-service.log 2>&1 &
+          echo "SERVICE_PID=$!" >> $GITHUB_ENV
+
+      - name: Wait for payment-service healthiness (/actuator/health)
+        run: |
+          echo "Waiting for payment-service to become healthy..."
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "payment-service is healthy! (HTTP $STATUS)"
+              exit 0
+            fi
+            echo "Attempt $i: status=$STATUS, waiting 2s..."
+            sleep 2
+          done
+          echo "Error: payment-service failed to start or pass health check within 120s"
+          cat payment-service.log
+          exit 1
+
+      - name: Run Newman payment integration test suite
+        run: |
+          npx newman run postman/FlashSale-Payment.postman_collection.json -e postman/FlashSale-Local.postman_environment.json --env-var auth_password="ci-disposable-password" --reporters cli,json --reporter-json-export newman-report.json
+
+      - name: Upload Newman test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-report
+          path: newman-report.json
+          if-no-files-found: ignore
+
+      - name: Upload service logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: payment-service-log
+          path: payment-service.log
+          if-no-files-found: ignore

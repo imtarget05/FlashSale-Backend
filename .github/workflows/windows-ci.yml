@@ -1,0 +1,49 @@
+name: Payment Service Windows CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/payment-service-java/**'
+      - '.github/workflows/windows-ci.yml'
+  pull_request:
+    paths:
+      - 'src/payment-service-java/**'
+      - '.github/workflows/windows-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Run payment service unit tests on Windows
+        shell: cmd
+        run: |
+          cd src\payment-service-java
+          mvn -B test -Dtest="com.flashsale.payment.unit.*Test"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-surefire-reports
+          path: src/payment-service-java/target/surefire-reports/
+          if-no-files-found: ignore

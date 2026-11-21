@@ -42,3 +42,5 @@ __pycache__/
 # so the ignore entries have to live HERE, not only in src/OpsBridge.Web/.gitignore.
 api.log
 api.pid
+payment-service.log
+newman-report*.json
