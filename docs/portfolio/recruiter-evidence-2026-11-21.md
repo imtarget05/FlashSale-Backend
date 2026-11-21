@@ -8,6 +8,8 @@ The evidence branch adds `responseLostAfterCommit_retryReturnsPersistedPaymentWi
 
 The [local k6 payment-path benchmark](../benchmarks/payment-path-k6-2026-11-21/README.md) now reports throughput, p95/p99, error rate, hardware and raw summaries for three fixed VU levels. The [process-crash drill](../evidence/post-commit-response-loss-2026-11-21/README.md) kills the demo API after commit while withholding the response from the client, then verifies one payment and one outbox row after retry. Both results are local and have explicit boundaries.
 
+A stronger [pre-response JVM crash drill](../evidence/pre-response-jvm-crash-2026-11-21/README.md) now halts the test-classpath JVM at Spring MVC's pre-body-write hook, after the DB transaction commits. It verifies the persisted payment/outbox before restart and unchanged counts after retry. The hook is absent from the production JAR.
+
 | Claim | Where to inspect | Limit |
 | --- | --- | --- |
 | Transaction and idempotency behavior | `src/payment-service-java/src/test/java/com/flashsale/payment/integration/` and the CI integration job | A green suite does not by itself prove crash recovery at every commit/response boundary |

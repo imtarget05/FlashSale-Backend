@@ -1,0 +1,16 @@
+{
+  "result": "passed",
+  "key": "pre-response-2a19bedd-c0c3-42d4-9b69-f290cebec37a",
+  "pre_write_hook": true,
+  "client_response_lost": true,
+  "jvm_exit_code": 87,
+  "retry_status": 200,
+  "before": {
+    "payment_records": 1,
+    "payment_outbox": 1
+  },
+  "after": {
+    "payment_records": 1,
+    "payment_outbox": 1
+  }
+}
