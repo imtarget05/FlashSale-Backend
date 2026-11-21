@@ -4,6 +4,8 @@ Public baseline: [`aa5ac1c827145e2af8ff2117960e5836389e6b9c`](https://github.com
 
 Local reproduction on 2026-11-21: clean clone at the same SHA, macOS, Java 17, Docker 29.6.1, `cd src/payment-service-java && mvn -B -q verify` exited 0. The 38 Surefire XML reports total **175 tests, 0 failures, 0 errors, 0 skipped**. Testcontainers used the local Docker daemon. This run did not benchmark production latency.
 
+The evidence branch adds `responseLostAfterCommit_retryReturnsPersistedPaymentWithoutNewOutboxEvent` to model a client that discards a successful server response and retries. Its targeted Testcontainers run passed (1 test, 0 failures/errors/skips). This models response loss after a committed request; it does not inject an actual process crash between DB commit and socket write.
+
 | Claim | Where to inspect | Limit |
 | --- | --- | --- |
 | Transaction and idempotency behavior | `src/payment-service-java/src/test/java/com/flashsale/payment/integration/` and the CI integration job | A green suite does not by itself prove crash recovery at every commit/response boundary |
