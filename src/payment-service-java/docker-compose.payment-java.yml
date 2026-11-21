@@ -20,6 +20,8 @@ services:
       - SPRING_DATA_REDIS_PORT=6379
       - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY}
       - DEMO_AUTH_PASSWORD=${DEMO_AUTH_PASSWORD:?Set DEMO_AUTH_PASSWORD}
+      - PAYMENT_RATE_LIMIT_CAPACITY=${PAYMENT_RATE_LIMIT_CAPACITY:-100}
+      - PAYMENT_RATE_LIMIT_REFILL_PER_MINUTE=${PAYMENT_RATE_LIMIT_REFILL_PER_MINUTE:-100}
       - SPRING_PROFILES_ACTIVE=demo
     depends_on:
       postgres:
@@ -49,8 +51,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: FlashSaleDb
-    volumes:
-      - ./docker/init-schema.sql:/docker-entrypoint-initdb.d/01-payment-schema.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d FlashSaleDb"]
       interval: 5s

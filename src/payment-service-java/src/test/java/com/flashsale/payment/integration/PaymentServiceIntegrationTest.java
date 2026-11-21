@@ -465,6 +465,39 @@ class PaymentServiceIntegrationTest {
 	}
 
 	@Test
+	void responseLostAfterCommit_retryReturnsPersistedPaymentWithoutNewOutboxEvent() {
+		WebTestClient client = createClient();
+		String idempotencyKey = "idem-lost-response-" + UUID.randomUUID();
+		ProcessPaymentRequest request = new ProcessPaymentRequest(
+			UUID.randomUUID(), 93, idempotencyKey, new BigDecimal("10.01"), "USD");
+
+		// The server commits successfully, but the client discards the response as if
+		// the connection failed before it could read it.
+		client.post().uri("/api/payments")
+			.contentType(MediaType.APPLICATION_JSON)
+			.bodyValue(request)
+			.exchange()
+			.expectStatus().isOk();
+		assertThat(countPayments(idempotencyKey)).isEqualTo(1);
+		assertThat(countOutboxEvents(idempotencyKey)).isEqualTo(1);
+		Payment committed = paymentRepository.findByIdempotencyKey(idempotencyKey).orElseThrow();
+
+		PaymentRecordDto retry = client.post().uri("/api/payments")
+			.contentType(MediaType.APPLICATION_JSON)
+			.bodyValue(request)
+			.exchange()
+			.expectStatus().isOk()
+			.expectBody(PaymentRecordDto.class)
+			.returnResult()
+			.getResponseBody();
+
+		assertThat(retry).isNotNull();
+		assertThat(retry.transactionId()).isEqualTo(committed.getTransactionId());
+		assertThat(countPayments(idempotencyKey)).isEqualTo(1);
+		assertThat(countOutboxEvents(idempotencyKey)).isEqualTo(1);
+	}
+
+	@Test
 	void concurrentSamePayload_requestsCreateOnePaymentAndBothSucceed() throws Exception {
 		WebTestClient client = createClient();
 		String idempotencyKey = "idem-concurrent-same-" + UUID.randomUUID();

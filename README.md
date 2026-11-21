@@ -7,7 +7,7 @@
 [![Redis](https://img.shields.io/badge/Redis-7-red.svg)](https://redis.io/)
 [![Testcontainers](https://img.shields.io/badge/Testcontainers-1.20.6-black.svg)](https://testcontainers.com/)
 [![Security: Fail-Closed OIDC](https://img.shields.io/badge/Security-Fail--Closed_OIDC-blueviolet.svg)](#4-defense-in-depth-security--access-governance)
-[![Tests: 173 Passed](https://img.shields.io/badge/Tests-173_Passed_(0_Failures)-brightgreen.svg)](#6-verifiable-claims-to-evidence-matrix)
+[![Tests: 175 Passed](https://img.shields.io/badge/Tests-175_Passed_(0_Failures)-brightgreen.svg)](docs/portfolio/recruiter-evidence-2026-11-21.md)
 
 ---
 
@@ -28,7 +28,7 @@ Instead of relying on fragile in-memory synchronization or optimistic applicatio
 | **Cache Fault Tolerance** | Redis look-aside cache (`@Cacheable` / `@CacheEvict`) backed by custom `CacheErrorHandler` logging warnings and falling through to PostgreSQL without throwing 500s. | `RedisOutageIntegrationTest` using Testcontainers Docker API container pause (`dockerClient.pauseContainerCmd`). |
 | **Security & Governance** | Fail-closed OIDC resource server under production profile (mandatory HTTPS issuer, audience check, strict CORS, security headers), BOLA ownership checks, and token bucket rate limiting (100 req/min). | `ProductionOidcConfigTest`, `ProductionSecurityHeadersTest`, `AuthSecurityIntegrationTest`. |
 | **DevSecOps Automation** | Multi-stage Dockerfile (`USER 10001:10001`), Trivy image scanner (`HIGH,CRITICAL`), CycloneDX SBOM generation, Kubernetes manifest dry-run parsing, and Terraform validation in CI. | GitHub Actions CI (`.github/workflows/ci.yml`), `scripts/ci-gate.sh`. |
-| **Automated Test Suite** | **173 automated tests passed across 37 test classes**: 135 pure unit & slice tests across 28 classes + 38 Testcontainers integration tests across 9 classes (PostgreSQL 15, RabbitMQ 3, Redis 7, MongoDB 7). *(Note: `mvn test -Dtest='!*Integration*'` executes 144 tests across 31 classes by name pattern, 3 of which utilize Testcontainers).* | Verified across PostgreSQL 15, RabbitMQ 3, Redis 7, and MongoDB 7 test suites. |
+| **Automated Test Suite** | **175 tests passed, 0 failures, 0 errors, 0 skipped** in the integration CI job at public commit `aa5ac1c` (2026-11-19). Earlier 173-test and class-category counts are historical. | [CI run 44504582438](https://github.com/imtarget05/FlashSale-Backend/actions/runs/44504582438); [recruiter evidence](docs/portfolio/recruiter-evidence-2026-11-21.md). |
 
 ---
 
@@ -385,7 +385,7 @@ Spins up isolated PostgreSQL 15, Redis 7, RabbitMQ 3, and MongoDB 7 containers v
 cd src/payment-service-java
 mvn test -Dspring.flyway.enabled=true
 ```
-*Expected Result*: `BUILD SUCCESS` (**173 automated tests passed across 37 test classes**: 135 pure unit & slice tests across 28 classes + 38 Testcontainers integration tests across 9 classes covering PostgreSQL 15, RabbitMQ 3, Redis 7, MongoDB 7; 0 failures, 0 errors).
+*Published CI baseline at `aa5ac1c`*: `BUILD SUCCESS` (**175 tests passed, 0 failures, 0 errors, 0 skipped**). Local counts may change as new tests are added.
 
 ### 3. Run End-to-End Local CI Gate
 Simulates the entire GitHub Actions pipeline locally (compilation, unit testing, container build, user check, and Kubernetes manifest validation):
