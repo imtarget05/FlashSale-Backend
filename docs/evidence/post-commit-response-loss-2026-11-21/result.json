@@ -1,0 +1,16 @@
+{
+  "result": "passed",
+  "idempotency_key": "crash-drill-e3b85364-4652-42a0-88fa-a29bd1f32708",
+  "upstream_status": 200,
+  "process_killed": true,
+  "client_response_lost": true,
+  "retry_status": 200,
+  "before": {
+    "payment_records": 1,
+    "payment_outbox": 1
+  },
+  "after": {
+    "payment_records": 1,
+    "payment_outbox": 1
+  }
+}

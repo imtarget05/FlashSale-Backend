@@ -6,6 +6,8 @@ Local reproduction on 2026-11-21: clean clone at the same SHA, macOS, Java 17, D
 
 The evidence branch adds `responseLostAfterCommit_retryReturnsPersistedPaymentWithoutNewOutboxEvent` to model a client that discards a successful server response and retries. Its targeted Testcontainers run passed (1 test, 0 failures/errors/skips). This models response loss after a committed request; it does not inject an actual process crash between DB commit and socket write.
 
+The [local k6 payment-path benchmark](../benchmarks/payment-path-k6-2026-11-21/README.md) now reports throughput, p95/p99, error rate, hardware and raw summaries for three fixed VU levels. The [process-crash drill](../evidence/post-commit-response-loss-2026-11-21/README.md) kills the demo API after commit while withholding the response from the client, then verifies one payment and one outbox row after retry. Both results are local and have explicit boundaries.
+
 | Claim | Where to inspect | Limit |
 | --- | --- | --- |
 | Transaction and idempotency behavior | `src/payment-service-java/src/test/java/com/flashsale/payment/integration/` and the CI integration job | A green suite does not by itself prove crash recovery at every commit/response boundary |
