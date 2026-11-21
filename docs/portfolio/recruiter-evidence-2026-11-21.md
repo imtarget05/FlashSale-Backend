@@ -1,5 +1,7 @@
 # Recruiter evidence — FlashSale-Backend
 
+Current evidence branch: [`5352872`](https://github.com/imtarget05/FlashSale-Backend/commit/5352872ef190a38610ba35bb0d7f9ab64db8ad0f) in [draft PR #34](https://github.com/imtarget05/FlashSale-Backend/pull/34). Its [Java CI integration run](https://github.com/imtarget05/FlashSale-Backend/actions/runs/44914783906) reports **176 tests, 0 failures, 0 errors, 0 skipped; BUILD SUCCESS**. This includes the pre-response JVM crash test and is separate from the public `main` baseline below.
+
 Public baseline: [`aa5ac1c827145e2af8ff2117960e5836389e6b9c`](https://github.com/imtarget05/FlashSale-Backend/commit/aa5ac1c827145e2af8ff2117960e5836389e6b9c). The [FlashSale Java CI run on 2026-11-19](https://github.com/imtarget05/FlashSale-Backend/actions/runs/44504582438) passed all five configured jobs. The integration job's Maven summary reports **175 tests run, 0 failures, 0 errors, 0 skipped; BUILD SUCCESS**. This is evidence for the public commit, not for changes in another uncommitted checkout.
 
 Local reproduction on 2026-11-21: clean clone at the same SHA, macOS, Java 17, Docker 29.6.1, `cd src/payment-service-java && mvn -B -q verify` exited 0. The 38 Surefire XML reports total **175 tests, 0 failures, 0 errors, 0 skipped**. Testcontainers used the local Docker daemon. This run did not benchmark production latency.
