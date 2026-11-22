@@ -57,7 +57,7 @@ jobs:
           data = YAML.load_file('render.yaml')
           services = Array(data['services'])
           expected = {
-            'flashsale-payment-api-preview' => 'main',
+            'flashsale-payment-api-preview' => 'preview',
             'flashsale-payment-api-prod' => 'main'
           }
 
@@ -72,7 +72,12 @@ jobs:
             required_env_vars = {
               'OIDC_ISSUER_URI' => { 'sync' => false },
               'OIDC_AUDIENCE' => { 'sync' => false },
-              'OIDC_AUTHORITIES_CLAIM' => { 'value' => 'roles' }
+              'OIDC_AUTHORITIES_CLAIM' => { 'value' => 'roles' },
+              'APP_SECURITY_ALLOWED_ORIGINS' => {
+                'value' => name.end_with?('-preview') ?
+                  'https://preview.flashsale-frontend.pages.dev' :
+                  'https://flashsale-frontend.pages.dev'
+              }
             }
             required_env_vars.each do |key, settings|
               variable = env_vars.find { |item| item['key'] == key }
@@ -130,13 +135,28 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Verify browser preflight to preview API
+        run: |
+          origin=https://preview.flashsale-frontend.pages.dev
+          headers=$(curl --fail --silent --show-error --max-time 30 -D - -o /dev/null \
+            -X OPTIONS "$RENDER_URL/api/orders" \
+            -H "Origin: $origin" -H 'Access-Control-Request-Method: POST')
+          printf '%s\n' "$headers" | grep -Fiq "access-control-allow-origin: $origin"
+          printf '%s\n' "$headers" | grep -Fiq 'access-control-allow-methods:'
+
       - name: Build and deploy Cloudflare Pages preview
         run: |
           npm ci --prefix frontend
           VITE_API_URL="$RENDER_URL" VITE_ENV=preview npm run build --prefix frontend
+          if ! grep -RFl -- "$RENDER_URL" frontend/dist/assets/*.js >/dev/null; then
+            echo 'Built frontend does not contain the configured preview API URL.' >&2
+            exit 1
+          fi
           npx --yes wrangler@4 pages deploy frontend/dist \
             --project-name=flashsale-frontend \
             --branch=preview
+          PAGE_URL=https://preview.flashsale-frontend.pages.dev \
+            EXPECTED_API_URL="$RENDER_URL" python3 scripts/verify_frontend_edge.py
 
   deploy-production:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy_to_production
@@ -179,9 +199,24 @@ jobs:
           node-version: '22'
 
       - name: Build and deploy Cloudflare Pages production
+        # The API is a separate origin; the browser must be allowed through CORS.
+        # Check this before publishing a frontend that could otherwise load but fail on every API call.
+        env:
+          FRONTEND_ORIGIN: https://flashsale-frontend.pages.dev
         run: |
+          headers=$(curl --fail --silent --show-error --max-time 30 -D - -o /dev/null \
+            -X OPTIONS "$RENDER_URL/api/orders" \
+            -H "Origin: $FRONTEND_ORIGIN" -H 'Access-Control-Request-Method: POST')
+          printf '%s\n' "$headers" | grep -Fiq "access-control-allow-origin: $FRONTEND_ORIGIN"
+          printf '%s\n' "$headers" | grep -Fiq 'access-control-allow-methods:'
           npm ci --prefix frontend
           VITE_API_URL="$RENDER_URL" VITE_ENV=production npm run build --prefix frontend
+          if ! grep -RFl -- "$RENDER_URL" frontend/dist/assets/*.js >/dev/null; then
+            echo 'Built frontend does not contain the configured production API URL.' >&2
+            exit 1
+          fi
           npx --yes wrangler@4 pages deploy frontend/dist \
             --project-name=flashsale-frontend \
             --branch=main
+          PAGE_URL=https://flashsale-frontend.pages.dev \
+            EXPECTED_API_URL="$RENDER_URL" python3 scripts/verify_frontend_edge.py

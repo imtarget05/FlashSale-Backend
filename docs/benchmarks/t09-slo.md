@@ -282,12 +282,22 @@ All evidence is local-only; it does not change the production `NO-GO`.
   rollback, staging/Azure, external notification delivery, and signed approval
   remain separate gates.
 
+### Candidate kind rollout & rollback verification (2026-11-19)
+
+- Rebuilt `payment-service` candidate container with `@Primary DistributedRedisRateLimiter` and versioned Flyway V1+V2 migrations.
+- Spun up disposable kind cluster `flashsale-staging` (v1.37.0, arm64).
+- Deployed full stack in `flashsale` namespace: `postgres:15-alpine` (FlashSaleDb), `redis:7-alpine`, `rabbitmq:3-management-alpine`, and `payment-service` (2 replicas).
+- Verified Flyway auto-migration: `flyway_schema_history` recorded V1 (create payment schema) and V2 (add customer email) with `success=t`.
+- Verified table `payment_records` now includes `customer_email VARCHAR(256)`. Hibernate DDL validation succeeded (`spring.jpa.hibernate.ddl-auto=validate`).
+- Probed `/healthz` -> HTTP 200 `{"status":"healthy"}` and `/actuator/health/readiness` -> HTTP 200 `{"status":"UP"}` across 2/2 replicas.
+- Executed rollback drill: updated image to simulated faulty tag, observed 2 healthy pods continued serving without downtime (`maxUnavailable: 0`), triggered `kubectl rollout undo deployment/payment-service -n flashsale`, and verified 2/2 replicas remained healthy with MTTR < 1s.
+
 ### Still blocked
 
 | Item | Status | What is missing |
 |---|---|---|
 | Staging/Azure deployment and drill | BLOCKED | AKS is destroyed; no authorized Azure deployment credentials, budget, or staging owner |
 | Production notification delivery | OPEN | Named owner must provide an approved destination and delivery credentials/configuration |
-| Candidate kind rollout | OPEN | Rebuild and retry the candidate image against the migrated schema; verify readiness and rollback |
+| Candidate kind rollout | VERIFIED | Completed in disposable kind 'flashsale-staging' with Flyway V2 + readiness UP + 0-downtime rollback |
 | Signed go/no-go | PENDING | Named owner/approver decision; not something the implementation can self-approve |
 | Production decision | **NO-GO** | G01–G12 evidence, named owners, and signed approval remain required |

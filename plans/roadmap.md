@@ -14,3 +14,6 @@ This project evolves through an evidence-driven engineering workflow. Technologi
 - [ ] **Phase 10**: Observability (OpenTelemetry, App Insights) *(Log Analytics + Container Insights đã provision; wiring OTel SDK còn lại)*
 - [x] **Phase 11**: Failure experiments (Chaos engineering & Postmortems) *(postmortem overselling + drift-DLQ runbook)*
 - [x] **Phase 12**: AKS / GitOps (Advanced platform-engineering phase) *(kustomize base/overlays + ArgoCD/KEDA trong 03-AKS-SRE-Platform)*
+- [ ] **Phase 13**: Service Mesh (Istio Ambient) *(in cluster not have istio/ztunnel/waypoint — verified 0 pod)*
+- [ ] **Phase 14–18**: Incident Drills & Hardening *(require docs/incidents/INC-007…INC-010)*
+- [ ] **Phase 16**: Scaling Validation *(KEDA ScaledObject kafka-lag + HPA ran on kind ✅; missing burst→lag→scale→drain→down drill)*

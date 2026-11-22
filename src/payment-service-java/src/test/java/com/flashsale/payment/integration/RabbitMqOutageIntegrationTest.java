@@ -46,7 +46,8 @@ class RabbitMqOutageIntegrationTest {
 	static RabbitMQContainer rabbitmq = new RabbitMQContainer(
 		DockerImageName.parse("rabbitmq:3-management-alpine"))
 		.withCreateContainerCmdModifier(cmd -> cmd.withUser("100:101"))
-		.waitingFor(Wait.forSuccessfulCommand("rabbitmq-diagnostics -q check_running"));
+		.waitingFor(Wait.forSuccessfulCommand("rabbitmq-diagnostics -q check_running"))
+		.withStartupTimeout(Duration.ofMinutes(2));
 
 	@DynamicPropertySource
 	static void properties(DynamicPropertyRegistry registry) {

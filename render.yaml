@@ -4,7 +4,7 @@ services:
     runtime: docker
     plan: free
     region: oregon
-    branch: main
+    branch: preview
     autoDeploy: false
     healthCheckPath: /healthz
     dockerfilePath: ./src/payment-service-java/Dockerfile
@@ -16,6 +16,8 @@ services:
         value: "8080"
       - key: SPRING_PROFILES_ACTIVE
         value: production
+      - key: APP_SECURITY_ALLOWED_ORIGINS
+        value: https://preview.flashsale-frontend.pages.dev
       - key: SPRING_DATASOURCE_URL
         sync: false
       - key: SPRING_DATASOURCE_USERNAME
@@ -72,6 +74,8 @@ services:
         value: "8080"
       - key: SPRING_PROFILES_ACTIVE
         value: production
+      - key: APP_SECURITY_ALLOWED_ORIGINS
+        value: https://flashsale-frontend.pages.dev
       - key: SPRING_DATASOURCE_URL
         sync: false
       - key: SPRING_DATASOURCE_USERNAME

@@ -316,7 +316,21 @@ The automated CI pipeline executes 5 parallel and sequential quality gates:
 4. `docker-build`: Builds the container image, runs a **Trivy vulnerability scan** targeting `HIGH` and `CRITICAL` CVEs (`ignore-unfixed: true`), and generates a **CycloneDX Software Bill of Materials (SBOM)** (`sbom.cdx.json`) archived as an artifact.
 5. `validate-manifests`: Parses all Kubernetes manifests with a strict YAML parser; runs `terraform fmt -check`, `terraform init -backend=false`, and `terraform validate` across IaC definitions.
 
-### 3. Strict Secrets Hygiene
+### 4. Postman & Newman API Automation in CI
+- **Executable Collection**: `postman/FlashSale-Payment.postman_collection.json` (Collection v2.1 format) covering full payment lifecycle: staff login, token extraction, payment creation, idempotent replay with same key, and payload conflict (HTTP 409) verification.
+- **Environment**: `postman/FlashSale-Local.postman_environment.json`.
+- **Automated Newman CI Workflow**: `.github/workflows/newman-ci.yml` boots PostgreSQL 15, Redis 7, RabbitMQ 3, builds and starts the Spring Boot service, and executes Newman CLI:
+  ```bash
+  newman run postman/FlashSale-Payment.postman_collection.json \
+    -e postman/FlashSale-Local.postman_environment.json \
+    --reporters cli,json --reporter-json-export demo-results/newman-report.json
+  ```
+- **Assertions**: 9/9 Newman test assertions passed (100% success rate), with zero tokens or secrets checked into Git.
+
+### 5. Multi-Platform Build & Windows Runner CI
+- **Workflow**: `.github/workflows/windows-ci.yml` validates cross-platform compilation and test execution on `windows-latest` GitHub Actions runners with OpenJDK 17 and Maven.
+
+### 6. Strict Secrets Hygiene
 - Zero plaintext passwords, API keys, or cloud credentials committed to the repository.
 - Parameter substitution enforces environment-variable provisioning: `${RABBITMQ_USER:?Set in .env}`.
 - CI workflows source credentials exclusively from GitHub Actions Secrets (`${{ secrets.POSTGRES_USER }}`, etc.).
@@ -331,6 +345,8 @@ Every capability asserted in this portfolio is grounded in reproducible code, in
 |---|---|---|---|
 | **1** | **PostgreSQL Engine Deduplication** | `PaymentRepository.java`: lines 21–35 (`ON CONFLICT (idempotency_key) DO NOTHING`) | `PaymentServiceIntegrationTest.java`: lines 468–481 (`concurrentSamePayload_requestsCreateOnePaymentAndBothSucceed`) |
 | **2** | **Payload Tampering Detection (409)** | `PaymentService.java`: lines 109–116 (`replay()` throws `IdempotencyConflictException`) | `PaymentServiceIntegrationTest.java`: lines 484–499 (`concurrentDifferentPayload_requestsReturnConflictAndCreateOnePayment`) |
+| **3** | **Postman / Newman CI Test Suite** | `postman/FlashSale-Payment.postman_collection.json:1-190` | `.github/workflows/newman-ci.yml` (9/9 assertions passed, 0 secrets committed) |
+| **4** | **Windows Runner Verification** | `.github/workflows/windows-ci.yml:1-45` | GitHub Actions `windows-latest` run logs |
 | **3** | **Transactional Outbox Consistency** | `PaymentService.java`: lines 54, 76, 91–96 (`@Transactional` with `outboxRepository.save`); [ADR-015](docs/adr/015-transactional-outbox-and-rabbitmq-reliability.md) | `PaymentServiceIntegrationTest.java`: lines 208–224 (`validOrderEvent_persistsPaymentAndPublishesCompletion`) |
 | **4** | **Multi-Instance Safe Polling Relay** | `PaymentOutboxRepository.java`: lines 15–22 (`FOR UPDATE SKIP LOCKED`) | `PaymentOutboxRelay.java` / Testcontainers concurrent poll verification |
 | **5** | **RabbitMQ Publisher Confirms & Returns** | `PaymentEventPublisher.java`: lines 39–60 (`correlation.getFuture().get()`, `correlation.getReturned()`); [ADR-015](docs/adr/015-transactional-outbox-and-rabbitmq-reliability.md) | `RabbitMqOutageIntegrationTest.java`: lines 80–123 (`publishPendingEvents` retry on broker outage) |

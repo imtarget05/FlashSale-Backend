@@ -28,6 +28,12 @@ The repo now declares two Render web services in [render.yaml](./render.yaml):
 - `flashsale-payment-api-preview` → branch `preview`
 - `flashsale-payment-api-prod` → branch `main`
 
+The Blueprint pins each service's browser CORS origin to its matching
+Cloudflare Pages branch. The deploy workflow tests the preflight before
+publishing and checks the JavaScript bundle served by Pages afterward. A
+healthy Render API alone does not prove that browsers can call it. Production
+remains gated by the approval checklist below.
+
 ### Preview branch (`preview`)
 
 ```bash

@@ -7,17 +7,29 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # policy-gate.py lives in the sibling AKS-SRE-Platform repo
 AKS_REPO = REPO_ROOT.parent / "AKS-SRE-Platform"
-spec = importlib.util.spec_from_file_location(
-    "policy_gate", AKS_REPO / "scripts" / "policy-gate.py"
+SCRIPT_PATH = AKS_REPO / "scripts" / "policy-gate.py"
+
+pytestmark = pytest.mark.skipif(
+    not SCRIPT_PATH.exists(),
+    reason="AKS-SRE-Platform sibling repo not present in workspace",
 )
-policy_gate = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(policy_gate)  # type: ignore[attr-defined]
-check_images = policy_gate.check_images
-check_pod_spec = policy_gate.check_pod_spec
+
+if SCRIPT_PATH.exists():
+    spec = importlib.util.spec_from_file_location("policy_gate", SCRIPT_PATH)
+    policy_gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(policy_gate)  # type: ignore[attr-defined]
+    check_images = policy_gate.check_images
+    check_pod_spec = policy_gate.check_pod_spec
+else:
+    policy_gate = None
+    check_images = None
+    check_pod_spec = None
 
 
 def reset_failures():
